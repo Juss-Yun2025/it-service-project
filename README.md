@@ -43,7 +43,7 @@ itsm-project/
 
 ### 1. 저장소 클론
 ```bash
-git clone https://github.com/사용자명/itsm-project.git
+git clone https://github.com/Juss-Yun/itsm-project.git
 cd itsm-project
 ```
 
