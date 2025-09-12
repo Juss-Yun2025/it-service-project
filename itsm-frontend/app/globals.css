@@ -1,0 +1,549 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+  
+  /* 피그마 디자인 시스템 - 색상 */
+  --figma-primary: #3b82f6;        /* 피그마에서 추출한 Primary 색상 */
+  --figma-primary-hover: #2563eb;  /* 피그마에서 추출한 Primary Hover 색상 */
+  --figma-secondary: #6b7280;      /* 피그마에서 추출한 Secondary 색상 */
+  --figma-success: #10b981;        /* 피그마에서 추출한 Success 색상 */
+  --figma-warning: #f59e0b;        /* 피그마에서 추출한 Warning 색상 */
+  --figma-error: #ef4444;          /* 피그마에서 추출한 Error 색상 */
+  --figma-background: #ffffff;     /* 피그마에서 추출한 Background 색상 */
+  --figma-surface: #f9fafb;        /* 피그마에서 추출한 Surface 색상 */
+  --figma-text-primary: #111827;   /* 피그마에서 추출한 Primary Text 색상 */
+  --figma-text-secondary: #6b7280; /* 피그마에서 추출한 Secondary Text 색상 */
+  
+  /* 피그마 디자인 시스템 - 타이포그래피 */
+  --figma-font-family: 'Inter', system-ui, sans-serif; /* 피그마에서 사용된 폰트 */
+  --figma-font-size-xs: 0.75rem;   /* 피그마에서 추출한 XS 폰트 크기 */
+  --figma-font-size-sm: 0.875rem;  /* 피그마에서 추출한 SM 폰트 크기 */
+  --figma-font-size-base: 1rem;    /* 피그마에서 추출한 Base 폰트 크기 */
+  --figma-font-size-lg: 1.125rem;  /* 피그마에서 추출한 LG 폰트 크기 */
+  --figma-font-size-xl: 1.25rem;   /* 피그마에서 추출한 XL 폰트 크기 */
+  --figma-font-size-2xl: 1.5rem;   /* 피그마에서 추출한 2XL 폰트 크기 */
+  --figma-font-size-3xl: 1.875rem; /* 피그마에서 추출한 3XL 폰트 크기 */
+  
+  /* 피그마 디자인 시스템 - 간격 */
+  --figma-spacing-xs: 0.25rem;     /* 피그마에서 추출한 XS 간격 */
+  --figma-spacing-sm: 0.5rem;      /* 피그마에서 추출한 SM 간격 */
+  --figma-spacing-md: 1rem;        /* 피그마에서 추출한 MD 간격 */
+  --figma-spacing-lg: 1.5rem;      /* 피그마에서 추출한 LG 간격 */
+  --figma-spacing-xl: 2rem;        /* 피그마에서 추출한 XL 간격 */
+  --figma-spacing-2xl: 3rem;       /* 피그마에서 추출한 2XL 간격 */
+  
+  /* 피그마 디자인 시스템 - 그림자 */
+  --figma-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);     /* 피그마에서 추출한 SM 그림자 */
+  --figma-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);   /* 피그마에서 추출한 MD 그림자 */
+  --figma-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1); /* 피그마에서 추출한 LG 그림자 */
+  --figma-shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1); /* 피그마에서 추출한 XL 그림자 */
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* 커스텀 배경 스타일 */
+.hero-background {
+  /* 풍경 이미지 + 살짝 어둡게 오버레이 */
+  background:
+    linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.35)),
+    url('/landscape.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  position: relative;
+}
+
+.hero-background::before {
+  /* 패턴 오버레이 제거 */
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.hero-background::after {
+  /* 보조 글레어 최소화 */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.02) 100%);
+  z-index: 2;
+  pointer-events: none;
+}
+
+.hero-content {
+  position: relative;
+  z-index: 3;
+}
+
+/* 애니메이션 배경 */
+.animated-background {
+  background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+  background-size: 400% 400%;
+  animation: gradient 15s ease infinite;
+}
+
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* 서비스 관리 배경 */
+.service-background {
+  background: 
+    linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%),
+    url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%239C92AC' fill-opacity='0.05'%3E%3Cpath d='M20 20c0 11.046-8.954 20-20 20s-20-8.954-20-20 8.954-20 20-20 20 8.954 20 20zm0-20c0 11.046-8.954 20-20 20s-20-8.954-20-20 8.954-20 20-20 20 8.954 20 20z'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* 대시보드 배경 */
+.dashboard-background {
+  /* 대시보드도 동일 톤으로 통일 */
+  background: linear-gradient(135deg, #3730a3 0%, #7c3aed 100%);
+}
+
+/* 서비스 신청 폼 스타일링 */
+.service-request-form {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e5e7eb;
+}
+
+.service-request-form input,
+.service-request-form select,
+.service-request-form textarea {
+  transition: all 0.2s ease;
+  border: 1px solid #d1d5db;
+  background: white;
+}
+
+.service-request-form input:focus,
+.service-request-form select:focus,
+.service-request-form textarea:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  outline: none;
+}
+
+.service-request-form input[readonly],
+.service-request-form select[disabled] {
+  background: #f9fafb;
+  color: #6b7280;
+  cursor: not-allowed;
+}
+
+.service-request-form select[disabled] {
+  opacity: 0.7;
+}
+
+/* 4열 그리드 반응형 */
+@media (max-width: 1024px) {
+  .service-request-form .grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .service-request-form .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ITSM 디자인 시스템 추가 스타일 */
+.itsm-card {
+  @apply bg-white rounded-lg shadow-md border border-gray-200 p-6;
+}
+
+.itsm-card:hover {
+  @apply shadow-lg transition-shadow duration-200;
+}
+
+.itsm-button-primary {
+  @apply bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors;
+}
+
+.itsm-button-secondary {
+  @apply bg-gray-200 hover:bg-gray-300 text-gray-900 px-4 py-2 rounded-lg font-medium transition-colors;
+}
+
+.itsm-input {
+  @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+}
+
+.itsm-modal-overlay {
+  @apply fixed inset-0 bg-black/50 flex items-center justify-center z-50;
+}
+
+.itsm-modal-content {
+  @apply bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto;
+}
+
+.itsm-status-success {
+  @apply inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800;
+}
+
+.itsm-status-warning {
+  @apply inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800;
+}
+
+.itsm-status-error {
+  @apply inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800;
+}
+
+.itsm-status-info {
+  @apply inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800;
+}
+
+/* 피그마 디자인 반영을 위한 추가 스타일 */
+.itsm-header {
+  @apply bg-white shadow-sm border-b border-gray-200;
+}
+
+.itsm-main-content {
+  @apply max-w-7xl mx-auto px-6 py-8;
+}
+
+.itsm-grid-4 {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6;
+}
+
+.itsm-grid-3 {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6;
+}
+
+.itsm-grid-2 {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-6;
+}
+
+/* 피그마 디자인 시스템 - 컴포넌트 스타일 */
+.figma-button-primary {
+  background-color: var(--figma-primary);
+  color: white;
+  padding: var(--figma-spacing-sm) var(--figma-spacing-md);
+  border-radius: 0.5rem;
+  font-family: var(--figma-font-family);
+  font-size: var(--figma-font-size-base);
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.figma-button-primary:hover {
+  background-color: var(--figma-primary-hover);
+}
+
+.figma-button-secondary {
+  background-color: var(--figma-secondary);
+  color: white;
+  padding: var(--figma-spacing-sm) var(--figma-spacing-md);
+  border-radius: 0.5rem;
+  font-family: var(--figma-font-family);
+  font-size: var(--figma-font-size-base);
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.figma-button-outline {
+  background-color: transparent;
+  color: var(--figma-primary);
+  padding: var(--figma-spacing-sm) var(--figma-spacing-md);
+  border: 1px solid var(--figma-primary);
+  border-radius: 0.5rem;
+  font-family: var(--figma-font-family);
+  font-size: var(--figma-font-size-base);
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.figma-button-outline:hover {
+  background-color: var(--figma-primary);
+  color: white;
+}
+
+.figma-card {
+  background-color: var(--figma-background);
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: var(--figma-spacing-lg);
+  box-shadow: var(--figma-shadow-md);
+  transition: box-shadow 0.2s ease;
+}
+
+.figma-card:hover {
+  box-shadow: var(--figma-shadow-lg);
+}
+
+.figma-input {
+  width: 100%;
+  padding: var(--figma-spacing-sm) var(--figma-spacing-md);
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  font-family: var(--figma-font-family);
+  font-size: var(--figma-font-size-base);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.figma-input:focus {
+  outline: none;
+  border-color: var(--figma-primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.figma-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.figma-modal-content {
+  background-color: var(--figma-background);
+  border-radius: 0.5rem;
+  padding: var(--figma-spacing-lg);
+  max-width: 32rem;
+  width: 100%;
+  margin: var(--figma-spacing-md);
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: var(--figma-shadow-xl);
+}
+
+.figma-status-success {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--figma-spacing-xs) var(--figma-spacing-sm);
+  font-size: var(--figma-font-size-xs);
+  font-weight: 600;
+  border-radius: 9999px;
+  background-color: #dcfce7;
+  color: #166534;
+}
+
+.figma-status-warning {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--figma-spacing-xs) var(--figma-spacing-sm);
+  font-size: var(--figma-font-size-xs);
+  font-weight: 600;
+  border-radius: 9999px;
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.figma-status-error {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--figma-spacing-xs) var(--figma-spacing-sm);
+  font-size: var(--figma-font-size-xs);
+  font-weight: 600;
+  border-radius: 9999px;
+  background-color: #fee2e2;
+  color: #991b1b;
+}
+
+.figma-status-info {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--figma-spacing-xs) var(--figma-spacing-sm);
+  font-size: var(--figma-font-size-xs);
+  font-weight: 600;
+  border-radius: 9999px;
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+/* 피그마 디자인 시스템 - 레이아웃 */
+.figma-header {
+  background-color: var(--figma-background);
+  border-bottom: 1px solid #e5e7eb;
+  box-shadow: var(--figma-shadow-sm);
+}
+
+.figma-main-content {
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: var(--figma-spacing-xl) var(--figma-spacing-lg);
+}
+
+.figma-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: var(--figma-spacing-lg);
+}
+
+@media (min-width: 768px) {
+  .figma-grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .figma-grid-4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.figma-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: var(--figma-spacing-lg);
+}
+
+@media (min-width: 768px) {
+  .figma-grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .figma-grid-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.figma-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: var(--figma-spacing-lg);
+}
+
+@media (min-width: 768px) {
+  .figma-grid-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
