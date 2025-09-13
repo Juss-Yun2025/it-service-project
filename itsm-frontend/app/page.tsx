@@ -145,9 +145,11 @@ export default function Home() {
     <div className="min-h-screen relative overflow-hidden">
       {/* 메인 배경 이미지 */}
       <div 
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+        className="absolute inset-0 bg-no-repeat"
         style={{
-          backgroundImage: `url('/image/메인페이지_배경_이미지.jpg')`
+          backgroundImage: `url('/image/메인페이지_배경_이미지.jpg')`,
+          backgroundSize: '1920px 1080px',
+          backgroundPosition: 'center center'
         }}
       ></div>
       
@@ -207,13 +209,11 @@ export default function Home() {
               </div>
             </div>
 
-            {/* 오른쪽 섹션 - 메뉴 + 커피잔 */}
-            <div className="space-y-4 sm:space-y-6">
-              {/* 메인 메뉴 항목들 + 커피잔 - 인터랙티브 반응형 스타일 */}
-              <div className="space-y-0 transform translate-x-[60%] relative">
-                {/* 커피잔 - 자주하는질문 이미지 (호버 시에만 표시) */}
-                {hoveredMenuItem === 'faq' && (
-                  <div className="fixed" style={{right: '20px', top: '50%', transform: 'translateY(-50%) translateX(-870px) translateY(-257px)'}}>
+            {/* 원형 이미지 레이어 - 메뉴와 독립적 */}
+            <div className="fixed inset-0 pointer-events-none z-10">
+              {/* 커피잔 - 자주하는질문 이미지 (호버 시에만 표시) */}
+              {hoveredMenuItem === 'faq' && (
+                <div className="absolute right-0 sm:right-2 lg:right-4 top-1/2 transform -translate-y-1/2 -translate-x-[275%] -translate-y-[112%]">
                     <div className="relative">
                       <div 
                         className="w-48 h-48 sm:w-56 sm:h-56 md:w-64 md:h-64 lg:w-72 lg:h-72 xl:w-80 xl:h-80 bg-cover bg-center rounded-full shadow-2xl transition-all duration-500 ease-in-out"
@@ -235,9 +235,9 @@ export default function Home() {
                   </div>
                 )}
                 
-                {/* 요청진행사항 이미지 (호버 시에만 표시) */}
-                {hoveredMenuItem === 'progress' && (
-                  <div className="fixed" style={{right: '20px', top: '50%', transform: 'translateY(-50%) translateX(-870px) translateY(-257px)'}}>
+              {/* 요청진행사항 이미지 (호버 시에만 표시) */}
+              {hoveredMenuItem === 'progress' && (
+                <div className="absolute right-0 sm:right-2 lg:right-4 top-1/2 transform -translate-y-1/2 -translate-x-[275%] -translate-y-[112%]">
                     <div className="relative">
                       <div 
                         className="w-48 h-48 sm:w-56 sm:h-56 md:w-64 md:h-64 lg:w-72 lg:h-72 xl:w-80 xl:h-80 bg-cover bg-center rounded-full shadow-2xl transition-all duration-500 ease-in-out"
@@ -259,9 +259,9 @@ export default function Home() {
                   </div>
                 )}
                 
-                {/* 서비스신청 이미지 (호버 시에만 표시) */}
-                {hoveredMenuItem === 'service-request' && (
-                  <div className="fixed" style={{right: '20px', top: '50%', transform: 'translateY(-50%) translateX(-870px) translateY(-257px)'}}>
+              {/* 서비스신청 이미지 (호버 시에만 표시) */}
+              {hoveredMenuItem === 'service-request' && (
+                <div className="absolute right-0 sm:right-2 lg:right-4 top-1/2 transform -translate-y-1/2 -translate-x-[275%] -translate-y-[112%]">
                     <div className="relative">
                       <div 
                         className="w-48 h-48 sm:w-56 sm:h-56 md:w-64 md:h-64 lg:w-72 lg:h-72 xl:w-80 xl:h-80 bg-cover bg-center rounded-full shadow-2xl transition-all duration-500 ease-in-out"
@@ -283,9 +283,9 @@ export default function Home() {
                   </div>
                 )}
                 
-                {/* 일반문의사항 이미지 (호버 시에만 표시) */}
-                {hoveredMenuItem === 'inquiry' && (
-                  <div className="fixed" style={{right: '20px', top: '50%', transform: 'translateY(-50%) translateX(-870px) translateY(-257px)'}}>
+              {/* 일반문의사항 이미지 (호버 시에만 표시) */}
+              {hoveredMenuItem === 'inquiry' && (
+                <div className="absolute right-0 sm:right-2 lg:right-4 top-1/2 transform -translate-y-1/2 -translate-x-[275%] -translate-y-[112%]">
                     <div className="relative">
                       <div 
                         className="w-48 h-48 sm:w-56 sm:h-56 md:w-64 md:h-64 lg:w-72 lg:h-72 xl:w-80 xl:h-80 bg-cover bg-center rounded-full shadow-2xl transition-all duration-500 ease-in-out"
@@ -306,6 +306,12 @@ export default function Home() {
                     </div>
                   </div>
                 )}
+            </div>
+
+            {/* 오른쪽 섹션 - 메뉴 */}
+            <div className="space-y-4 sm:space-y-6">
+              {/* 메인 메뉴 항목들 - 인터랙티브 반응형 스타일 */}
+              <div className="space-y-0 transform translate-x-[60%] relative">
                 {mainMenuItems.map((item, index) => {
                   const IconComponent = item.icon;
                   return (
