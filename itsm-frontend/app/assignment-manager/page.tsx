@@ -3,13 +3,13 @@
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
-export default function ServiceManagerPage() {
+export default function AssignmentManagerPage() {
   const router = useRouter();
 
   useEffect(() => {
     // 권한 확인 로직 (실제로는 서버에서 확인)
     const userRole = localStorage.getItem('userRole');
-    if (userRole !== 'service_manager') {
+    if (userRole !== 'assignment_manager') {
       router.push('/');
     }
   }, [router]);
@@ -18,37 +18,37 @@ export default function ServiceManagerPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
         <div className="bg-white rounded-lg shadow-lg p-6">
-          <h1 className="text-3xl font-bold text-gray-800 mb-6">서비스 관리자 페이지</h1>
+          <h1 className="text-3xl font-bold text-gray-800 mb-6">배정담당자 페이지</h1>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* 배정담당자 관리 */}
-            <div className="bg-purple-50 p-6 rounded-lg">
-              <h2 className="text-xl font-semibold text-purple-800 mb-4">배정담당자 관리</h2>
-              <p className="text-gray-600 mb-4">배정담당자들의 업무를 관리합니다.</p>
+            {/* 서비스 신청 배정 */}
+            <div className="bg-blue-50 p-6 rounded-lg">
+              <h2 className="text-xl font-semibold text-blue-800 mb-4">서비스 신청 배정</h2>
+              <p className="text-gray-600 mb-4">서비스 신청된 데이터의 조치담당자를 배정하는 업무를 진행합니다.</p>
               <div className="space-y-2">
                 <div className="bg-white p-3 rounded border">
-                  <p className="font-medium">김배정 (배정담당자)</p>
-                  <p className="text-sm text-gray-500">처리 중: 3건 | 완료: 15건</p>
+                  <p className="font-medium">문서 출력 문제</p>
+                  <p className="text-sm text-gray-500">2025-01-15 | 긴급</p>
                 </div>
                 <div className="bg-white p-3 rounded border">
-                  <p className="font-medium">이배정 (배정담당자)</p>
-                  <p className="text-sm text-gray-500">처리 중: 2건 | 완료: 12건</p>
+                  <p className="font-medium">네트워크 연결 오류</p>
+                  <p className="text-sm text-gray-500">2025-01-15 | 보통</p>
                 </div>
               </div>
             </div>
 
-            {/* 조치담당자 관리 */}
-            <div className="bg-orange-50 p-6 rounded-lg">
-              <h2 className="text-xl font-semibold text-orange-800 mb-4">조치담당자 관리</h2>
-              <p className="text-gray-600 mb-4">소속 조치담당자들의 업무를 관리합니다.</p>
+            {/* 일반 문의 답변 */}
+            <div className="bg-green-50 p-6 rounded-lg">
+              <h2 className="text-xl font-semibold text-green-800 mb-4">일반 문의 답변</h2>
+              <p className="text-gray-600 mb-4">일반 문의에 등록된 답변 업무를 진행합니다.</p>
               <div className="space-y-2">
                 <div className="bg-white p-3 rounded border">
-                  <p className="font-medium">박조치 (조치담당자)</p>
-                  <p className="text-sm text-gray-500">진행 중: 2건 | 완료: 20건</p>
+                  <p className="font-medium">시스템 사용 문의</p>
+                  <p className="text-sm text-gray-500">2025-01-15 | 답변 대기</p>
                 </div>
                 <div className="bg-white p-3 rounded border">
-                  <p className="font-medium">최조치 (조치담당자)</p>
-                  <p className="text-sm text-gray-500">진행 중: 1건 | 완료: 18건</p>
+                  <p className="font-medium">권한 변경 요청</p>
+                  <p className="text-sm text-gray-500">2025-01-15 | 처리 중</p>
                 </div>
               </div>
             </div>

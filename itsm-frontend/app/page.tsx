@@ -83,8 +83,57 @@ export default function Home() {
   const [selectedMenuItem, setSelectedMenuItem] = useState<string>("");
   const [isTechLogin, setIsTechLogin] = useState<boolean>(false);
   const [hoveredMenuItem, setHoveredMenuItem] = useState<string>("");
+  const [screenWidth, setScreenWidth] = useState<number>(0);
+  const [showSignupModal, setShowSignupModal] = useState<boolean>(false);
+  const [keepLoggedIn, setKeepLoggedIn] = useState<boolean>(false);
+  
+  // 회원가입 상태
+  const [signupEmail, setSignupEmail] = useState<string>("");
+  const [signupPassword, setSignupPassword] = useState<string>("");
+  const [signupConfirmPassword, setSignupConfirmPassword] = useState<string>("");
+  const [signupName, setSignupName] = useState<string>("");
+  const [signupPosition, setSignupPosition] = useState<string>("");
+  const [signupDepartment, setSignupDepartment] = useState<string>("");
+  const [signupContact, setSignupContact] = useState<string>("");
+  const [signupError, setSignupError] = useState<string>("");
   
   const router = useRouter();
+
+  // 화면 너비 감지 및 동적 위치 계산
+  useEffect(() => {
+    const handleResize = () => {
+      setScreenWidth(window.innerWidth);
+    };
+
+    // 초기 화면 너비 설정
+    handleResize();
+
+    // 리사이즈 이벤트 리스너 등록
+    window.addEventListener('resize', handleResize);
+
+    // 클린업
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
+  // 기준점들
+  const baseWidth1920 = 1920;
+  const basePosition1920 = -896; // 1920px에서 -896px
+  
+  // 동적 위치 계산 함수 (1px당 0.5px 이동)
+  const calculateDynamicPositionPx = () => {
+    if (screenWidth === 0) return basePosition1920;
+    
+    // 1px 변경당 0.5px 이동
+    const widthDifference = baseWidth1920 - screenWidth;
+    const positionAdjustment = widthDifference * 0.5;
+    const position = basePosition1920 + positionAdjustment;
+    
+    return position;
+  };
+
+  const dynamicPositionPx = calculateDynamicPositionPx();
 
   // 로그인 처리
   const handleLogin = () => {
@@ -99,11 +148,36 @@ export default function Home() {
       setEmail("");
       setPassword("");
       
-      // 선택된 메뉴 항목이 있으면 해당 페이지로 이동
-      if (selectedMenuItem) {
-        const menuItem = mainMenuItems.find(item => item.id === selectedMenuItem);
-        if (menuItem) {
-          router.push(menuItem.path);
+      // 사용자 역할을 localStorage에 저장
+      localStorage.setItem('userRole', user.role);
+      
+      // 권한별 페이지 라우팅
+      if (isTechLogin) {
+        // 기술자/관리자 로그인
+        switch (user.role) {
+          case 'system_admin':
+            router.push('/system-admin');
+            break;
+          case 'service_manager':
+            router.push('/service-manager');
+            break;
+          case 'technician':
+            router.push('/technician');
+            break;
+          case 'assignment_manager':
+            router.push('/assignment-manager');
+            break;
+          default:
+            setLoginError("권한이 없습니다.");
+            return;
+        }
+      } else {
+        // 일반 사용자 로그인
+        if (selectedMenuItem) {
+          const menuItem = mainMenuItems.find(item => item.id === selectedMenuItem);
+          if (menuItem) {
+            router.push(menuItem.path);
+          }
         }
       }
     } else {
@@ -139,6 +213,82 @@ export default function Home() {
     setEmail("");
     setPassword("");
     setSelectedMenuItem("");
+    setKeepLoggedIn(false);
+  };
+
+  // 회원가입 모달 열기
+  const handleShowSignup = () => {
+    setShowLoginModal(false);
+    setShowSignupModal(true);
+  };
+
+  // 회원가입 모달 닫기
+  const handleCloseSignupModal = () => {
+    setShowSignupModal(false);
+    setSignupError("");
+    setSignupEmail("");
+    setSignupPassword("");
+    setSignupConfirmPassword("");
+    setSignupName("");
+    setSignupPosition("");
+    setSignupDepartment("");
+    setSignupContact("");
+  };
+
+  // 회원가입 처리
+  const handleSignup = () => {
+    setSignupError("");
+
+    // 필수 항목 검증
+    if (!signupEmail || !signupPassword || !signupConfirmPassword || !signupName || !signupPosition || !signupDepartment || !signupContact) {
+      setSignupError("모든 필수 항목을 입력해주세요.");
+      return;
+    }
+
+    // 비밀번호 확인
+    if (signupPassword !== signupConfirmPassword) {
+      setSignupError("비밀번호가 일치하지 않습니다.");
+      return;
+    }
+
+    // 비밀번호 보안 검증 (영문, 숫자, 특수문자 조합 8~16자)
+    const passwordRegex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*])[a-zA-Z\d!@#$%^&*]{8,16}$/;
+    if (!passwordRegex.test(signupPassword)) {
+      setSignupError("비밀번호는 영문, 숫자, 특수문자 조합 8~16자여야 합니다.");
+      return;
+    }
+
+    // 이메일 형식 검증
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(signupEmail)) {
+      setSignupError("올바른 이메일 형식을 입력해주세요.");
+      return;
+    }
+
+    // 연락처 형식 검증 (010-1234-5678)
+    const contactRegex = /^010-\d{4}-\d{4}$/;
+    if (!contactRegex.test(signupContact)) {
+      setSignupError("연락처는 010-1234-5678 형식으로 입력해주세요.");
+      return;
+    }
+
+    // 회원가입 성공 (실제로는 서버에 전송)
+    const newUser = {
+      email: signupEmail,
+      password: signupPassword,
+      name: signupName,
+      role: "user", // 기본 권한: 일반사용자
+      position: signupPosition,
+      department: signupDepartment,
+      contact: signupContact,
+      createdAt: new Date().toISOString(),
+    };
+
+    // 사용자 목록에 추가 (실제로는 서버에 저장)
+    users.push(newUser);
+    
+    alert("회원가입이 완료되었습니다!");
+    handleCloseSignupModal();
   };
 
   return (
@@ -166,43 +316,42 @@ export default function Home() {
       {/* 메인 컨테이너 */}
       <div className="relative z-10 min-h-screen flex flex-col">
         {/* 상단 헤더 - 반응형 */}
-        <div className="flex justify-between items-center p-4 sm:p-6 lg:p-8">
-          <div className="flex items-center space-x-2 sm:space-x-4">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-sm">
-              <Laptop className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-white" />
+        <div className="flex justify-between items-center p-8">
+          <div className="flex items-center space-x-4">
+            <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-sm">
+              <Laptop className="w-6 h-6 text-white" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-lg sm:text-xl lg:text-3xl font-bold text-white truncate">IT Service Management</h1>
-              <p className="text-gray-300 text-xs sm:text-sm hidden sm:block">통합 IT 서비스 관리 시스템</p>
+              <h1 className="text-3xl font-bold text-white truncate">IT Service Management</h1>
+              <p className="text-gray-300 text-sm">통합 IT 서비스 관리 시스템</p>
             </div>
           </div>
           
           {/* 기술자 로그인 버튼 - 반응형 */}
-          <div className="bg-gray-600/50 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full backdrop-blur-sm">
+          <div className="bg-gray-600/50 px-4 py-2 rounded-full backdrop-blur-sm">
             <button
               onClick={handleTechLoginClick}
-              className="text-white text-xs sm:text-sm font-medium flex items-center space-x-1 sm:space-x-2 hover:text-gray-200 transition-colors"
+              className="text-white text-sm font-medium flex items-center space-x-2 hover:text-gray-200 transition-colors"
             >
-              <LogIn className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Tech Login</span>
-              <span className="sm:hidden">Tech</span>
+              <LogIn className="w-4 h-4" />
+              <span>Tech Login</span>
             </button>
           </div>
         </div>
 
         {/* 메인 콘텐츠 - Figma 디자인 레이아웃 */}
         <div className="flex-1 flex items-center">
-          <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid lg:grid-cols-2 gap-8 lg:gap-16 items-center">
+          <div className="w-full max-w-7xl mx-auto px-8 grid grid-cols-2 gap-16 items-center">
             
             {/* 왼쪽 섹션 - 환영 메시지 */}
-            <div className="relative h-80 sm:h-96 md:h-[28rem] lg:h-[32rem] xl:h-96 w-full">
+            <div className="relative h-96 w-full">
               {/* 환영 메시지 - 왼쪽 하단 정렬 */}
-              <div className="absolute bottom-4 sm:bottom-6 lg:bottom-8 left-4 sm:left-6 lg:left-8 right-4 sm:right-6 lg:right-8 z-10 space-y-3 sm:space-y-4 lg:space-y-6 transform -translate-x-1/2 translate-y-1/5">
-                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white leading-tight drop-shadow-lg">
+              <div className="absolute bottom-8 left-8 right-8 z-10 space-y-6 transform -translate-x-1/2 translate-y-1/5">
+                <h2 className="text-4xl font-bold text-white leading-tight drop-shadow-lg">
                   IT 서비스 관리 시스템에<br />
                   <span className="text-blue-400">오신 것을 환영합니다</span>
                 </h2>
-                <p className="text-sm sm:text-base lg:text-lg text-gray-200 leading-relaxed drop-shadow-md">
+                <p className="text-lg text-gray-200 leading-relaxed drop-shadow-md">
                   효율적인 IT 서비스 관리와 모니터링을 통해 비즈니스 연속성을 보장하고 
                   사용자 경험을 향상시키는 통합 솔루션입니다.
                 </p>
@@ -213,20 +362,20 @@ export default function Home() {
             <div className="fixed inset-0 pointer-events-none z-10">
               {/* 커피잔 - 자주하는질문 이미지 (호버 시에만 표시) */}
               {hoveredMenuItem === 'faq' && (
-                <div className="absolute right-0 sm:right-2 lg:right-4 top-1/2 transform -translate-y-1/2 -translate-x-[275%] -translate-y-[112%]">
+                <div style={{position: 'fixed', right: '0', top: '50%', transform: `translateX(${dynamicPositionPx}px) translateY(-113%)`, zIndex: 20}}>
                     <div className="relative">
-                      <div 
-                        className="w-48 h-48 sm:w-56 sm:h-56 md:w-64 md:h-64 lg:w-72 lg:h-72 xl:w-80 xl:h-80 bg-cover bg-center rounded-full shadow-2xl transition-all duration-500 ease-in-out"
+                  <div
+                    className="w-80 h-80 bg-cover bg-center rounded-full shadow-2xl transition-all duration-500 ease-in-out"
                         style={{
                           backgroundImage: `url('/image/자주하는질문_반응형_이미지.jpg')`
                         }}
                       ></div>
-                      <div className="absolute inset-0 flex items-start justify-center pt-6 sm:pt-8 md:pt-10 lg:pt-12 xl:pt-14">
+                      <div className="absolute inset-0 flex items-start justify-center pt-12">
                         <div className="text-center text-white">
-                          <div className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-bold" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8), 0 0 8px rgba(0,0,0,0.6)'}}>
-                            FAQ
-                          </div>
-                          <div className="text-xs sm:text-xs md:text-sm lg:text-sm xl:text-base mt-1 px-1 sm:px-2" style={{textShadow: '1px 1px 3px rgba(0,0,0,0.8), 0 0 6px rgba(0,0,0,0.6)'}}>
+                    <div className="text-xl font-bold" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8), 0 0 8px rgba(0,0,0,0.6)'}}>
+                      FAQ
+                    </div>
+                    <div className="text-sm mt-1 px-2" style={{textShadow: '1px 1px 3px rgba(0,0,0,0.8), 0 0 6px rgba(0,0,0,0.6)'}}>
                             자주 묻는 질문과 답변을 확인하세요
                           </div>
                         </div>
@@ -237,20 +386,20 @@ export default function Home() {
                 
               {/* 요청진행사항 이미지 (호버 시에만 표시) */}
               {hoveredMenuItem === 'progress' && (
-                <div className="absolute right-0 sm:right-2 lg:right-4 top-1/2 transform -translate-y-1/2 -translate-x-[275%] -translate-y-[112%]">
+                <div style={{position: 'fixed', right: '0', top: '50%', transform: `translateX(${dynamicPositionPx}px) translateY(-113%)`, zIndex: 20}}>
                     <div className="relative">
-                      <div 
-                        className="w-48 h-48 sm:w-56 sm:h-56 md:w-64 md:h-64 lg:w-72 lg:h-72 xl:w-80 xl:h-80 bg-cover bg-center rounded-full shadow-2xl transition-all duration-500 ease-in-out"
+                  <div
+                    className="w-80 h-80 bg-cover bg-center rounded-full shadow-2xl transition-all duration-500 ease-in-out"
                         style={{
                           backgroundImage: `url('/image/요청진행사항_반응형_이미지.jpg')`
                         }}
                       ></div>
-                      <div className="absolute inset-0 flex items-start justify-center pt-6 sm:pt-8 md:pt-10 lg:pt-12 xl:pt-14">
+                      <div className="absolute inset-0 flex items-start justify-center pt-12">
                         <div className="text-center text-white">
-                          <div className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-bold" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8), 0 0 8px rgba(0,0,0,0.6)'}}>
+                          <div className="text-xl font-bold" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8), 0 0 8px rgba(0,0,0,0.6)'}}>
                             Progress
                           </div>
-                          <div className="text-xs sm:text-xs md:text-sm lg:text-sm xl:text-base mt-1 px-1 sm:px-2" style={{textShadow: '1px 1px 3px rgba(0,0,0,0.8), 0 0 6px rgba(0,0,0,0.6)'}}>
+                          <div className="text-sm mt-1 px-2" style={{textShadow: '1px 1px 3px rgba(0,0,0,0.8), 0 0 6px rgba(0,0,0,0.6)'}}>
                             서비스 요청의 현재 상태를 확인하세요
                           </div>
                         </div>
@@ -261,20 +410,20 @@ export default function Home() {
                 
               {/* 서비스신청 이미지 (호버 시에만 표시) */}
               {hoveredMenuItem === 'service-request' && (
-                <div className="absolute right-0 sm:right-2 lg:right-4 top-1/2 transform -translate-y-1/2 -translate-x-[275%] -translate-y-[112%]">
+                <div style={{position: 'fixed', right: '0', top: '50%', transform: `translateX(${dynamicPositionPx}px) translateY(-113%)`, zIndex: 20}}>
                     <div className="relative">
-                      <div 
-                        className="w-48 h-48 sm:w-56 sm:h-56 md:w-64 md:h-64 lg:w-72 lg:h-72 xl:w-80 xl:h-80 bg-cover bg-center rounded-full shadow-2xl transition-all duration-500 ease-in-out"
+                  <div
+                    className="w-80 h-80 bg-cover bg-center rounded-full shadow-2xl transition-all duration-500 ease-in-out"
                         style={{
                           backgroundImage: `url('/image/서비스신청_반응형_이미지.jpg')`
                         }}
                       ></div>
-                      <div className="absolute inset-0 flex items-start justify-center pt-6 sm:pt-8 md:pt-10 lg:pt-12 xl:pt-14">
+                      <div className="absolute inset-0 flex items-start justify-center pt-12">
                         <div className="text-center text-white">
-                          <div className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-bold" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8), 0 0 8px rgba(0,0,0,0.6)'}}>
+                          <div className="text-xl font-bold" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8), 0 0 8px rgba(0,0,0,0.6)'}}>
                             Service Request
                           </div>
-                          <div className="text-xs sm:text-xs md:text-sm lg:text-sm xl:text-base mt-1 px-1 sm:px-2" style={{textShadow: '1px 1px 3px rgba(0,0,0,0.8), 0 0 6px rgba(0,0,0,0.6)'}}>
+                          <div className="text-sm mt-1 px-2" style={{textShadow: '1px 1px 3px rgba(0,0,0,0.8), 0 0 6px rgba(0,0,0,0.6)'}}>
                             새로운 IT 서비스를 신청하세요
                           </div>
                         </div>
@@ -285,20 +434,20 @@ export default function Home() {
                 
               {/* 일반문의사항 이미지 (호버 시에만 표시) */}
               {hoveredMenuItem === 'inquiry' && (
-                <div className="absolute right-0 sm:right-2 lg:right-4 top-1/2 transform -translate-y-1/2 -translate-x-[275%] -translate-y-[112%]">
+                <div style={{position: 'fixed', right: '0', top: '50%', transform: `translateX(${dynamicPositionPx}px) translateY(-113%)`, zIndex: 20}}>
                     <div className="relative">
-                      <div 
-                        className="w-48 h-48 sm:w-56 sm:h-56 md:w-64 md:h-64 lg:w-72 lg:h-72 xl:w-80 xl:h-80 bg-cover bg-center rounded-full shadow-2xl transition-all duration-500 ease-in-out"
+                  <div
+                    className="w-80 h-80 bg-cover bg-center rounded-full shadow-2xl transition-all duration-500 ease-in-out"
                         style={{
                           backgroundImage: `url('/image/일반문의사항_반응형_이미지.jpg')`
                         }}
                       ></div>
-                      <div className="absolute inset-0 flex items-start justify-center pt-6 sm:pt-8 md:pt-10 lg:pt-12 xl:pt-14">
+                      <div className="absolute inset-0 flex items-start justify-center pt-12">
                         <div className="text-center text-white">
-                          <div className="text-sm sm:text-base md:text-lg lg:text-xl xl:text-2xl font-bold" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8), 0 0 8px rgba(0,0,0,0.6)'}}>
+                          <div className="text-xl font-bold" style={{textShadow: '2px 2px 4px rgba(0,0,0,0.8), 0 0 8px rgba(0,0,0,0.6)'}}>
                             Inquiry
                           </div>
-                          <div className="text-xs sm:text-xs md:text-sm lg:text-sm xl:text-base mt-1 px-1 sm:px-2" style={{textShadow: '1px 1px 3px rgba(0,0,0,0.8), 0 0 6px rgba(0,0,0,0.6)'}}>
+                          <div className="text-sm mt-1 px-2" style={{textShadow: '1px 1px 3px rgba(0,0,0,0.8), 0 0 6px rgba(0,0,0,0.6)'}}>
                             궁금한 사항을 문의하세요
                           </div>
                         </div>
@@ -363,7 +512,7 @@ export default function Home() {
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">
                   {isTechLogin ? '기술자 로그인' : '사용자 로그인'}
                 </h2>
-                <p className="text-sm sm:text-base text-gray-600">
+                <p className="text-sm sm:text-base text-gray-600 text-left">
                   {isTechLogin 
                     ? '기술자 계정으로 로그인하세요' 
                     : selectedMenuItem 
@@ -402,6 +551,25 @@ export default function Home() {
                   />
                 </div>
 
+                {/* 로그인 상태 유지 및 비밀번호 찾기 */}
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={keepLoggedIn}
+                      onChange={(e) => setKeepLoggedIn(e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">로그인 상태 유지</span>
+                  </label>
+                  <button
+                    type="button"
+                    className="text-sm text-blue-600 hover:text-blue-800 hover:underline"
+                  >
+                    비밀번호 찾기
+                  </button>
+                </div>
+
                 {loginError && (
                   <div className="text-red-600 text-xs sm:text-sm text-center bg-red-50 p-2 sm:p-3 rounded-lg">
                     {loginError}
@@ -424,6 +592,18 @@ export default function Home() {
                     로그인
                   </FigmaButton>
                 </div>
+
+                {/* 회원가입 링크 */}
+                <div className="text-center mt-4">
+                  <span className="text-sm text-gray-600">계정이 없으신가요? </span>
+                  <button
+                    type="button"
+                    onClick={handleShowSignup}
+                    className="text-sm text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                  >
+                    회원가입
+                  </button>
+                </div>
               </div>
 
               {/* 테스트 계정 정보 - 반응형 */}
@@ -436,6 +616,205 @@ export default function Home() {
                   <div className="break-all">• 배정담당자: assign@itsm.com / assign123</div>
                   <div className="break-all">• 일반사용자: user@itsm.com / user123</div>
                 </div>
+              </div>
+            </div>
+          </FigmaCard>
+        </div>
+      )}
+
+      {/* 회원가입 모달 */}
+      {showSignupModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <FigmaCard className="w-full max-w-lg mx-0">
+            <div className="p-4 sm:p-6 lg:p-8">
+              {/* 헤더 */}
+              <div className="flex items-center justify-between mb-4 sm:mb-6">
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-800">회원가입</h2>
+                </div>
+                <button
+                  onClick={handleCloseSignupModal}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {/* 이메일 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    이메일 <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <input
+                      type="email"
+                      value={signupEmail}
+                      onChange={(e) => setSignupEmail(e.target.value)}
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      placeholder="이메일 주소를 입력해 주세요!"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* 비밀번호 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    비밀번호 <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                    </div>
+                    <input
+                      type="password"
+                      value={signupPassword}
+                      onChange={(e) => setSignupPassword(e.target.value)}
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      placeholder="영문, 숫자, 특수문자 조합 8~16자"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* 비밀번호 확인 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    비밀번호 확인 <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                    </div>
+                    <input
+                      type="password"
+                      value={signupConfirmPassword}
+                      onChange={(e) => setSignupConfirmPassword(e.target.value)}
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      placeholder="비밀번호를 다시 입력해주세요"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* 성명 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    성명 <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                    <input
+                      type="text"
+                      value={signupName}
+                      onChange={(e) => setSignupName(e.target.value)}
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      placeholder="예) 홍길동"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* 직급 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    직급 <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2V6" />
+                      </svg>
+                    </div>
+                    <input
+                      type="text"
+                      value={signupPosition}
+                      onChange={(e) => setSignupPosition(e.target.value)}
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      placeholder="예) 사원"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* 소속 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    소속 <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                    </div>
+                    <input
+                      type="text"
+                      value={signupDepartment}
+                      onChange={(e) => setSignupDepartment(e.target.value)}
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      placeholder="예) 관리부"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* 연락처 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    연락처 <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                      </svg>
+                    </div>
+                    <input
+                      type="text"
+                      value={signupContact}
+                      onChange={(e) => setSignupContact(e.target.value)}
+                      className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      placeholder="예) 010-1234-5678"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {signupError && (
+                  <div className="text-red-600 text-sm text-center bg-red-50 p-3 rounded-lg">
+                    {signupError}
+                  </div>
+                )}
+
+                <FigmaButton
+                  variant="primary"
+                  onClick={handleSignup}
+                  className="w-full text-base py-3 mt-4"
+                >
+                  회원가입
+                </FigmaButton>
               </div>
             </div>
           </FigmaCard>

@@ -1,0 +1,711 @@
+================================================================================
+                    ITSM 프로젝트 - 로그인/회원가입 시스템 구현 설명서
+================================================================================
+
+📅 작성일: 2025년 1월 11일
+🎯 목적: 향후 개발 시 참고용 학습 자료
+📁 파일 위치: itsm-frontend/app/page.tsx (메인페이지 내 통합 구현)
+
+================================================================================
+1. 시스템 개요
+================================================================================
+
+1.1 통합 로그인 시스템
+----------------------------------------
+- 일반사용자와 기술자를 위한 통합 로그인 인터페이스
+- Tech Login 버튼을 통한 기술자 전용 로그인 모드
+- 로그인 상태 유지 기능
+- 비밀번호 찾기 및 회원가입 링크 제공
+
+1.2 회원가입 시스템
+----------------------------------------
+- 신규 사용자 등록 기능
+- 실시간 유효성 검증
+- 자동 권한 부여 (일반사용자)
+- 생성일자 자동 설정
+
+1.3 권한별 라우팅
+----------------------------------------
+- 로그인 성공 시 권한에 따른 자동 페이지 이동
+- localStorage를 이용한 세션 관리
+- 권한별 접근 제어
+
+================================================================================
+2. 로그인 시스템 상세 구현
+================================================================================
+
+2.1 로그인 모달 구조
+----------------------------------------
+파일 위치: itsm-frontend/app/page.tsx (라인 400-500)
+
+주요 구성요소:
+```typescript
+{showLoginModal && (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-8">
+      {/* 모달 내용 */}
+    </div>
+  </div>
+)}
+```
+
+2.2 로그인 폼 필드
+----------------------------------------
+- 이메일 입력 필드 (type="email", required)
+- 비밀번호 입력 필드 (type="password", required)
+- "로그인 상태 유지" 체크박스
+- "비밀번호 찾기" 링크
+- "회원가입" 링크
+- 로그인 버튼
+
+2.3 상태 관리
+----------------------------------------
+```typescript
+// 로그인 관련 상태
+const [showLoginModal, setShowLoginModal] = useState(false);
+const [isTechLogin, setIsTechLogin] = useState(false);
+const [keepLoggedIn, setKeepLoggedIn] = useState(false);
+const [loginError, setLoginError] = useState('');
+
+// 로그인 폼 데이터
+const [loginData, setLoginData] = useState({
+  email: '',
+  password: ''
+});
+```
+
+2.4 로그인 처리 로직
+----------------------------------------
+```typescript
+const handleLogin = () => {
+  setLoginError('');
+  
+  if (!loginData.email || !loginData.password) {
+    setLoginError('이메일과 비밀번호를 입력해주세요.');
+    return;
+  }
+  
+  // 미리 정의된 사용자 데이터에서 검증
+  const user = users.find(u => 
+    u.email === loginData.email && u.password === loginData.password
+  );
+  
+  if (user) {
+    // 로그인 상태 저장
+    if (keepLoggedIn) {
+      localStorage.setItem('keepLoggedIn', 'true');
+    }
+    localStorage.setItem('userRole', user.role);
+    localStorage.setItem('userName', user.name);
+    
+    // 권한별 라우팅
+    if (isTechLogin) {
+      switch (user.role) {
+        case 'system_admin': router.push('/system-admin'); break;
+        case 'service_manager': router.push('/service-manager'); break;
+        case 'technician': router.push('/technician'); break;
+        case 'assignment_manager': router.push('/assignment-manager'); break;
+        default: setLoginError("권한이 없습니다."); return;
+      }
+    } else {
+      // 일반사용자는 선택된 메뉴로 이동
+      if (selectedMenuItem) {
+        const menuItem = mainMenuItems.find(item => item.id === selectedMenuItem);
+        if (menuItem) { router.push(menuItem.path); }
+      }
+    }
+    
+    setShowLoginModal(false);
+  } else {
+    setLoginError('이메일 또는 비밀번호가 올바르지 않습니다.');
+  }
+};
+```
+
+2.5 Tech Login 기능
+----------------------------------------
+기술자 전용 로그인 모드:
+```typescript
+const openTechLogin = () => {
+  setShowLoginModal(true);
+  setIsTechLogin(true);
+  setLoginError('');
+};
+```
+
+Tech Login 모드에서의 특징:
+- 일반사용자 권한으로는 로그인 불가
+- 시스템 관리자, 서비스 관리자, 기술자, 배정담당자만 접근 가능
+- 로그인 성공 시 해당 권한 페이지로 자동 이동
+
+================================================================================
+3. 회원가입 시스템 상세 구현
+================================================================================
+
+3.1 회원가입 모달 구조
+----------------------------------------
+파일 위치: itsm-frontend/app/page.tsx (라인 500-700)
+
+주요 구성요소:
+```typescript
+{showSignupModal && (
+  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-8">
+      {/* 회원가입 폼 */}
+    </div>
+  </div>
+)}
+```
+
+3.2 회원가입 폼 필드
+----------------------------------------
+필수 입력 항목 (* 표시):
+- 이메일(ID)* - 이메일 형식 검증
+- 비밀번호* - 8-16자, 영문+숫자+특수문자 조합
+- 성명* - 필수 입력
+- 직급* - 필수 입력
+- 소속* - 필수 입력
+- 연락처* - 전화번호 형식 검증
+
+자동 생성 항목:
+- 생성일자: 현재 시간 자동 설정
+- 권한: 기본값 "일반사용자"로 설정
+
+3.3 상태 관리
+----------------------------------------
+```typescript
+// 회원가입 관련 상태
+const [showSignupModal, setShowSignupModal] = useState(false);
+const [signupData, setSignupData] = useState({
+  email: '',
+  password: '',
+  name: '',
+  position: '',
+  department: '',
+  contact: ''
+});
+const [signupErrors, setSignupErrors] = useState<{[key: string]: string}>({});
+```
+
+3.4 유효성 검증 함수
+----------------------------------------
+```typescript
+// 이메일 형식 검증
+const validateEmail = (email: string) => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
+
+// 비밀번호 강도 검증
+const validatePassword = (password: string) => {
+  const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,16}$/;
+  return passwordRegex.test(password);
+};
+
+// 전화번호 형식 검증
+const validateContact = (contact: string) => {
+  const contactRegex = /^[0-9-+\s()]{10,15}$/;
+  return contactRegex.test(contact);
+};
+
+// 전체 폼 유효성 검증
+const validateSignupForm = () => {
+  const errors: {[key: string]: string} = {};
+  
+  if (!signupData.email) {
+    errors.email = '이메일을 입력해주세요.';
+  } else if (!validateEmail(signupData.email)) {
+    errors.email = '올바른 이메일 형식을 입력해주세요.';
+  }
+  
+  if (!signupData.password) {
+    errors.password = '비밀번호를 입력해주세요.';
+  } else if (!validatePassword(signupData.password)) {
+    errors.password = '비밀번호는 8-16자의 영문, 숫자, 특수문자를 포함해야 합니다.';
+  }
+  
+  if (!signupData.name) {
+    errors.name = '성명을 입력해주세요.';
+  }
+  
+  if (!signupData.position) {
+    errors.position = '직급을 입력해주세요.';
+  }
+  
+  if (!signupData.department) {
+    errors.department = '소속을 입력해주세요.';
+  }
+  
+  if (!signupData.contact) {
+    errors.contact = '연락처를 입력해주세요.';
+  } else if (!validateContact(signupData.contact)) {
+    errors.contact = '올바른 전화번호 형식을 입력해주세요.';
+  }
+  
+  setSignupErrors(errors);
+  return Object.keys(errors).length === 0;
+};
+```
+
+3.5 회원가입 처리 로직
+----------------------------------------
+```typescript
+const handleSignup = () => {
+  if (!validateSignupForm()) {
+    return;
+  }
+  
+  // 중복 이메일 체크 (실제로는 서버에서 처리)
+  const existingUser = users.find(u => u.email === signupData.email);
+  if (existingUser) {
+    setSignupErrors({email: '이미 사용 중인 이메일입니다.'});
+    return;
+  }
+  
+  // 새 사용자 생성
+  const newUser = {
+    id: Date.now().toString(),
+    email: signupData.email,
+    password: signupData.password,
+    name: signupData.name,
+    role: 'general_user', // 기본 권한
+    position: signupData.position,
+    department: signupData.department,
+    contact: signupData.contact,
+    createdAt: new Date().toISOString()
+  };
+  
+  // 사용자 목록에 추가 (실제로는 서버에 전송)
+  users.push(newUser);
+  
+  // 자동 로그인 처리
+  localStorage.setItem('userRole', newUser.role);
+  localStorage.setItem('userName', newUser.name);
+  
+  // 모달 닫기 및 폼 초기화
+  setShowSignupModal(false);
+  setSignupData({
+    email: '', password: '', name: '', 
+    position: '', department: '', contact: ''
+  });
+  setSignupErrors({});
+  
+  // 성공 메시지 표시
+  alert('회원가입이 완료되었습니다!');
+};
+```
+
+================================================================================
+4. UI/UX 디자인 특징
+================================================================================
+
+4.1 모달 디자인
+----------------------------------------
+공통 스타일:
+```css
+/* 모달 배경 */
+.fixed.inset-0.bg-black/50.backdrop-blur-sm
+
+/* 모달 컨테이너 */
+.bg-white.rounded-lg.shadow-xl.max-w-md.w-full.p-8
+
+/* 반응형 패딩 */
+.p-4 (모바일) / .p-8 (데스크톱)
+```
+
+4.2 입력 필드 디자인
+----------------------------------------
+```css
+/* 기본 입력 필드 */
+.w-full.px-3.py-2.sm:px-4.sm:py-3
+.border.border-gray-300.rounded-lg
+.focus:ring-2.focus:ring-blue-500.focus:border-transparent
+.transition-colors.text-sm.sm:text-base
+
+/* 에러 상태 */
+.border-red-500 (에러 시)
+```
+
+4.3 버튼 디자인
+----------------------------------------
+```css
+/* 기본 버튼 */
+.px-4.py-2.rounded-lg.font-medium.transition-colors
+
+/* 로그인 버튼 */
+.bg-blue-600.hover:bg-blue-700.text-white
+
+/* 취소 버튼 */
+.bg-gray-300.hover:bg-gray-400.text-gray-700
+```
+
+4.4 에러 메시지 디자인
+----------------------------------------
+```css
+/* 에러 메시지 */
+.text-red-600.text-sm.mt-1
+```
+
+4.5 체크박스 디자인
+----------------------------------------
+```css
+/* 체크박스 */
+.w-4.h-4.text-blue-600.bg-gray-100.border-gray-300.rounded
+.focus:ring-blue-500.focus:ring-2
+```
+
+================================================================================
+5. 권한별 라우팅 시스템
+================================================================================
+
+5.1 권한 정의
+----------------------------------------
+```typescript
+const userRoles = {
+  general_user: '일반사용자',
+  system_admin: '시스템관리자',
+  service_manager: '서비스관리자',
+  technician: '기술자',
+  assignment_manager: '배정담당자'
+};
+```
+
+5.2 라우팅 로직
+----------------------------------------
+```typescript
+const handleRoleBasedRouting = (userRole: string, isTechLogin: boolean) => {
+  if (isTechLogin) {
+    // 기술자 로그인 시 권한별 페이지 이동
+    switch (userRole) {
+      case 'system_admin':
+        router.push('/system-admin');
+        break;
+      case 'service_manager':
+        router.push('/service-manager');
+        break;
+      case 'technician':
+        router.push('/technician');
+        break;
+      case 'assignment_manager':
+        router.push('/assignment-manager');
+        break;
+      default:
+        setLoginError("권한이 없습니다.");
+        return;
+    }
+  } else {
+    // 일반사용자 로그인 시 선택된 메뉴로 이동
+    if (selectedMenuItem) {
+      const menuItem = mainMenuItems.find(item => item.id === selectedMenuItem);
+      if (menuItem) {
+        router.push(menuItem.path);
+      }
+    }
+  }
+};
+```
+
+5.3 페이지 매핑
+----------------------------------------
+```typescript
+const pageMapping = {
+  '/system-admin': '시스템 관리 페이지',
+  '/service-manager': '서비스 관리 페이지',
+  '/technician': '기술자 작업 페이지',
+  '/assignment-manager': '배정 관리 페이지',
+  '/progress': '요청 진행사항 페이지',
+  '/service-request': '서비스 신청 페이지',
+  '/inquiry': '일반 문의사항 페이지',
+  '/faq': '자주하는 질문 페이지'
+};
+```
+
+================================================================================
+6. 세션 관리 및 보안
+================================================================================
+
+6.1 로컬 스토리지 관리
+----------------------------------------
+```typescript
+// 로그인 정보 저장
+localStorage.setItem('userRole', user.role);
+localStorage.setItem('userName', user.name);
+localStorage.setItem('keepLoggedIn', 'true');
+
+// 로그인 정보 확인
+const userRole = localStorage.getItem('userRole');
+const userName = localStorage.getItem('userName');
+const keepLoggedIn = localStorage.getItem('keepLoggedIn');
+
+// 로그아웃 시 정보 삭제
+localStorage.removeItem('userRole');
+localStorage.removeItem('userName');
+localStorage.removeItem('keepLoggedIn');
+```
+
+6.2 보안 고려사항
+----------------------------------------
+- 클라이언트 사이드 검증 (실제로는 서버 사이드 검증 필요)
+- 비밀번호 해싱 (실제로는 서버에서 처리)
+- JWT 토큰 기반 인증 (향후 구현)
+- HTTPS 통신 (프로덕션 환경)
+- CSRF 보호 (향후 구현)
+
+6.3 로그인 상태 유지
+----------------------------------------
+```typescript
+// 로그인 상태 확인
+const checkLoginStatus = () => {
+  const userRole = localStorage.getItem('userRole');
+  const keepLoggedIn = localStorage.getItem('keepLoggedIn');
+  
+  if (userRole && keepLoggedIn === 'true') {
+    // 자동 로그인 처리
+    return true;
+  }
+  
+  return false;
+};
+
+// 페이지 로드 시 로그인 상태 확인
+useEffect(() => {
+  if (checkLoginStatus()) {
+    // 이미 로그인된 상태
+    const userRole = localStorage.getItem('userRole');
+    // 권한별 페이지로 리다이렉트
+  }
+}, []);
+```
+
+================================================================================
+7. 에러 처리 및 사용자 피드백
+================================================================================
+
+7.1 로그인 에러 처리
+----------------------------------------
+```typescript
+const loginErrorMessages = {
+  empty_fields: '이메일과 비밀번호를 입력해주세요.',
+  invalid_credentials: '이메일 또는 비밀번호가 올바르지 않습니다.',
+  no_permission: '권한이 없습니다.',
+  network_error: '네트워크 오류가 발생했습니다. 다시 시도해주세요.',
+  server_error: '서버 오류가 발생했습니다. 관리자에게 문의해주세요.'
+};
+```
+
+7.2 회원가입 에러 처리
+----------------------------------------
+```typescript
+const signupErrorMessages = {
+  email_required: '이메일을 입력해주세요.',
+  email_invalid: '올바른 이메일 형식을 입력해주세요.',
+  email_duplicate: '이미 사용 중인 이메일입니다.',
+  password_required: '비밀번호를 입력해주세요.',
+  password_weak: '비밀번호는 8-16자의 영문, 숫자, 특수문자를 포함해야 합니다.',
+  name_required: '성명을 입력해주세요.',
+  position_required: '직급을 입력해주세요.',
+  department_required: '소속을 입력해주세요.',
+  contact_required: '연락처를 입력해주세요.',
+  contact_invalid: '올바른 전화번호 형식을 입력해주세요.'
+};
+```
+
+7.3 성공 메시지
+----------------------------------------
+```typescript
+const successMessages = {
+  login_success: '로그인되었습니다.',
+  signup_success: '회원가입이 완료되었습니다!',
+  logout_success: '로그아웃되었습니다.'
+};
+```
+
+================================================================================
+8. 테스트 시나리오
+================================================================================
+
+8.1 로그인 테스트
+----------------------------------------
+정상 시나리오:
+- 유효한 일반사용자 계정으로 로그인
+- 유효한 기술자 계정으로 Tech Login
+- 로그인 상태 유지 체크박스 테스트
+
+예외 시나리오:
+- 잘못된 이메일/비밀번호 입력
+- 빈 필드로 로그인 시도
+- 권한 없는 사용자의 Tech Login 시도
+
+8.2 회원가입 테스트
+----------------------------------------
+정상 시나리오:
+- 모든 필수 필드 올바르게 입력
+- 유효한 이메일 형식 입력
+- 강력한 비밀번호 입력
+- 유효한 전화번호 형식 입력
+
+예외 시나리오:
+- 필수 필드 누락
+- 잘못된 이메일 형식
+- 약한 비밀번호
+- 중복 이메일
+- 잘못된 전화번호 형식
+
+8.3 권한별 라우팅 테스트
+----------------------------------------
+- 시스템 관리자 로그인 → /system-admin
+- 서비스 관리자 로그인 → /service-manager
+- 기술자 로그인 → /technician
+- 배정담당자 로그인 → /assignment-manager
+- 일반사용자 로그인 → 선택된 메뉴 페이지
+
+================================================================================
+9. 향후 개발 계획
+================================================================================
+
+9.1 백엔드 연동
+----------------------------------------
+- 실제 API 엔드포인트 연결
+- JWT 토큰 기반 인증
+- 서버 사이드 유효성 검증
+- 데이터베이스 연동
+
+9.2 보안 강화
+----------------------------------------
+- 비밀번호 해싱 (bcrypt)
+- CSRF 보호
+- XSS 방지
+- 세션 타임아웃
+
+9.3 기능 확장
+----------------------------------------
+- 비밀번호 찾기 기능
+- 이메일 인증
+- 2단계 인증
+- 소셜 로그인 (Google, Naver 등)
+
+9.4 UI/UX 개선
+----------------------------------------
+- 로딩 상태 표시
+- 애니메이션 효과
+- 다국어 지원
+- 다크 모드 지원
+
+================================================================================
+10. 문제 해결 가이드
+================================================================================
+
+10.1 일반적인 문제
+----------------------------------------
+- 모달이 열리지 않는 경우: showLoginModal 상태 확인
+- 로그인 후 페이지 이동이 안 되는 경우: router 설정 확인
+- 유효성 검증이 작동하지 않는 경우: 정규식 패턴 확인
+- 로컬 스토리지 데이터가 저장되지 않는 경우: 브라우저 설정 확인
+
+10.2 디버깅 팁
+----------------------------------------
+- 브라우저 개발자 도구에서 상태 확인
+- console.log로 값 출력하여 디버깅
+- 네트워크 탭에서 API 호출 확인
+- Application 탭에서 로컬 스토리지 확인
+
+================================================================================
+11. 코드 예시 모음
+================================================================================
+
+11.1 모달 열기/닫기
+----------------------------------------
+```typescript
+// 로그인 모달 열기
+const openLoginModal = () => {
+  setShowLoginModal(true);
+  setIsTechLogin(false);
+  setLoginError('');
+};
+
+// Tech Login 모달 열기
+const openTechLogin = () => {
+  setShowLoginModal(true);
+  setIsTechLogin(true);
+  setLoginError('');
+};
+
+// 회원가입 모달 열기
+const openSignupModal = () => {
+  setShowSignupModal(true);
+  setSignupErrors({});
+};
+
+// 모달 닫기
+const closeModal = () => {
+  setShowLoginModal(false);
+  setShowSignupModal(false);
+  setLoginError('');
+  setSignupErrors({});
+};
+```
+
+11.2 폼 데이터 처리
+----------------------------------------
+```typescript
+// 로그인 폼 데이터 변경
+const handleLoginDataChange = (field: string, value: string) => {
+  setLoginData(prev => ({
+    ...prev,
+    [field]: value
+  }));
+};
+
+// 회원가입 폼 데이터 변경
+const handleSignupDataChange = (field: string, value: string) => {
+  setSignupData(prev => ({
+    ...prev,
+    [field]: value
+  }));
+  
+  // 실시간 유효성 검증
+  if (signupErrors[field]) {
+    setSignupErrors(prev => ({
+      ...prev,
+      [field]: ''
+    }));
+  }
+};
+```
+
+11.3 로그아웃 처리
+----------------------------------------
+```typescript
+const handleLogout = () => {
+  // 로컬 스토리지 정리
+  localStorage.removeItem('userRole');
+  localStorage.removeItem('userName');
+  localStorage.removeItem('keepLoggedIn');
+  
+  // 상태 초기화
+  setSelectedMenuItem(null);
+  
+  // 메인 페이지로 이동
+  router.push('/');
+  
+  // 성공 메시지
+  alert('로그아웃되었습니다.');
+};
+```
+
+================================================================================
+12. 마무리
+================================================================================
+
+이 로그인/회원가입 시스템은 ITSM 프로젝트의 핵심 인증 기능으로,
+사용자 관리, 권한 제어, 세션 관리를 통합적으로 제공합니다.
+
+향후 개발 시 이 문서를 참고하여 일관성 있는 개발을 진행하시기 바랍니다.
+
+문서 업데이트: 새로운 기능 추가 시 이 문서도 함께 업데이트해주세요.
+
+================================================================================
+작성자: AI Assistant
+작성일: 2025-01-11
+버전: 1.0
+================================================================================
