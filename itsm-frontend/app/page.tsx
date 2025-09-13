@@ -213,7 +213,7 @@ export default function Home() {
               <div className="space-y-0 transform translate-x-[60%] relative">
                 {/* 커피잔 - 자주하는질문 이미지 (호버 시에만 표시) */}
                 {hoveredMenuItem === 'faq' && (
-                  <div className="fixed" style={{right: '20px', top: '50%', transform: 'translateY(-50%) translateX(-1200px) translateY(-200px)'}}>
+                  <div className="fixed" style={{right: '20px', top: '50%', transform: 'translateY(-50%) translateX(-1000px) translateY(-200px)'}}>
                     <div className="relative">
                       <div 
                         className="w-48 h-48 sm:w-56 sm:h-56 md:w-64 md:h-64 lg:w-72 lg:h-72 xl:w-80 xl:h-80 bg-cover bg-center rounded-full shadow-2xl transition-all duration-500 ease-in-out"
@@ -237,7 +237,7 @@ export default function Home() {
                 
                 {/* 요청진행사항 이미지 (호버 시에만 표시) */}
                 {hoveredMenuItem === 'progress' && (
-                  <div className="fixed" style={{right: '20px', top: '50%', transform: 'translateY(-50%) translateX(-1200px) translateY(-200px)'}}>
+                  <div className="fixed" style={{right: '20px', top: '50%', transform: 'translateY(-50%) translateX(-1000px) translateY(-200px)'}}>
                     <div className="relative">
                       <div 
                         className="w-48 h-48 sm:w-56 sm:h-56 md:w-64 md:h-64 lg:w-72 lg:h-72 xl:w-80 xl:h-80 bg-cover bg-center rounded-full shadow-2xl transition-all duration-500 ease-in-out"
@@ -261,7 +261,7 @@ export default function Home() {
                 
                 {/* 서비스신청 이미지 (호버 시에만 표시) */}
                 {hoveredMenuItem === 'service-request' && (
-                  <div className="fixed" style={{right: '20px', top: '50%', transform: 'translateY(-50%) translateX(-1200px) translateY(-200px)'}}>
+                  <div className="fixed" style={{right: '20px', top: '50%', transform: 'translateY(-50%) translateX(-1000px) translateY(-200px)'}}>
                     <div className="relative">
                       <div 
                         className="w-48 h-48 sm:w-56 sm:h-56 md:w-64 md:h-64 lg:w-72 lg:h-72 xl:w-80 xl:h-80 bg-cover bg-center rounded-full shadow-2xl transition-all duration-500 ease-in-out"
@@ -285,7 +285,7 @@ export default function Home() {
                 
                 {/* 일반문의사항 이미지 (호버 시에만 표시) */}
                 {hoveredMenuItem === 'inquiry' && (
-                  <div className="fixed" style={{right: '20px', top: '50%', transform: 'translateY(-50%) translateX(-1200px) translateY(-200px)'}}>
+                  <div className="fixed" style={{right: '20px', top: '50%', transform: 'translateY(-50%) translateX(-1000px) translateY(-200px)'}}>
                     <div className="relative">
                       <div 
                         className="w-48 h-48 sm:w-56 sm:h-56 md:w-64 md:h-64 lg:w-72 lg:h-72 xl:w-80 xl:h-80 bg-cover bg-center rounded-full shadow-2xl transition-all duration-500 ease-in-out"
