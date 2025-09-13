@@ -1,18 +1,18 @@
-// 권한 레벨 정의
+// 권한 레벨 정의 (ITSM 개발 설명서 반영)
 export const PermissionLevel = {
-  SYSTEM_ADMIN: 1,     // 시스템관리 (최고관리자)
-  SERVICE_MANAGER: 2,  // 서비스관리 (관리매니저)
-  TECHNICIAN: 3,       // 기술자 (조치담당자)
-  ASSIGNMENT_MANAGER: 4, // 기술자 (배정담당자)
-  USER: 5              // 일반사용자
+  SYSTEM_ADMIN: 1,     // 시스템관리 (최고관리자) - 모든 사용자 및 기술자 회원정보 관리
+  SERVICE_MANAGER: 2,  // 서비스관리 (관리매니저) - 소속 조치담당자들의 업무 관리
+  TECHNICIAN: 3,       // 기술자 (조치담당자) - 작업 업무 진행 및 완료
+  ASSIGNMENT_MANAGER: 4, // 기술자 (배정담당자) - 조치 담당 배정
+  USER: 5              // 일반사용자 - 서비스 신청
 } as const
 
-// 사용자 역할별 권한 레벨 매핑
+// 사용자 역할별 권한 레벨 매핑 (ITSM 개발 설명서 반영)
 export const RolePermissionMap = {
-  'system_admin': PermissionLevel.SYSTEM_ADMIN,     // 시스템관리
-  'service_manager': PermissionLevel.SERVICE_MANAGER, // 서비스관리
-  'technician': PermissionLevel.TECHNICIAN,         // 기술자 (조치담당자)
-  'assignment_manager': PermissionLevel.ASSIGNMENT_MANAGER, // 기술자 (배정담당자)
+  'system_admin': PermissionLevel.SYSTEM_ADMIN,     // 시스템관리 - 모든 관리매니저의 업무 관리 권한
+  'service_manager': PermissionLevel.SERVICE_MANAGER, // 서비스관리 - 관리매니저
+  'technician': PermissionLevel.TECHNICIAN,         // 기술자 - 조치담당자
+  'assignment_manager': PermissionLevel.ASSIGNMENT_MANAGER, // 기술자 - 배정담당자
   'user': PermissionLevel.USER                     // 일반사용자
 } as const
 

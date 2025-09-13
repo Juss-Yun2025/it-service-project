@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { FigmaCard } from "@/components/figma/FigmaCard";
+import { FigmaButton } from "@/components/figma/FigmaButton";
 import UserCustomization from "@/components/UserCustomization";
 
 type ServiceStatus = {
@@ -205,25 +207,35 @@ export default function UserDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen" style={{ background: 'var(--figma-background)' }}>
       {/* 헤더 */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
+      <header className="shadow-sm" style={{ 
+        background: 'var(--figma-surface)',
+        borderBottom: '1px solid var(--figma-border)'
+      }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-4">
-              <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'var(--figma-primary)' }}>
+                <svg className="w-6 h-6" style={{ color: 'var(--figma-text-inverse)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">일반사용자 대시보드</h1>
-                <p className="text-sm text-gray-600">빠른 응답과 실시간 모니터링</p>
+                <h1 className="text-2xl font-bold" style={{
+                  color: 'var(--figma-text-primary)',
+                  fontFamily: 'var(--figma-font-family)'
+                }}>
+                  일반사용자 대시보드
+                </h1>
+                <p className="text-sm" style={{ color: 'var(--figma-text-secondary)' }}>
+                  빠른 응답과 실시간 모니터링
+                </p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
-                <span className="text-sm text-gray-600">실시간 업데이트</span>
+                <span className="text-sm" style={{ color: 'var(--figma-text-secondary)' }}>실시간 업데이트</span>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
                     type="checkbox"
@@ -231,26 +243,32 @@ export default function UserDashboard() {
                     onChange={(e) => setAutoRefresh(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  <div className="w-11 h-6 rounded-full peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all" style={{
+                    background: autoRefresh ? 'var(--figma-primary)' : 'var(--figma-border)'
+                  }}></div>
                 </label>
               </div>
-              <Button variant="outline" className="text-sm mr-2">
+              <FigmaButton variant="secondary" size="sm" className="text-sm mr-2">
                 새로고침
-              </Button>
-              <Button 
-                variant="outline" 
-                className="text-sm bg-red-600 hover:bg-red-700 text-white"
+              </FigmaButton>
+              <FigmaButton 
+                variant="danger" 
+                size="sm"
+                className="text-sm"
                 onClick={() => window.location.href = "/"}
               >
                 로그아웃
-              </Button>
+              </FigmaButton>
             </div>
           </div>
         </div>
       </header>
 
       {/* 네비게이션 */}
-      <nav className="bg-white border-b border-gray-200">
+      <nav style={{ 
+        background: 'var(--figma-surface)',
+        borderBottom: '1px solid var(--figma-border)'
+      }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex space-x-8">
                          {[
@@ -264,11 +282,24 @@ export default function UserDashboard() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`py-4 px-1 border-b-2 font-medium text-sm transition-all duration-200 ${
-                  activeTab === tab.id
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
+                className="py-4 px-1 border-b-2 font-medium text-sm transition-all duration-200"
+                style={{
+                  borderBottomColor: activeTab === tab.id ? 'var(--figma-primary)' : 'transparent',
+                  color: activeTab === tab.id ? 'var(--figma-primary)' : 'var(--figma-text-secondary)',
+                  fontFamily: 'var(--figma-font-family)'
+                }}
+                onMouseEnter={(e) => {
+                  if (activeTab !== tab.id) {
+                    e.currentTarget.style.color = 'var(--figma-text-primary)';
+                    e.currentTarget.style.borderBottomColor = 'var(--figma-border)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (activeTab !== tab.id) {
+                    e.currentTarget.style.color = 'var(--figma-text-secondary)';
+                    e.currentTarget.style.borderBottomColor = 'transparent';
+                  }
+                }}
               >
                 <div className="flex items-center space-x-2">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -288,105 +319,139 @@ export default function UserDashboard() {
           <div className="space-y-6">
             {/* 통계 카드 */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <Card className="p-6 bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+              <FigmaCard variant="elevated" padding="lg" className="text-white" style={{ background: 'var(--figma-primary)' }}>
                 <div className="flex items-center">
-                  <div className="p-2 bg-white/20 rounded-lg">
+                  <div className="p-2 rounded-lg" style={{ background: 'rgba(255, 255, 255, 0.2)' }}>
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
                   <div className="ml-4">
-                    <p className="text-sm opacity-90">정상 서비스</p>
-                    <p className="text-2xl font-bold">{serviceStatuses.filter(s => s.status === "정상").length}</p>
+                    <p className="text-sm opacity-90" style={{ fontFamily: 'var(--figma-font-family)' }}>정상 서비스</p>
+                    <p className="text-2xl font-bold" style={{ fontFamily: 'var(--figma-font-family)' }}>{serviceStatuses.filter(s => s.status === "정상").length}</p>
                   </div>
                 </div>
-              </Card>
+              </FigmaCard>
 
-              <Card className="p-6 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white">
+              <FigmaCard variant="elevated" padding="lg" className="text-white" style={{ background: 'var(--figma-warning)' }}>
                 <div className="flex items-center">
-                  <div className="p-2 bg-white/20 rounded-lg">
+                  <div className="p-2 rounded-lg" style={{ background: 'rgba(255, 255, 255, 0.2)' }}>
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
                     </svg>
                   </div>
                   <div className="ml-4">
-                    <p className="text-sm opacity-90">경고/오류</p>
-                    <p className="text-2xl font-bold">{serviceStatuses.filter(s => s.status === "경고" || s.status === "오류").length}</p>
+                    <p className="text-sm opacity-90" style={{ fontFamily: 'var(--figma-font-family)' }}>경고/오류</p>
+                    <p className="text-2xl font-bold" style={{ fontFamily: 'var(--figma-font-family)' }}>{serviceStatuses.filter(s => s.status === "경고" || s.status === "오류").length}</p>
                   </div>
                 </div>
-              </Card>
+              </FigmaCard>
 
-              <Card className="p-6 bg-gradient-to-r from-green-500 to-green-600 text-white">
+              <FigmaCard variant="elevated" padding="lg" className="text-white" style={{ background: 'var(--figma-success)' }}>
                 <div className="flex items-center">
-                  <div className="p-2 bg-white/20 rounded-lg">
+                  <div className="p-2 rounded-lg" style={{ background: 'rgba(255, 255, 255, 0.2)' }}>
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                     </svg>
                   </div>
                   <div className="ml-4">
-                    <p className="text-sm opacity-90">내 요청사항</p>
-                    <p className="text-2xl font-bold">{userRequests.length}</p>
+                    <p className="text-sm opacity-90" style={{ fontFamily: 'var(--figma-font-family)' }}>내 요청사항</p>
+                    <p className="text-2xl font-bold" style={{ fontFamily: 'var(--figma-font-family)' }}>{userRequests.length}</p>
                   </div>
                 </div>
-              </Card>
+              </FigmaCard>
 
-              <Card className="p-6 bg-gradient-to-r from-purple-500 to-purple-600 text-white">
+              <FigmaCard variant="elevated" padding="lg" className="text-white" style={{ background: 'var(--figma-secondary)' }}>
                 <div className="flex items-center">
-                  <div className="p-2 bg-white/20 rounded-lg">
+                  <div className="p-2 rounded-lg" style={{ background: 'rgba(255, 255, 255, 0.2)' }}>
                     <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                     </svg>
                   </div>
                   <div className="ml-4">
-                    <p className="text-sm opacity-90">빠른 응답</p>
-                    <p className="text-2xl font-bold">{quickResponses.length}</p>
+                    <p className="text-sm opacity-90" style={{ fontFamily: 'var(--figma-font-family)' }}>빠른 응답</p>
+                    <p className="text-2xl font-bold" style={{ fontFamily: 'var(--figma-font-family)' }}>{quickResponses.length}</p>
                   </div>
                 </div>
-              </Card>
+              </FigmaCard>
             </div>
 
             {/* 서비스 상태 요약 */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">서비스 상태 요약</h3>
+              <FigmaCard variant="elevated" padding="lg">
+                <h3 className="text-lg font-semibold mb-4" style={{
+                  color: 'var(--figma-text-primary)',
+                  fontFamily: 'var(--figma-font-family)'
+                }}>
+                  서비스 상태 요약
+                </h3>
                 <div className="space-y-3">
                   {serviceStatuses.slice(0, 4).map((service) => (
-                    <div key={service.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div key={service.id} className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--figma-surface)' }}>
                       <div className="flex items-center space-x-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(service.status)}`}>
+                        <span className="px-2 py-1 rounded-full text-xs font-medium" style={{
+                          color: service.status === '정상' ? 'var(--figma-success)' : 
+                                 service.status === '경고' ? 'var(--figma-warning)' : 
+                                 service.status === '오류' ? 'var(--figma-error)' : 'var(--figma-primary)',
+                          background: service.status === '정상' ? 'var(--figma-success-light)' : 
+                                     service.status === '경고' ? 'var(--figma-warning-light)' : 
+                                     service.status === '오류' ? 'var(--figma-error-light)' : 'var(--figma-primary-light)'
+                        }}>
                           {service.status}
                         </span>
-                        <span className="font-medium text-gray-900">{service.name}</span>
+                        <span className="font-medium" style={{ 
+                          color: 'var(--figma-text-primary)',
+                          fontFamily: 'var(--figma-font-family)'
+                        }}>
+                          {service.name}
+                        </span>
                       </div>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm" style={{ color: 'var(--figma-text-secondary)' }}>
                         응답시간: {service.responseTime}
                       </div>
                     </div>
                   ))}
                 </div>
-              </Card>
+              </FigmaCard>
 
-              <Card className="p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">최근 요청사항</h3>
+              <FigmaCard variant="elevated" padding="lg">
+                <h3 className="text-lg font-semibold mb-4" style={{
+                  color: 'var(--figma-text-primary)',
+                  fontFamily: 'var(--figma-font-family)'
+                }}>
+                  최근 요청사항
+                </h3>
                 <div className="space-y-3">
                   {userRequests.slice(0, 3).map((request) => (
-                    <div key={request.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div key={request.id} className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--figma-surface)' }}>
                       <div className="flex items-center space-x-3">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRequestStatusColor(request.status)}`}>
+                        <span className="px-2 py-1 rounded-full text-xs font-medium" style={{
+                          color: request.status === '완료' ? 'var(--figma-success)' : 
+                                 request.status === '진행중' ? 'var(--figma-warning)' : 
+                                 request.status === '취소' ? 'var(--figma-error)' : 'var(--figma-primary)',
+                          background: request.status === '완료' ? 'var(--figma-success-light)' : 
+                                     request.status === '진행중' ? 'var(--figma-warning-light)' : 
+                                     request.status === '취소' ? 'var(--figma-error-light)' : 'var(--figma-primary-light)'
+                        }}>
                           {request.status}
                         </span>
                         <div>
-                          <p className="font-medium text-gray-900 text-sm">{request.title}</p>
-                          <p className="text-xs text-gray-600">{request.id}</p>
+                          <p className="font-medium text-sm" style={{ 
+                            color: 'var(--figma-text-primary)',
+                            fontFamily: 'var(--figma-font-family)'
+                          }}>
+                            {request.title}
+                          </p>
+                          <p className="text-xs" style={{ color: 'var(--figma-text-secondary)' }}>{request.id}</p>
                         </div>
                       </div>
-                      <div className="text-sm text-gray-600">
+                      <div className="text-sm" style={{ color: 'var(--figma-text-secondary)' }}>
                         {new Date(request.createdAt).toLocaleDateString()}
                       </div>
                     </div>
                   ))}
                 </div>
-              </Card>
+              </FigmaCard>
             </div>
           </div>
         )}

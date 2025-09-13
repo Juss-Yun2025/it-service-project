@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { FigmaCard } from '@/components/figma/FigmaCard'
+import { FigmaButton } from '@/components/figma/FigmaButton'
 import { ArrowLeft, Search, RefreshCw, Eye, Edit, Trash2, Calendar, User, Clock, CheckCircle } from 'lucide-react'
 
 interface ServiceRequest {
@@ -163,148 +165,233 @@ export default function ProgressPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ background: 'var(--figma-background)' }}>
       {/* 헤더 */}
-      <header className="itsm-header">
+      <header className="shadow-sm" style={{ 
+        background: 'var(--figma-surface)',
+        borderBottom: '1px solid var(--figma-border)'
+      }}>
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <Button
+              <FigmaButton
                 onClick={() => window.history.back()}
-                className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+                variant="secondary"
+                size="sm"
+                className="flex items-center gap-2"
               >
                 <ArrowLeft className="h-4 w-4" />
                 뒤로가기
-              </Button>
-              <h1 className="text-2xl font-bold text-gray-900">요청 진행사항</h1>
+              </FigmaButton>
+              <h1 className="text-2xl font-bold" style={{
+                color: 'var(--figma-text-primary)',
+                fontFamily: 'var(--figma-font-family)'
+              }}>
+                요청 진행사항
+              </h1>
             </div>
             <div className="flex items-center space-x-4">
-              <Button
+              <FigmaButton
                 onClick={() => window.location.href = '/service-request'}
-                className="text-gray-600 hover:text-gray-900"
+                variant="secondary"
+                size="sm"
               >
                 서비스신청
-              </Button>
-              <Button
+              </FigmaButton>
+              <FigmaButton
                 onClick={() => window.location.href = '/faq'}
-                className="text-gray-600 hover:text-gray-900"
+                variant="secondary"
+                size="sm"
               >
                 자주하는질문
-              </Button>
-              <Button
+              </FigmaButton>
+              <FigmaButton
                 onClick={() => window.location.href = '/inquiry'}
-                className="text-gray-600 hover:text-gray-900"
+                variant="secondary"
+                size="sm"
               >
                 일반문의사항
-              </Button>
-              <Button
+              </FigmaButton>
+              <FigmaButton
                 onClick={() => setShowInfoChangeModal(true)}
-                className="text-gray-600 hover:text-gray-900"
+                variant="secondary"
+                size="sm"
               >
                 정보변경
-              </Button>
-              <Button
+              </FigmaButton>
+              <FigmaButton
                 onClick={() => window.location.href = '/'}
-                className="bg-red-600 hover:bg-red-700 text-white"
+                variant="danger"
+                size="sm"
               >
                 로그아웃
-              </Button>
+              </FigmaButton>
             </div>
           </div>
         </div>
       </header>
 
       {/* 메인 콘텐츠 */}
-      <main className="itsm-main-content">
+      <main className="max-w-7xl mx-auto px-6 py-8">
         {/* 검색 및 새로고침 */}
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center space-x-4">
-            <Button
+            <FigmaButton
               onClick={handleRefresh}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+              variant="primary"
+              size="md"
+              className="flex items-center gap-2"
             >
               <RefreshCw className="h-4 w-4" />
               새로고침
-            </Button>
+            </FigmaButton>
             <div className="flex items-center space-x-2">
-              <label className="text-sm font-medium text-gray-700">검색 기간:</label>
+              <label className="text-sm font-medium" style={{
+                color: 'var(--figma-text-primary)',
+                fontFamily: 'var(--figma-font-family)'
+              }}>
+                검색 기간:
+              </label>
               <Input
                 type="date"
                 value={searchDate.startDate}
                 onChange={(e) => setSearchDate({...searchDate, startDate: e.target.value})}
                 className="w-40"
+                style={{
+                  borderColor: 'var(--figma-border)',
+                  fontFamily: 'var(--figma-font-family)',
+                  fontSize: 'var(--figma-font-size-base)'
+                }}
               />
-              <span className="text-gray-500">~</span>
+              <span style={{ color: 'var(--figma-text-secondary)' }}>~</span>
               <Input
                 type="date"
                 value={searchDate.endDate}
                 onChange={(e) => setSearchDate({...searchDate, endDate: e.target.value})}
                 className="w-40"
+                style={{
+                  borderColor: 'var(--figma-border)',
+                  fontFamily: 'var(--figma-font-family)',
+                  fontSize: 'var(--figma-font-size-base)'
+                }}
               />
             </div>
           </div>
         </div>
 
         {/* 요청 목록 */}
-        <Card className="overflow-hidden">
+        <FigmaCard variant="elevated" padding="none" className="overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="itsm-table-container">
-              <thead className="itsm-table-thead">
+            <table className="w-full" style={{ fontFamily: 'var(--figma-font-family)' }}>
+              <thead style={{ background: 'var(--figma-surface)' }}>
                 <tr>
-                  <th className="itsm-table-th">신청번호</th>
-                  <th className="itsm-table-th">신청제목</th>
-                  <th className="itsm-table-th">진행</th>
-                  <th className="itsm-table-th">신청일시</th>
-                  <th className="itsm-table-th">담당자</th>
-                  <th className="itsm-table-th">완료일시</th>
-                  <th className="itsm-table-th">작업</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium" style={{
+                    color: 'var(--figma-text-primary)',
+                    borderBottom: '1px solid var(--figma-border)'
+                  }}>
+                    신청번호
+                  </th>
+                  <th className="px-4 py-3 text-left text-sm font-medium" style={{
+                    color: 'var(--figma-text-primary)',
+                    borderBottom: '1px solid var(--figma-border)'
+                  }}>
+                    신청제목
+                  </th>
+                  <th className="px-4 py-3 text-left text-sm font-medium" style={{
+                    color: 'var(--figma-text-primary)',
+                    borderBottom: '1px solid var(--figma-border)'
+                  }}>
+                    진행
+                  </th>
+                  <th className="px-4 py-3 text-left text-sm font-medium" style={{
+                    color: 'var(--figma-text-primary)',
+                    borderBottom: '1px solid var(--figma-border)'
+                  }}>
+                    신청일시
+                  </th>
+                  <th className="px-4 py-3 text-left text-sm font-medium" style={{
+                    color: 'var(--figma-text-primary)',
+                    borderBottom: '1px solid var(--figma-border)'
+                  }}>
+                    담당자
+                  </th>
+                  <th className="px-4 py-3 text-left text-sm font-medium" style={{
+                    color: 'var(--figma-text-primary)',
+                    borderBottom: '1px solid var(--figma-border)'
+                  }}>
+                    완료일시
+                  </th>
+                  <th className="px-4 py-3 text-left text-sm font-medium" style={{
+                    color: 'var(--figma-text-primary)',
+                    borderBottom: '1px solid var(--figma-border)'
+                  }}>
+                    작업
+                  </th>
                 </tr>
               </thead>
-              <tbody className="itsm-table-tbody">
+              <tbody>
                 {currentRequests.map((request) => {
                   const progressStatus = getProgressStatus(request.progress)
                   return (
-                    <tr key={request.id}>
-                      <td className="itsm-table-td font-medium">{request.requestNumber}</td>
-                      <td className="itsm-table-td">{request.title}</td>
-                      <td className="itsm-table-td">
-                        <span className={progressStatus.class}>
+                    <tr key={request.id} style={{ borderBottom: '1px solid var(--figma-border)' }}>
+                      <td className="px-4 py-3 text-sm font-medium" style={{ color: 'var(--figma-text-primary)' }}>
+                        {request.requestNumber}
+                      </td>
+                      <td className="px-4 py-3 text-sm" style={{ color: 'var(--figma-text-secondary)' }}>
+                        {request.title}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <span className="px-2 py-1 rounded-full text-xs font-medium" style={{
+                          color: progressStatus.text === '처리완료' ? 'var(--figma-success)' : 
+                                 progressStatus.text === '미결처리' ? 'var(--figma-error)' : 'var(--figma-warning)',
+                          background: progressStatus.text === '처리완료' ? 'var(--figma-success-light)' : 
+                                     progressStatus.text === '미결처리' ? 'var(--figma-error-light)' : 'var(--figma-warning-light)'
+                        }}>
                           {progressStatus.text}
                         </span>
                       </td>
-                      <td className="itsm-table-td">{request.requestDate}</td>
-                      <td className="itsm-table-td">{request.assignedTechnician || '-'}</td>
-                      <td className="itsm-table-td">{request.completedDate || '-'}</td>
-                      <td className="itsm-table-td">
+                      <td className="px-4 py-3 text-sm" style={{ color: 'var(--figma-text-secondary)' }}>
+                        {request.requestDate}
+                      </td>
+                      <td className="px-4 py-3 text-sm" style={{ color: 'var(--figma-text-secondary)' }}>
+                        {request.assignedTechnician || '-'}
+                      </td>
+                      <td className="px-4 py-3 text-sm" style={{ color: 'var(--figma-text-secondary)' }}>
+                        {request.completedDate || '-'}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
                         <div className="flex space-x-2">
                           {request.progress === '정상접수' ? (
                             <>
-                              <Button
+                              <FigmaButton
                                 size="sm"
                                 onClick={() => handleEdit(request)}
-                                className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 text-xs"
+                                variant="primary"
+                                className="px-2 py-1 text-xs"
                               >
                                 <Edit className="h-3 w-3 mr-1" />
                                 수정
-                              </Button>
-                              <Button
+                              </FigmaButton>
+                              <FigmaButton
                                 size="sm"
                                 onClick={() => handleDelete(request)}
-                                className="bg-red-600 hover:bg-red-700 text-white px-2 py-1 text-xs"
+                                variant="danger"
+                                className="px-2 py-1 text-xs"
                               >
                                 <Trash2 className="h-3 w-3 mr-1" />
                                 삭제
-                              </Button>
+                              </FigmaButton>
                             </>
                           ) : (
-                            <Button
+                            <FigmaButton
                               size="sm"
                               onClick={() => handleDetail(request)}
-                              className="bg-green-600 hover:bg-green-700 text-white px-2 py-1 text-xs"
+                              variant="success"
+                              className="px-2 py-1 text-xs"
                             >
                               <Eye className="h-3 w-3 mr-1" />
                               상세보기
-                            </Button>
+                            </FigmaButton>
                           )}
                         </div>
                       </td>
@@ -317,37 +404,36 @@ export default function ProgressPage() {
 
           {/* 페이지네이션 */}
           {totalPages > 1 && (
-            <div className="flex justify-center items-center space-x-2 p-4">
-              <Button
+            <div className="flex justify-center items-center space-x-2 p-4" style={{ borderTop: '1px solid var(--figma-border)' }}>
+              <FigmaButton
                 onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                 disabled={currentPage === 1}
-                className="px-3 py-1"
+                variant="secondary"
+                size="sm"
               >
                 이전
-              </Button>
+              </FigmaButton>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <Button
+                <FigmaButton
                   key={page}
                   onClick={() => setCurrentPage(page)}
-                  className={`px-3 py-1 ${
-                    currentPage === page
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
+                  variant={currentPage === page ? "primary" : "secondary"}
+                  size="sm"
                 >
                   {page}
-                </Button>
+                </FigmaButton>
               ))}
-              <Button
+              <FigmaButton
                 onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                 disabled={currentPage === totalPages}
-                className="px-3 py-1"
+                variant="secondary"
+                size="sm"
               >
                 다음
-              </Button>
+              </FigmaButton>
             </div>
           )}
-        </Card>
+        </FigmaCard>
       </main>
 
       {/* 신청정보수정 모달 */}

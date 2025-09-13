@@ -5,6 +5,8 @@ import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { FigmaCard } from '@/components/figma/FigmaCard'
+import { FigmaButton } from '@/components/figma/FigmaButton'
 import { ArrowLeft, Search, RefreshCw, Plus, Eye, Lock, Unlock, Calendar, User, MessageSquare } from 'lucide-react'
 
 interface Inquiry {
@@ -138,141 +140,210 @@ export default function InquiryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ background: 'var(--figma-background)' }}>
       {/* 헤더 */}
-      <header className="itsm-header">
+      <header className="shadow-sm" style={{ 
+        background: 'var(--figma-surface)',
+        borderBottom: '1px solid var(--figma-border)'
+      }}>
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <Button
+              <FigmaButton
                 onClick={() => window.history.back()}
-                className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+                variant="secondary"
+                size="sm"
+                className="flex items-center gap-2"
               >
                 <ArrowLeft className="h-4 w-4" />
                 뒤로가기
-              </Button>
-              <h1 className="text-2xl font-bold text-gray-900">일반 문의사항</h1>
+              </FigmaButton>
+              <h1 className="text-2xl font-bold" style={{
+                color: 'var(--figma-text-primary)',
+                fontFamily: 'var(--figma-font-family)'
+              }}>
+                일반 문의사항
+              </h1>
             </div>
             <div className="flex items-center space-x-4">
-              <Button
+              <FigmaButton
                 onClick={() => window.location.href = '/progress'}
-                className="text-gray-600 hover:text-gray-900"
+                variant="secondary"
+                size="sm"
               >
                 요청진행사항
-              </Button>
-              <Button
+              </FigmaButton>
+              <FigmaButton
                 onClick={() => window.location.href = '/service-request'}
-                className="text-gray-600 hover:text-gray-900"
+                variant="secondary"
+                size="sm"
               >
                 서비스신청
-              </Button>
-              <Button
+              </FigmaButton>
+              <FigmaButton
                 onClick={() => window.location.href = '/faq'}
-                className="text-gray-600 hover:text-gray-900"
+                variant="secondary"
+                size="sm"
               >
                 자주하는질문
-              </Button>
-              <Button
+              </FigmaButton>
+              <FigmaButton
                 onClick={() => window.location.href = '/'}
-                className="bg-red-600 hover:bg-red-700 text-white"
+                variant="danger"
+                size="sm"
               >
                 로그아웃
-              </Button>
+              </FigmaButton>
             </div>
           </div>
         </div>
       </header>
 
       {/* 메인 콘텐츠 */}
-      <main className="itsm-main-content">
+      <main className="max-w-7xl mx-auto px-6 py-8">
         {/* 검색 및 필터 */}
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center space-x-4">
-            <Button
+            <FigmaButton
               onClick={handleRefresh}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+              variant="primary"
+              size="md"
+              className="flex items-center gap-2"
             >
               <RefreshCw className="h-4 w-4" />
               새로고침
-            </Button>
+            </FigmaButton>
             <div className="flex items-center space-x-2">
-              <label className="text-sm font-medium text-gray-700">검색 기간:</label>
+              <label className="text-sm font-medium" style={{
+                color: 'var(--figma-text-primary)',
+                fontFamily: 'var(--figma-font-family)'
+              }}>
+                검색 기간:
+              </label>
               <Input
                 type="date"
                 value={searchDate.startDate}
                 onChange={(e) => setSearchDate({...searchDate, startDate: e.target.value})}
                 className="w-40"
+                style={{
+                  borderColor: 'var(--figma-border)',
+                  fontFamily: 'var(--figma-font-family)',
+                  fontSize: 'var(--figma-font-size-base)'
+                }}
               />
-              <span className="text-gray-500">~</span>
+              <span style={{ color: 'var(--figma-text-secondary)' }}>~</span>
               <Input
                 type="date"
                 value={searchDate.endDate}
                 onChange={(e) => setSearchDate({...searchDate, endDate: e.target.value})}
                 className="w-40"
+                style={{
+                  borderColor: 'var(--figma-border)',
+                  fontFamily: 'var(--figma-font-family)',
+                  fontSize: 'var(--figma-font-size-base)'
+                }}
               />
             </div>
           </div>
           <div className="flex items-center space-x-4">
-            <Button
+            <FigmaButton
               onClick={() => setShowMyPostsOnly(!showMyPostsOnly)}
-              className={`px-4 py-2 ${
-                showMyPostsOnly 
-                  ? 'bg-blue-600 text-white' 
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-              }`}
+              variant={showMyPostsOnly ? "primary" : "secondary"}
+              size="md"
             >
               작성글만보기
-            </Button>
-            <Button
+            </FigmaButton>
+            <FigmaButton
               onClick={handleWriteInquiry}
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white"
+              variant="success"
+              size="md"
+              className="flex items-center gap-2"
             >
               <Plus className="h-4 w-4" />
               문의글쓰기
-            </Button>
+            </FigmaButton>
           </div>
         </div>
 
         {/* 문의 목록 */}
-        <Card className="overflow-hidden">
+        <FigmaCard variant="elevated" padding="none" className="overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="itsm-table-container">
-              <thead className="itsm-table-thead">
+            <table className="w-full" style={{ fontFamily: 'var(--figma-font-family)' }}>
+              <thead style={{ background: 'var(--figma-surface)' }}>
                 <tr>
-                  <th className="itsm-table-th">문의일시</th>
-                  <th className="itsm-table-th">문의내용</th>
-                  <th className="itsm-table-th">문의자</th>
-                  <th className="itsm-table-th">답변일시</th>
-                  <th className="itsm-table-th">잠금아이콘</th>
-                  <th className="itsm-table-th">작업</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium" style={{
+                    color: 'var(--figma-text-primary)',
+                    borderBottom: '1px solid var(--figma-border)'
+                  }}>
+                    문의일시
+                  </th>
+                  <th className="px-4 py-3 text-left text-sm font-medium" style={{
+                    color: 'var(--figma-text-primary)',
+                    borderBottom: '1px solid var(--figma-border)'
+                  }}>
+                    문의내용
+                  </th>
+                  <th className="px-4 py-3 text-left text-sm font-medium" style={{
+                    color: 'var(--figma-text-primary)',
+                    borderBottom: '1px solid var(--figma-border)'
+                  }}>
+                    문의자
+                  </th>
+                  <th className="px-4 py-3 text-left text-sm font-medium" style={{
+                    color: 'var(--figma-text-primary)',
+                    borderBottom: '1px solid var(--figma-border)'
+                  }}>
+                    답변일시
+                  </th>
+                  <th className="px-4 py-3 text-left text-sm font-medium" style={{
+                    color: 'var(--figma-text-primary)',
+                    borderBottom: '1px solid var(--figma-border)'
+                  }}>
+                    잠금아이콘
+                  </th>
+                  <th className="px-4 py-3 text-left text-sm font-medium" style={{
+                    color: 'var(--figma-text-primary)',
+                    borderBottom: '1px solid var(--figma-border)'
+                  }}>
+                    작업
+                  </th>
                 </tr>
               </thead>
-              <tbody className="itsm-table-tbody">
+              <tbody>
                 {currentInquiries.map((inquiry) => (
-                  <tr key={inquiry.id}>
-                    <td className="itsm-table-td">{inquiry.inquiryDate}</td>
-                    <td className="itsm-table-td max-w-xs truncate">{inquiry.content}</td>
-                    <td className="itsm-table-td">{maskName(inquiry.inquirer, inquiry.isMine)}</td>
-                    <td className="itsm-table-td">{inquiry.answerDate || '-'}</td>
-                    <td className="itsm-table-td">
+                  <tr key={inquiry.id} style={{ borderBottom: '1px solid var(--figma-border)' }}>
+                    <td className="px-4 py-3 text-sm" style={{ color: 'var(--figma-text-secondary)' }}>
+                      {inquiry.inquiryDate}
+                    </td>
+                    <td className="px-4 py-3 text-sm max-w-xs truncate" style={{ color: 'var(--figma-text-primary)' }}>
+                      {inquiry.content}
+                    </td>
+                    <td className="px-4 py-3 text-sm" style={{ color: 'var(--figma-text-secondary)' }}>
+                      {maskName(inquiry.inquirer, inquiry.isMine)}
+                    </td>
+                    <td className="px-4 py-3 text-sm" style={{ color: 'var(--figma-text-secondary)' }}>
+                      {inquiry.answerDate || '-'}
+                    </td>
+                    <td className="px-4 py-3 text-sm">
                       {inquiry.isSecret ? (
-                        <Lock className="h-4 w-4 text-red-500" />
+                        <Lock className="h-4 w-4" style={{ color: 'var(--figma-error)' }} />
                       ) : (
-                        <Unlock className="h-4 w-4 text-green-500" />
+                        <Unlock className="h-4 w-4" style={{ color: 'var(--figma-success)' }} />
                       )}
                     </td>
-                    <td className="itsm-table-td">
+                    <td className="px-4 py-3 text-sm">
                       {inquiry.answerDate && !inquiry.isSecret ? (
-                        <Button
+                        <FigmaButton
                           size="sm"
                           onClick={() => handleViewAnswer(inquiry)}
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 text-xs"
+                          variant="primary"
+                          className="px-2 py-1 text-xs"
                         >
                           <Eye className="h-3 w-3 mr-1" />
                           답변보기
-                        </Button>
+                        </FigmaButton>
                       ) : (
-                        <span className="text-gray-400 text-sm">
+                        <span className="text-sm" style={{ color: 'var(--figma-text-muted)' }}>
                           {inquiry.isSecret ? '비밀글' : '답변대기'}
                         </span>
                       )}
@@ -285,37 +356,36 @@ export default function InquiryPage() {
 
           {/* 페이지네이션 */}
           {totalPages > 1 && (
-            <div className="flex justify-center items-center space-x-2 p-4">
-              <Button
+            <div className="flex justify-center items-center space-x-2 p-4" style={{ borderTop: '1px solid var(--figma-border)' }}>
+              <FigmaButton
                 onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                 disabled={currentPage === 1}
-                className="px-3 py-1"
+                variant="secondary"
+                size="sm"
               >
                 이전
-              </Button>
+              </FigmaButton>
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <Button
+                <FigmaButton
                   key={page}
                   onClick={() => setCurrentPage(page)}
-                  className={`px-3 py-1 ${
-                    currentPage === page
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
+                  variant={currentPage === page ? "primary" : "secondary"}
+                  size="sm"
                 >
                   {page}
-                </Button>
+                </FigmaButton>
               ))}
-              <Button
+              <FigmaButton
                 onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                 disabled={currentPage === totalPages}
-                className="px-3 py-1"
+                variant="secondary"
+                size="sm"
               >
                 다음
-              </Button>
+              </FigmaButton>
             </div>
           )}
-        </Card>
+        </FigmaCard>
       </main>
 
       {/* 문의글쓰기 모달 */}

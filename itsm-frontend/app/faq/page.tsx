@@ -4,6 +4,8 @@ import React, { useState } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { FigmaCard } from '@/components/figma/FigmaCard'
+import { FigmaButton } from '@/components/figma/FigmaButton'
 import { ArrowLeft, Search, Plus, Edit, Trash2, Lock, Unlock } from 'lucide-react'
 
 interface FAQ {
@@ -100,46 +102,60 @@ export default function FAQPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen" style={{ background: 'var(--figma-background)' }}>
       {/* 헤더 */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
+      <header className="shadow-sm" style={{ 
+        background: 'var(--figma-surface)',
+        borderBottom: '1px solid var(--figma-border)'
+      }}>
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <Button
+              <FigmaButton
                 onClick={() => window.history.back()}
-                className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+                variant="secondary"
+                size="sm"
+                className="flex items-center gap-2"
               >
                 <ArrowLeft className="h-4 w-4" />
                 뒤로가기
-              </Button>
-              <h1 className="text-2xl font-bold text-gray-900">자주하는 질문</h1>
+              </FigmaButton>
+              <h1 className="text-2xl font-bold" style={{
+                color: 'var(--figma-text-primary)',
+                fontFamily: 'var(--figma-font-family)'
+              }}>
+                자주하는 질문
+              </h1>
             </div>
             <div className="flex items-center space-x-4">
-              <Button
+              <FigmaButton
                 onClick={() => window.location.href = '/progress'}
-                className="text-gray-600 hover:text-gray-900"
+                variant="secondary"
+                size="sm"
               >
                 요청진행사항
-              </Button>
-              <Button
+              </FigmaButton>
+              <FigmaButton
                 onClick={() => window.location.href = '/service-request'}
-                className="text-gray-600 hover:text-gray-900"
+                variant="secondary"
+                size="sm"
               >
                 서비스신청
-              </Button>
-              <Button
+              </FigmaButton>
+              <FigmaButton
                 onClick={() => window.location.href = '/inquiry'}
-                className="text-gray-600 hover:text-gray-900"
+                variant="secondary"
+                size="sm"
               >
                 일반문의사항
-              </Button>
-              <Button
+              </FigmaButton>
+              <FigmaButton
                 onClick={() => window.location.href = '/'}
-                className="bg-red-600 hover:bg-red-700 text-white"
+                variant="danger"
+                size="sm"
               >
                 로그아웃
-              </Button>
+              </FigmaButton>
             </div>
           </div>
         </div>
@@ -151,25 +167,31 @@ export default function FAQPage() {
         <div className="flex justify-between items-center mb-6">
           <div className="flex-1 max-w-md">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4" style={{ color: 'var(--figma-text-muted)' }} />
               <Input
                 type="text"
                 placeholder="FAQ 검색..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
+                style={{
+                  borderColor: 'var(--figma-border)',
+                  fontFamily: 'var(--figma-font-family)',
+                  fontSize: 'var(--figma-font-size-base)'
+                }}
               />
             </div>
           </div>
           {isManager && (
             <div className="flex space-x-2">
-              <Button
+              <FigmaButton
                 onClick={handleAddFAQ}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                variant="primary"
+                size="md"
               >
                 <Plus className="h-4 w-4 mr-2" />
                 질문 추가
-              </Button>
+              </FigmaButton>
             </div>
           )}
         </div>
@@ -177,183 +199,324 @@ export default function FAQPage() {
         {/* FAQ 목록 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {currentFAQs.map((faq) => (
-            <Card key={faq.id} className="p-6 hover:shadow-lg transition-shadow cursor-pointer">
+            <FigmaCard 
+              key={faq.id} 
+              variant="elevated" 
+              padding="lg" 
+              className="hover:shadow-xl transition-all duration-300 cursor-pointer"
+            >
               <div className="flex items-start justify-between mb-4">
                 <div className="text-3xl">{faq.icon}</div>
                 <div className="flex items-center space-x-2">
                   {faq.isLocked ? (
-                    <Lock className="h-4 w-4 text-red-500" />
+                    <Lock className="h-4 w-4" style={{ color: 'var(--figma-error)' }} />
                   ) : (
-                    <Unlock className="h-4 w-4 text-green-500" />
+                    <Unlock className="h-4 w-4" style={{ color: 'var(--figma-success)' }} />
                   )}
                   {isManager && (
                     <div className="flex space-x-1">
-                      <Button
+                      <FigmaButton
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation()
                           handleEditFAQ(faq)
                         }}
+                        variant="secondary"
                         className="p-1 h-8 w-8"
                       >
                         <Edit className="h-3 w-3" />
-                      </Button>
-                      <Button
+                      </FigmaButton>
+                      <FigmaButton
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation()
                           handleDeleteFAQ(faq.id)
                         }}
-                        className="p-1 h-8 w-8 bg-red-600 hover:bg-red-700"
+                        variant="danger"
+                        className="p-1 h-8 w-8"
                       >
                         <Trash2 className="h-3 w-3" />
-                      </Button>
+                      </FigmaButton>
                     </div>
                   )}
                 </div>
               </div>
               
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">{faq.summary}</h3>
-              <p className="text-gray-600 text-sm mb-3 line-clamp-2">{faq.content}</p>
+              <h3 className="text-lg font-semibold mb-2" style={{
+                color: 'var(--figma-text-primary)',
+                fontFamily: 'var(--figma-font-family)'
+              }}>
+                {faq.summary}
+              </h3>
+              <p className="text-sm mb-3 line-clamp-2" style={{ color: 'var(--figma-text-secondary)' }}>
+                {faq.content}
+              </p>
               <div className="flex items-center justify-between">
-                <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
+                <span className="text-xs px-2 py-1 rounded-full" style={{
+                  color: 'var(--figma-primary)',
+                  background: 'var(--figma-primary-light)'
+                }}>
                   {faq.category}
                 </span>
-                <Button
+                <FigmaButton
                   onClick={() => handleFAQClick(faq)}
-                  className="text-blue-600 hover:text-blue-800 text-sm"
+                  variant="primary"
+                  size="sm"
                 >
                   자세히 보기
-                </Button>
+                </FigmaButton>
               </div>
-            </Card>
+            </FigmaCard>
           ))}
         </div>
 
         {/* 페이지네이션 */}
         {totalPages > 1 && (
           <div className="flex justify-center items-center space-x-2">
-            <Button
+            <FigmaButton
               onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
-              className="px-3 py-1"
+              variant="secondary"
+              size="sm"
             >
               이전
-            </Button>
+            </FigmaButton>
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-              <Button
+              <FigmaButton
                 key={page}
                 onClick={() => setCurrentPage(page)}
-                className={`px-3 py-1 ${
-                  currentPage === page
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                }`}
+                variant={currentPage === page ? "primary" : "secondary"}
+                size="sm"
               >
                 {page}
-              </Button>
+              </FigmaButton>
             ))}
-            <Button
+            <FigmaButton
               onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
-              className="px-3 py-1"
+              variant="secondary"
+              size="sm"
             >
               다음
-            </Button>
+            </FigmaButton>
           </div>
         )}
       </main>
 
       {/* FAQ 상세보기 모달 */}
       {selectedFAQ && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+        <div className="fixed inset-0 flex items-center justify-center" style={{ 
+          background: 'var(--figma-background)',
+          zIndex: 'var(--figma-z-modal)'
+        }}>
+          <FigmaCard variant="elevated" padding="lg" className="max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-3">
                 <span className="text-3xl">{selectedFAQ.icon}</span>
                 <div>
-                  <h2 className="text-xl font-bold text-gray-900">{selectedFAQ.summary}</h2>
-                  <p className="text-sm text-gray-500">{selectedFAQ.category}</p>
+                  <h2 className="text-xl font-bold" style={{
+                    color: 'var(--figma-text-primary)',
+                    fontFamily: 'var(--figma-font-family)'
+                  }}>
+                    {selectedFAQ.summary}
+                  </h2>
+                  <p className="text-sm" style={{ color: 'var(--figma-text-secondary)' }}>
+                    {selectedFAQ.category}
+                  </p>
                 </div>
               </div>
-              <Button
+              <FigmaButton
                 onClick={() => setSelectedFAQ(null)}
-                className="text-gray-500 hover:text-gray-700"
+                variant="secondary"
+                size="sm"
               >
                 ✕
-              </Button>
+              </FigmaButton>
             </div>
 
             <div className="space-y-4">
               <div>
-                <h3 className="font-semibold text-gray-900 mb-2">발생 원인</h3>
-                <p className="text-gray-700 bg-gray-50 p-3 rounded-lg">{selectedFAQ.content}</p>
+                <h3 className="font-semibold mb-2" style={{
+                  color: 'var(--figma-text-primary)',
+                  fontFamily: 'var(--figma-font-family)'
+                }}>
+                  발생 원인
+                </h3>
+                <p className="p-3 rounded-lg" style={{
+                  color: 'var(--figma-text-secondary)',
+                  background: 'var(--figma-surface)',
+                  borderRadius: 'var(--figma-radius-lg)'
+                }}>
+                  {selectedFAQ.content}
+                </p>
               </div>
 
               <div>
-                <h3 className="font-semibold text-gray-900 mb-2">즉시 해결</h3>
-                <div className="text-gray-700 bg-green-50 p-3 rounded-lg whitespace-pre-line">
+                <h3 className="font-semibold mb-2" style={{
+                  color: 'var(--figma-text-primary)',
+                  fontFamily: 'var(--figma-font-family)'
+                }}>
+                  즉시 해결
+                </h3>
+                <div className="p-3 rounded-lg whitespace-pre-line" style={{
+                  color: 'var(--figma-text-secondary)',
+                  background: 'var(--figma-success-light)',
+                  borderRadius: 'var(--figma-radius-lg)'
+                }}>
                   {selectedFAQ.solution}
                 </div>
               </div>
 
               <div>
-                <h3 className="font-semibold text-gray-900 mb-2">문제가 지속될 경우</h3>
-                <p className="text-gray-700 bg-yellow-50 p-3 rounded-lg">{selectedFAQ.persistentIssue}</p>
+                <h3 className="font-semibold mb-2" style={{
+                  color: 'var(--figma-text-primary)',
+                  fontFamily: 'var(--figma-font-family)'
+                }}>
+                  문제가 지속될 경우
+                </h3>
+                <p className="p-3 rounded-lg" style={{
+                  color: 'var(--figma-text-secondary)',
+                  background: 'var(--figma-warning-light)',
+                  borderRadius: 'var(--figma-radius-lg)'
+                }}>
+                  {selectedFAQ.persistentIssue}
+                </p>
               </div>
             </div>
 
             <div className="flex justify-end mt-6">
-              <Button
+              <FigmaButton
                 onClick={() => setSelectedFAQ(null)}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
+                variant="primary"
+                size="md"
               >
                 닫기
-              </Button>
+              </FigmaButton>
             </div>
-          </div>
+          </FigmaCard>
         </div>
       )}
 
       {/* FAQ 추가 모달 */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">FAQ 추가</h2>
+        <div className="fixed inset-0 flex items-center justify-center" style={{ 
+          background: 'var(--figma-background)',
+          zIndex: 'var(--figma-z-modal)'
+        }}>
+          <FigmaCard variant="elevated" padding="lg" className="max-w-2xl w-full mx-4">
+            <h2 className="text-xl font-bold mb-4" style={{
+              color: 'var(--figma-text-primary)',
+              fontFamily: 'var(--figma-font-family)'
+            }}>
+              FAQ 추가
+            </h2>
             <form className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">아이콘</label>
-                <Input placeholder="이모지 입력 (예: 💻)" />
+                <label className="block text-sm font-medium mb-2" style={{
+                  color: 'var(--figma-text-primary)',
+                  fontFamily: 'var(--figma-font-family)'
+                }}>
+                  아이콘
+                </label>
+                <Input 
+                  placeholder="이모지 입력 (예: 💻)" 
+                  style={{
+                    borderColor: 'var(--figma-border)',
+                    fontFamily: 'var(--figma-font-family)',
+                    fontSize: 'var(--figma-font-size-base)'
+                  }}
+                />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">발생 원인 요약 *</label>
-                <Input placeholder="요약 입력" />
+                <label className="block text-sm font-medium mb-2" style={{
+                  color: 'var(--figma-text-primary)',
+                  fontFamily: 'var(--figma-font-family)'
+                }}>
+                  발생 원인 요약 *
+                </label>
+                <Input 
+                  placeholder="요약 입력" 
+                  style={{
+                    borderColor: 'var(--figma-border)',
+                    fontFamily: 'var(--figma-font-family)',
+                    fontSize: 'var(--figma-font-size-base)'
+                  }}
+                />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">발생 원인 내용 *</label>
-                <textarea className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" rows={3}></textarea>
+                <label className="block text-sm font-medium mb-2" style={{
+                  color: 'var(--figma-text-primary)',
+                  fontFamily: 'var(--figma-font-family)'
+                }}>
+                  발생 원인 내용 *
+                </label>
+                <textarea 
+                  className="w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2" 
+                  rows={3}
+                  style={{
+                    borderColor: 'var(--figma-border)',
+                    fontFamily: 'var(--figma-font-family)',
+                    fontSize: 'var(--figma-font-size-base)',
+                    borderRadius: 'var(--figma-radius-lg)',
+                    border: '1px solid var(--figma-border)'
+                  }}
+                ></textarea>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">즉시 해결</label>
-                <textarea className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" rows={3}></textarea>
+                <label className="block text-sm font-medium mb-2" style={{
+                  color: 'var(--figma-text-primary)',
+                  fontFamily: 'var(--figma-font-family)'
+                }}>
+                  즉시 해결
+                </label>
+                <textarea 
+                  className="w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2" 
+                  rows={3}
+                  style={{
+                    borderColor: 'var(--figma-border)',
+                    fontFamily: 'var(--figma-font-family)',
+                    fontSize: 'var(--figma-font-size-base)',
+                    borderRadius: 'var(--figma-radius-lg)',
+                    border: '1px solid var(--figma-border)'
+                  }}
+                ></textarea>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">문제가 지속될 경우</label>
-                <textarea className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" rows={3}></textarea>
+                <label className="block text-sm font-medium mb-2" style={{
+                  color: 'var(--figma-text-primary)',
+                  fontFamily: 'var(--figma-font-family)'
+                }}>
+                  문제가 지속될 경우
+                </label>
+                <textarea 
+                  className="w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2" 
+                  rows={3}
+                  style={{
+                    borderColor: 'var(--figma-border)',
+                    fontFamily: 'var(--figma-font-family)',
+                    fontSize: 'var(--figma-font-size-base)',
+                    borderRadius: 'var(--figma-radius-lg)',
+                    border: '1px solid var(--figma-border)'
+                  }}
+                ></textarea>
               </div>
               <div className="flex justify-end space-x-2">
-                <Button
+                <FigmaButton
                   onClick={() => setShowAddModal(false)}
-                  className="bg-gray-500 hover:bg-gray-600 text-white"
+                  variant="secondary"
+                  size="md"
                 >
                   취소
-                </Button>
-                <Button className="bg-blue-600 hover:bg-blue-700 text-white">
+                </FigmaButton>
+                <FigmaButton
+                  variant="primary"
+                  size="md"
+                >
                   추가
-                </Button>
+                </FigmaButton>
               </div>
             </form>
-          </div>
+          </FigmaCard>
         </div>
       )}
     </div>
