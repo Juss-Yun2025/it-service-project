@@ -217,9 +217,7 @@ export default function UserDashboard() {
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-4">
               <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: 'var(--figma-primary)' }}>
-                <svg className="w-6 h-6" style={{ color: 'var(--figma-text-inverse)' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
+                <img src="/icons/user.svg" alt="사용자" className="w-6 h-6" style={{ color: 'var(--figma-text-inverse)' }} />
               </div>
               <div>
                 <h1 className="text-2xl font-bold" style={{
@@ -322,9 +320,7 @@ export default function UserDashboard() {
               <FigmaCard variant="elevated" padding="lg" className="text-white" style={{ background: 'var(--figma-primary)' }}>
                 <div className="flex items-center">
                   <div className="p-2 rounded-lg" style={{ background: 'rgba(255, 255, 255, 0.2)' }}>
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+                    <img src="/icons/check-circle.svg" alt="완료" className="w-6 h-6" />
                   </div>
                   <div className="ml-4">
                     <p className="text-sm opacity-90" style={{ fontFamily: 'var(--figma-font-family)' }}>정상 서비스</p>
@@ -336,9 +332,7 @@ export default function UserDashboard() {
               <FigmaCard variant="elevated" padding="lg" className="text-white" style={{ background: 'var(--figma-warning)' }}>
                 <div className="flex items-center">
                   <div className="p-2 rounded-lg" style={{ background: 'rgba(255, 255, 255, 0.2)' }}>
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                    </svg>
+                    <img src="/icons/help-circle.svg" alt="경고" className="w-6 h-6" />
                   </div>
                   <div className="ml-4">
                     <p className="text-sm opacity-90" style={{ fontFamily: 'var(--figma-font-family)' }}>경고/오류</p>
@@ -350,9 +344,7 @@ export default function UserDashboard() {
               <FigmaCard variant="elevated" padding="lg" className="text-white" style={{ background: 'var(--figma-success)' }}>
                 <div className="flex items-center">
                   <div className="p-2 rounded-lg" style={{ background: 'rgba(255, 255, 255, 0.2)' }}>
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                    </svg>
+                    <img src="/icons/document.svg" alt="문서" className="w-6 h-6" />
                   </div>
                   <div className="ml-4">
                     <p className="text-sm opacity-90" style={{ fontFamily: 'var(--figma-font-family)' }}>내 요청사항</p>
@@ -364,9 +356,7 @@ export default function UserDashboard() {
               <FigmaCard variant="elevated" padding="lg" className="text-white" style={{ background: 'var(--figma-secondary)' }}>
                 <div className="flex items-center">
                   <div className="p-2 rounded-lg" style={{ background: 'rgba(255, 255, 255, 0.2)' }}>
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
+                    <img src="/icons/refresh.svg" alt="새로고침" className="w-6 h-6" />
                   </div>
                   <div className="ml-4">
                     <p className="text-sm opacity-90" style={{ fontFamily: 'var(--figma-font-family)' }}>빠른 응답</p>
@@ -789,9 +779,7 @@ export default function UserDashboard() {
                 onClick={() => setShowQuickResponseModal(false)}
                 className="text-gray-400 hover:text-gray-600"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <img src="/icons/close.svg" alt="닫기" className="w-6 h-6" />
               </button>
             </div>
             

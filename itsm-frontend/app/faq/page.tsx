@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Icon from '@/components/ui/Icon'
 
 interface FAQ {
   id: string
@@ -156,7 +157,7 @@ export default function FAQPage() {
       <div 
         className="absolute inset-0 bg-no-repeat"
         style={{
-          backgroundImage: `url('/image/자주하는질문페이지_배경_이미지.jpg')`,
+          backgroundImage: `url('/image/배경_자주하는질문_페이지.jpg')`,
           backgroundSize: '1920px 1080px',
           backgroundPosition: 'center center'
         }}
@@ -179,10 +180,7 @@ export default function FAQPage() {
           <div className="flex justify-between items-center p-8">
             <div className="flex items-center space-x-4">
               <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-laptop w-6 h-6 text-white">
-                  <path d="M18 5a2 2 0 0 1 2 2v8.526a2 2 0 0 0 .212.897l1.068 2.127a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45l1.068-2.127A2 2 0 0 0 4 15.526V7a2 2 0 0 1 2-2z"></path>
-                  <path d="M20.054 15.987H3.946"></path>
-                </svg>
+                <Icon name="laptop" size={24} className="text-white" />
               </div>
               <div className="min-w-0">
                 <h1 className="text-3xl font-bold text-white truncate">IT Service Management</h1>
@@ -191,7 +189,7 @@ export default function FAQPage() {
             </div>
             <button
               onClick={handleLogout}
-              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-300 ease-out button-smooth"
             >
               로그아웃
             </button>
@@ -201,46 +199,49 @@ export default function FAQPage() {
         {/* 사용자 정보 및 네비게이션 */}
         <div className="max-w-7xl mx-auto px-6 py-6 w-full">
           {/* 사용자 정보 및 네비게이션 */}
-          <div className="flex items-center justify-between mb-8">
-            <div className="bg-white/20 backdrop-blur-sm px-8 py-2 rounded-full -ml-64">
-              <span className="text-white font-medium">일반사용자 (이영희)</span>
+          <div className="flex items-center justify-between mb-12">
+            <div className="bg-white px-20 py-0 rounded-full -ml-74 smooth-hover animate-fade-in shadow-lg">
+              <span className="text-black font-medium">일반사용자 (이영희)</span>
             </div>
             <div className="flex absolute" style={{left: '50%', transform: 'translateX(-350px)', gap: '170px'}}>
-              <button className="text-white/70 hover:text-white transition-all duration-300 relative group">
+              <button 
+                onClick={() => router.push('/progress')}
+                className="text-white/70 hover:text-white transition-all duration-500 ease-out relative group button-smooth"
+              >
                 <span className="flex items-center space-x-2">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                  <span>요청 진행사항</span>
+                  <Icon name="bar-chart" size={20} className="text-white/70 group-hover:text-white" />
+                  <span className="group-hover:text-[#00C950]">요청 진행사항</span>
                 </span>
-                          <div className="absolute bottom-[-4px] left-0 w-0 h-2 bg-orange-500 transition-all duration-300 group-hover:w-full"></div>
+                          <div className="absolute bottom-[-4px] left-0 w-0 h-1 bg-[#00C950] transition-all duration-500 ease-out group-hover:w-full"></div>
               </button>
-                        <button className="text-white/70 hover:text-white transition-all duration-300 relative group">
+                        <button 
+                          onClick={() => router.push('/service-request')}
+                          className="text-white/70 hover:text-white transition-all duration-500 ease-out relative group button-smooth"
+                        >
                           <span className="flex items-center space-x-2">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            <span>서비스신청</span>
+                            <Icon name="document" size={20} className="text-white/70 group-hover:text-white" />
+                            <span className="group-hover:text-[#AD46FF]">서비스신청</span>
                           </span>
-                          <div className="absolute bottom-[-4px] left-0 w-0 h-2 bg-orange-500 transition-all duration-300 group-hover:w-full"></div>
+                          <div className="absolute bottom-[-4px] left-0 w-0 h-1 bg-[#AD46FF] transition-all duration-500 ease-out group-hover:w-full"></div>
                         </button>
-              <button className="text-white/70 hover:text-white transition-all duration-300 relative group">
+              <button 
+                onClick={() => router.push('/inquiry')}
+                className="text-white/70 hover:text-white transition-all duration-500 ease-out relative group button-smooth"
+              >
                 <span className="flex items-center space-x-2">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </svg>
-                  <span>일반 문의사항</span>
+                  <Icon name="help-circle" size={20} className="text-white/70 group-hover:text-white" />
+                  <span className="group-hover:text-[#FF6900]">일반 문의사항</span>
                 </span>
-                          <div className="absolute bottom-[-4px] left-0 w-0 h-2 bg-orange-500 transition-all duration-300 group-hover:w-full"></div>
+                          <div className="absolute bottom-[-4px] left-0 w-0 h-1 bg-[#FF6900] transition-all duration-500 ease-out group-hover:w-full"></div>
               </button>
             </div>
           </div>
 
           {/* 좌측 구석 설명 영역 */}
           <div className="absolute left-8 top-1/2 transform -translate-y-1/2 z-10">
-            <div className="bg-white/10 backdrop-blur-sm p-6 rounded-lg max-w-xs">
+            <div className="bg-white/10 backdrop-blur-sm p-6 rounded-lg max-w-xs smooth-hover animate-fade-in text-center">
               <h2 className="text-2xl font-bold text-white mb-3">자주하는 질문</h2>
-              <p className="text-gray-200 leading-relaxed text-sm">
+              <p className="text-gray-200 leading-relaxed text-sm text-left">
                 자주 발생하는 IT 문제에 대한 빠른 해결책을 제공합니다. 
                 문제 유형을 선택하면 즉시 대응 방안을 확인할 수 있습니다.
               </p>
@@ -255,10 +256,11 @@ export default function FAQPage() {
                 <div
                   key={faq.id}
                   onClick={() => handleFAQClick(faq)}
-                  className="bg-white rounded-xl p-7 cursor-pointer hover:shadow-2xl transition-all duration-300 transform hover:scale-105 flex flex-col h-full"
+                  className="bg-white rounded-xl cursor-pointer hover:shadow-2xl transition-all duration-500 ease-out transform hover:scale-105 flex flex-col h-full smooth-hover animate-fade-in"
+                  style={{padding: '20px 30px'}}
                 >
-                            <div className="text-left mb-5 flex-1">
-                              <div className="text-5xl mb-3 text-center">{faq.icon}</div>
+                            <div className="text-left mb-5 flex-1" style={{paddingTop: '15px'}}>
+                              <div className="mb-3 text-center" style={{fontSize: '36px'}}>{faq.icon}</div>
                               <h3 className="text-xl font-bold text-gray-800 mb-3 text-center">
                                 {faq.summary}
                               </h3>
@@ -267,7 +269,7 @@ export default function FAQPage() {
                               </p>
                             </div>
                   <div className="flex justify-start items-center mt-auto">
-                    <span className="text-sm px-4 py-2 rounded-full bg-blue-100 text-blue-800 font-medium">
+                    <span className="text-sm px-4 rounded-full bg-blue-100 text-blue-800 font-medium" style={{paddingTop: '0px', paddingBottom: '0px'}}>
                       {faq.category}
                     </span>
                   </div>
@@ -283,7 +285,7 @@ export default function FAQPage() {
             <button
               onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
-              className="px-4 py-2 bg-white/20 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/30 transition-colors"
+              className="px-4 py-2 bg-white/20 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/30 transition-all duration-300 ease-out button-smooth"
             >
               이전
             </button>
@@ -293,7 +295,7 @@ export default function FAQPage() {
             <button
               onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
-              className="px-4 py-2 bg-white/20 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/30 transition-colors"
+              className="px-4 py-2 bg-white/20 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white/30 transition-all duration-300 ease-out button-smooth"
             >
               다음
             </button>
@@ -303,15 +305,15 @@ export default function FAQPage() {
 
       {/* 푸터 */}
       <div className="absolute bottom-4 left-4 right-4 text-center">
-        <span className="text-xs text-gray-400">
+        <span className="text-sm text-gray-400">
           © 2025 IT 서비스 관리 시스템. 모든 권리는 Juss 가 보유
         </span>
       </div>
 
       {/* FAQ 상세보기 모달 */}
       {selectedFAQ && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 modal-enter">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full smooth-hover animate-fade-in">
             {/* 헤더 */}
             <div className="flex justify-between items-center p-6 border-b border-gray-200">
               <h2 className="text-xl font-bold text-gray-800">자주하는 질문</h2>
@@ -319,9 +321,7 @@ export default function FAQPage() {
                 onClick={() => setSelectedFAQ(null)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <Icon name="close" size={24} />
               </button>
             </div>
 

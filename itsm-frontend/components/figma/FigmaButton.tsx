@@ -17,7 +17,7 @@ export function FigmaButton({
   onClick,
   className = ''
 }: FigmaButtonProps) {
-  const baseClasses = 'font-medium rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2'
+  const baseClasses = 'font-medium rounded-lg transition-all duration-300 ease-out focus:outline-none focus:ring-2 focus:ring-offset-2 button-smooth'
   
   const variantClasses = {
     primary: 'bg-blue-500 hover:bg-blue-600 text-white focus:ring-blue-500',

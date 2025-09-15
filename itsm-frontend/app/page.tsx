@@ -6,6 +6,7 @@ import { FigmaCard } from "@/components/figma/FigmaCard";
 import { useState, useEffect } from "react";
 import { getPermissionLevelName, getRolePermissionLevel } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
+import Icon from '@/components/ui/Icon'
 import { 
   MessageSquare, 
   BarChart3, 
@@ -119,9 +120,10 @@ export default function Home() {
 
   // 기준점들
   const baseWidth1920 = 1920;
-  const basePosition1920 = -896; // 1920px에서 -896px
+  const basePosition1920 = -896; // 1920px에서 -896p
+  // 동적 위치 계산 함수 (1px당 0.5px 이동) - 부드러운 애니메이션을 위한 상태
+  const [animatedPosition, setAnimatedPosition] = useState(basePosition1920);
   
-  // 동적 위치 계산 함수 (1px당 0.5px 이동)
   const calculateDynamicPositionPx = () => {
     if (screenWidth === 0) return basePosition1920;
     
@@ -134,6 +136,15 @@ export default function Home() {
   };
 
   const dynamicPositionPx = calculateDynamicPositionPx();
+
+  // 부드러운 위치 애니메이션을 위한 useEffect
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setAnimatedPosition(dynamicPositionPx);
+    }, 50); // 50ms 지연으로 부드러운 전환
+    
+    return () => clearTimeout(timer);
+  }, [dynamicPositionPx]);
 
   // 로그인 처리
   const handleLogin = () => {
@@ -297,7 +308,7 @@ export default function Home() {
       <div 
         className="absolute inset-0 bg-no-repeat"
         style={{
-          backgroundImage: `url('/image/메인페이지_배경_이미지.jpg')`,
+          backgroundImage: `url('/image/배경_메인_페이지.jpg')`,
           backgroundSize: '1920px 1080px',
           backgroundPosition: 'center center'
         }}
@@ -362,12 +373,13 @@ export default function Home() {
             <div className="fixed inset-0 pointer-events-none z-10">
               {/* 커피잔 - 자주하는질문 이미지 (호버 시에만 표시) */}
               {hoveredMenuItem === 'faq' && (
-                <div style={{position: 'fixed', right: '0', top: '50%', transform: `translateX(${dynamicPositionPx}px) translateY(-113%)`, zIndex: 20}}>
+                <div style={{position: 'fixed', right: '0', top: '50%', transform: `translateX(${animatedPosition}px) translateY(-113%)`, zIndex: 20, transition: 'transform 0.8s cubic-bezier(0.4, 0, 0.2, 1)'}}>
                     <div className="relative">
                   <div
-                    className="w-80 h-80 bg-cover bg-center rounded-full shadow-2xl transition-all duration-500 ease-in-out"
+                    className="w-80 h-80 bg-cover bg-center rounded-full shadow-2xl transition-all duration-700 ease-out"
                         style={{
-                          backgroundImage: `url('/image/자주하는질문_반응형_이미지.jpg')`
+                          backgroundImage: `url('/image/반응형_자주하는질문.jpg')`,
+                          animation: 'fadeInScale 0.6s ease-out forwards'
                         }}
                       ></div>
                       <div className="absolute inset-0 flex items-start justify-center pt-12">
@@ -386,12 +398,13 @@ export default function Home() {
                 
               {/* 요청진행사항 이미지 (호버 시에만 표시) */}
               {hoveredMenuItem === 'progress' && (
-                <div style={{position: 'fixed', right: '0', top: '50%', transform: `translateX(${dynamicPositionPx}px) translateY(-113%)`, zIndex: 20}}>
+                <div style={{position: 'fixed', right: '0', top: '50%', transform: `translateX(${animatedPosition}px) translateY(-113%)`, zIndex: 20, transition: 'transform 0.8s cubic-bezier(0.4, 0, 0.2, 1)'}}>
                     <div className="relative">
                   <div
-                    className="w-80 h-80 bg-cover bg-center rounded-full shadow-2xl transition-all duration-500 ease-in-out"
+                    className="w-80 h-80 bg-cover bg-center rounded-full shadow-2xl transition-all duration-700 ease-out"
                         style={{
-                          backgroundImage: `url('/image/요청진행사항_반응형_이미지.jpg')`
+                          backgroundImage: `url('/image/반응형_요청진행사항.jpg')`,
+                          animation: 'fadeInScale 0.6s ease-out forwards'
                         }}
                       ></div>
                       <div className="absolute inset-0 flex items-start justify-center pt-12">
@@ -410,12 +423,13 @@ export default function Home() {
                 
               {/* 서비스신청 이미지 (호버 시에만 표시) */}
               {hoveredMenuItem === 'service-request' && (
-                <div style={{position: 'fixed', right: '0', top: '50%', transform: `translateX(${dynamicPositionPx}px) translateY(-113%)`, zIndex: 20}}>
+                <div style={{position: 'fixed', right: '0', top: '50%', transform: `translateX(${animatedPosition}px) translateY(-113%)`, zIndex: 20, transition: 'transform 0.8s cubic-bezier(0.4, 0, 0.2, 1)'}}>
                     <div className="relative">
                   <div
-                    className="w-80 h-80 bg-cover bg-center rounded-full shadow-2xl transition-all duration-500 ease-in-out"
+                    className="w-80 h-80 bg-cover bg-center rounded-full shadow-2xl transition-all duration-700 ease-out"
                         style={{
-                          backgroundImage: `url('/image/서비스신청_반응형_이미지.jpg')`
+                          backgroundImage: `url('/image/반응형_서비스신청.jpg')`,
+                          animation: 'fadeInScale 0.6s ease-out forwards'
                         }}
                       ></div>
                       <div className="absolute inset-0 flex items-start justify-center pt-12">
@@ -434,12 +448,13 @@ export default function Home() {
                 
               {/* 일반문의사항 이미지 (호버 시에만 표시) */}
               {hoveredMenuItem === 'inquiry' && (
-                <div style={{position: 'fixed', right: '0', top: '50%', transform: `translateX(${dynamicPositionPx}px) translateY(-113%)`, zIndex: 20}}>
+                <div style={{position: 'fixed', right: '0', top: '50%', transform: `translateX(${animatedPosition}px) translateY(-113%)`, zIndex: 20, transition: 'transform 0.8s cubic-bezier(0.4, 0, 0.2, 1)'}}>
                     <div className="relative">
                   <div
-                    className="w-80 h-80 bg-cover bg-center rounded-full shadow-2xl transition-all duration-500 ease-in-out"
+                    className="w-80 h-80 bg-cover bg-center rounded-full shadow-2xl transition-all duration-700 ease-out"
                         style={{
-                          backgroundImage: `url('/image/일반문의사항_반응형_이미지.jpg')`
+                          backgroundImage: `url('/image/반응형_일반문의사항.jpg')`,
+                          animation: 'fadeInScale 0.6s ease-out forwards'
                         }}
                       ></div>
                       <div className="absolute inset-0 flex items-start justify-center pt-12">
@@ -472,14 +487,14 @@ export default function Home() {
                         onClick={() => handleMenuItemClick(item.id)}
                         onMouseEnter={() => setHoveredMenuItem(item.id)}
                         onMouseLeave={() => setHoveredMenuItem("")}
-                        className="w-[60%] p-3 sm:p-4 text-left hover:bg-white/5 transition-all duration-300 group rounded-lg"
+                        className="w-[60%] p-3 sm:p-4 text-left hover:bg-white/5 transition-all duration-500 ease-out group rounded-lg smooth-hover"
                       >
                         <div className="flex items-center space-x-3 sm:space-x-4">
-                          <div className={`w-5 h-5 sm:w-6 sm:h-6 ${item.color} rounded flex items-center justify-center flex-shrink-0 transition-all duration-300 group-hover:scale-110 group-hover:shadow-lg`}>
+                          <div className={`w-5 h-5 sm:w-6 sm:h-6 ${item.color} rounded flex items-center justify-center flex-shrink-0 transition-all duration-500 ease-out group-hover:scale-110 group-hover:shadow-lg group-hover:rotate-3`}>
                             <IconComponent className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-white" />
                           </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-base sm:text-lg font-medium transition-all duration-300 truncate text-white group-hover:text-blue-300 group-hover:scale-105">
+                          <h3 className="text-base sm:text-lg font-medium transition-all duration-500 ease-out truncate text-white group-hover:text-blue-300 group-hover:scale-105">
                             {item.title}
                           </h3>
                         </div>
@@ -497,16 +512,17 @@ export default function Home() {
         </div>
 
         {/* 하단 저작권 정보 - 반응형 */}
-        <div className="absolute bottom-4 left-4 sm:bottom-6 sm:left-6 lg:bottom-8 lg:left-8 text-xs sm:text-sm text-gray-400">
-          <span className="hidden sm:inline">© 2025 IT 서비스 관리 시스템. 모든 권리는 Juss 기 보유</span>
-          <span className="sm:hidden">© 2025 ITSM</span>
+        <div className="absolute bottom-4 left-4 right-4 text-center">
+          <span className="text-sm text-gray-400">
+            © 2025 IT 서비스 관리 시스템. 모든 권리는 Juss 가 보유
+          </span>
         </div>
       </div>
 
       {/* 로그인 모달 - 반응형 */}
       {showLoginModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <FigmaCard className="w-full max-w-md mx-0">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 modal-enter">
+          <FigmaCard className="w-full max-w-md mx-0 smooth-hover">
             <div className="p-4 sm:p-6 lg:p-8">
               <div className="text-center mb-4 sm:mb-6">
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">
@@ -624,16 +640,14 @@ export default function Home() {
 
       {/* 회원가입 모달 */}
       {showSignupModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <FigmaCard className="w-full max-w-lg mx-0">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 modal-enter">
+          <FigmaCard className="w-full max-w-lg mx-0 smooth-hover">
             <div className="p-4 sm:p-6 lg:p-8">
               {/* 헤더 */}
               <div className="flex items-center justify-between mb-4 sm:mb-6">
                 <div className="flex items-center space-x-2">
                   <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
-                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
+                    <Icon name="user" size={20} className="text-white" />
                   </div>
                   <h2 className="text-xl sm:text-2xl font-bold text-gray-800">회원가입</h2>
                 </div>
@@ -641,9 +655,7 @@ export default function Home() {
                   onClick={handleCloseSignupModal}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  <Icon name="close" size={24} />
                 </button>
               </div>
 
@@ -655,9 +667,7 @@ export default function Home() {
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                      </svg>
+                      <Icon name="mail" size={20} className="text-gray-400" />
                     </div>
                     <input
                       type="email"
@@ -677,9 +687,7 @@ export default function Home() {
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </svg>
+                      <Icon name="lock" size={20} className="text-gray-400" />
                     </div>
                     <input
                       type="password"
@@ -699,9 +707,7 @@ export default function Home() {
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                      </svg>
+                      <Icon name="lock" size={20} className="text-gray-400" />
                     </div>
                     <input
                       type="password"
@@ -721,9 +727,7 @@ export default function Home() {
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
+                      <Icon name="user" size={20} className="text-gray-400" />
                     </div>
                     <input
                       type="text"
@@ -743,9 +747,7 @@ export default function Home() {
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2-2v2m8 0V6a2 2 0 012 2v6a2 2 0 01-2 2H8a2 2 0 01-2-2V8a2 2 0 012-2V6" />
-                      </svg>
+                      <Icon name="briefcase" size={20} className="text-gray-400" />
                     </div>
                     <input
                       type="text"
@@ -765,9 +767,7 @@ export default function Home() {
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                      </svg>
+                      <img src="/icons/briefcase.svg" alt="소속" className="w-5 h-5 text-gray-400" />
                     </div>
                     <input
                       type="text"
@@ -787,9 +787,7 @@ export default function Home() {
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                      </svg>
+                      <img src="/icons/phone.svg" alt="연락처" className="w-5 h-5 text-gray-400" />
                     </div>
                     <input
                       type="text"
