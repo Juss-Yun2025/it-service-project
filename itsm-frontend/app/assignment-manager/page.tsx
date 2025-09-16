@@ -799,14 +799,24 @@ export default function AssignmentManagerPage() {
             <div className="bg-white px-20 py-0 rounded-full -ml-72 smooth-hover animate-fade-in shadow-lg">
               <span className="text-black font-medium">배정담당자 (김배정)</span>
             </div>
-            <button 
-              onClick={handleInfoChange}
-              className="text-white/70 hover:text-white transition-all duration-300 ease-out flex items-center space-x-2 button-smooth"
-              style={{position: 'absolute', right: '120px', top: 'calc(50% + 36px)', transform: 'translateY(-50%)'}}
-            >
-              <Icon name="settings" size={20} className="text-white hover:text-white" />
-              <span>정보 변경</span>
-            </button>
+            <div className="flex items-center space-x-4">
+              {!showTechnicianStatus && (
+                <button
+                  onClick={() => setShowTechnicianStatus(true)}
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-all duration-300 ease-out"
+                >
+                  조치담당자 작업현황 표시
+                </button>
+              )}
+              <button 
+                onClick={handleInfoChange}
+                className="text-white/70 hover:text-white transition-all duration-300 ease-out flex items-center space-x-2 button-smooth"
+                style={{position: 'absolute', right: '120px', top: 'calc(50% + 36px)', transform: 'translateY(-50%)'}}
+              >
+                <Icon name="settings" size={20} className="text-white hover:text-white" />
+                <span>정보 변경</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -837,13 +847,9 @@ export default function AssignmentManagerPage() {
               </div>
               <button
                 onClick={() => setShowTechnicianStatus(!showTechnicianStatus)}
-                className={`w-8 h-4 rounded-full transition-colors ${
-                  showTechnicianStatus ? 'bg-green-500' : 'bg-gray-400'
-                }`}
+                className="text-gray-600 hover:text-gray-800 transition-colors text-sm font-medium"
               >
-                <div className={`w-3 h-3 bg-white rounded-full transition-transform ${
-                  showTechnicianStatus ? 'translate-x-4' : 'translate-x-0.5'
-                }`} />
+                숨기기
               </button>
             </div>
 
