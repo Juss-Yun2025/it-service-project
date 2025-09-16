@@ -93,6 +93,12 @@ export default function AssignmentManagerPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [selectedRequest, setSelectedRequest] = useState<ServiceRequest | null>(null)
   const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null)
+  
+  // 배정/재배정 모달 상태
+  const [assignmentDepartment, setAssignmentDepartment] = useState('')
+  const [assignmentTechnician, setAssignmentTechnician] = useState('')
+  const [assignmentOpinion, setAssignmentOpinion] = useState('')
+  const [serviceType, setServiceType] = useState('요청')
 
   // 컴포넌트 마운트 시 초기화
   useEffect(() => {
@@ -838,6 +844,16 @@ export default function AssignmentManagerPage() {
     setShowInfoModal(false)
     setSelectedRequest(null)
     setSelectedInquiry(null)
+    setAssignmentDepartment('')
+    setAssignmentTechnician('')
+    setAssignmentOpinion('')
+    setServiceType('요청')
+  }
+
+  // 선택된 부서에 따른 조치담당자 필터링
+  const getFilteredTechnicians = () => {
+    if (!assignmentDepartment) return []
+    return technicians.filter(technician => technician.department === assignmentDepartment)
   }
 
   // 필터링된 데이터
@@ -1472,6 +1488,545 @@ export default function AssignmentManagerPage() {
           </span>
         </div>
       </div>
+
+      {/* 배정작업 모달 */}
+      {showAssignmentModal && selectedRequest && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
+          <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            {/* 모달 헤더 */}
+            <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200" style={{paddingTop: '30px'}}>
+              <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                <Icon name="user" size={24} className="mr-2" />
+                배정작업
+              </h2>
+              <button
+                onClick={closeModal}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <Icon name="close" size={24} />
+              </button>
+            </div>
+
+            {/* 모달 내용 */}
+            <div className="py-4 px-6">
+              <div className="grid grid-cols-2 gap-6">
+                {/* 서비스신청정보 */}
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <Icon name="user" size={20} className="text-gray-600" />
+                    <h3 className="text-lg font-semibold text-gray-800">서비스신청정보</h3>
+                  </div>
+                  
+                  <div className="space-y-0">
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">신청번호: </span>
+                      <span className="text-sm font-bold text-red-600">{selectedRequest.requestNumber}</span>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">신청제목: </span>
+                      <span className="text-sm">{selectedRequest.title}</span>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">신청내용: </span>
+                      <div className="text-sm mt-1 p-2 bg-gray-50 rounded text-gray-700">
+                        {selectedRequest.content}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600 flex items-center">
+                        <Icon name="user" size={14} className="mr-1" />
+                        신청자: 
+                      </span>
+                      <span className="text-sm ml-5">{selectedRequest.requester} ({selectedRequest.department})</span>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600 flex items-center">
+                        <Icon name="mail" size={14} className="mr-1" />
+                        신청연락처: 
+                      </span>
+                      <span className="text-sm ml-5">{selectedRequest.contact}</span>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600 flex items-center">
+                        <Icon name="briefcase" size={14} className="mr-1" />
+                        신청위치: 
+                      </span>
+                      <span className="text-sm ml-5">{selectedRequest.location}</span>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600 flex items-center">
+                        <Icon name="calendar" size={14} className="mr-1" />
+                        신청일시: 
+                      </span>
+                      <span className="text-sm ml-5">{selectedRequest.requestDate}</span>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600 flex items-center">
+                        <Icon name="message-square" size={14} className="mr-1" />
+                        현재상태: 
+                      </span>
+                      <span className="text-sm ml-5">{selectedRequest.currentStatus}</span>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">실제신청자: </span>
+                      <span className="text-sm ml-5">{selectedRequest.actualRequester || selectedRequest.requester}</span>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">실제연락처: </span>
+                      <span className="text-sm ml-5">{selectedRequest.actualContact || selectedRequest.contact}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 배정정보 */}
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <Icon name="settings" size={20} className="text-gray-600" />
+                    <h3 className="text-lg font-semibold text-gray-800">배정정보</h3>
+                  </div>
+                  
+                  <div className="space-y-0">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">조치담당 소속</label>
+                      <select 
+                        value={assignmentDepartment}
+                        onChange={(e) => {
+                          setAssignmentDepartment(e.target.value)
+                          setAssignmentTechnician('') // 부서 변경 시 담당자 초기화
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">부서를 선택하세요</option>
+                        <option value="IT팀">IT팀</option>
+                        <option value="운영팀">운영팀</option>
+                        <option value="개발팀">개발팀</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">조치담당자</label>
+                      <select 
+                        value={assignmentTechnician}
+                        onChange={(e) => setAssignmentTechnician(e.target.value)}
+                        disabled={!assignmentDepartment}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      >
+                        <option value="">담당자를 선택하세요</option>
+                        {getFilteredTechnicians().map((technician) => (
+                          <option key={technician.id} value={technician.name}>
+                            {technician.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">배정의견</label>
+                      <textarea 
+                        value={assignmentOpinion}
+                        onChange={(e) => setAssignmentOpinion(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 h-20"
+                        placeholder="배정 담당자 의견"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1 flex items-center">
+                        <Icon name="calendar" size={16} className="mr-1" />
+                        배정일시(현재)
+                      </label>
+                      <div className="px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-sm">
+                        {new Date().toLocaleString('ko-KR', { 
+                          year: 'numeric', 
+                          month: '2-digit', 
+                          day: '2-digit', 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">서비스 조치 유형</label>
+                      <select 
+                        value={serviceType}
+                        onChange={(e) => setServiceType(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="요청">요청</option>
+                        <option value="장애">장애</option>
+                        <option value="변경">변경</option>
+                        <option value="문제">문제</option>
+                        <option value="적용">적용</option>
+                        <option value="구성">구성</option>
+                        <option value="자산">자산</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 모달 하단 버튼 */}
+            <div className="flex justify-end py-4 px-6 border-t border-gray-200 space-x-3">
+              <button
+                onClick={closeModal}
+                className="px-6 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg font-medium transition-all duration-200"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => {
+                  // 배정 완료 로직
+                  alert('배정이 완료되었습니다.')
+                  closeModal()
+                }}
+                className="px-6 py-2 text-white rounded-lg font-medium transition-all duration-200"
+                style={{backgroundColor: '#DBFCE7', color: '#000'}}
+              >
+                배정하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 재배정작업 모달 */}
+      {showReassignmentModal && selectedRequest && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
+          <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            {/* 모달 헤더 */}
+            <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200" style={{paddingTop: '30px'}}>
+              <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                <Icon name="refresh" size={24} className="mr-2" />
+                재배정작업
+              </h2>
+              <button
+                onClick={closeModal}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <Icon name="close" size={24} />
+              </button>
+            </div>
+
+            {/* 모달 내용 */}
+            <div className="py-4 px-6">
+              <div className="grid grid-cols-2 gap-6">
+                {/* 서비스신청정보 */}
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <Icon name="user" size={20} className="text-gray-600" />
+                    <h3 className="text-lg font-semibold text-gray-800">서비스신청정보</h3>
+                  </div>
+                  
+                  <div className="space-y-0">
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">신청번호: </span>
+                      <span className="text-sm font-bold text-blue-600">{selectedRequest.requestNumber}</span>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">신청제목: </span>
+                      <span className="text-sm">{selectedRequest.title}</span>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">신청내용: </span>
+                      <div className="text-sm mt-1 p-2 bg-gray-50 rounded text-gray-700">
+                        {selectedRequest.content}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600 flex items-center">
+                        <Icon name="user" size={14} className="mr-1" />
+                        신청자: 
+                      </span>
+                      <span className="text-sm ml-5">{selectedRequest.requester} ({selectedRequest.department})</span>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600 flex items-center">
+                        <Icon name="mail" size={14} className="mr-1" />
+                        신청연락처: 
+                      </span>
+                      <span className="text-sm ml-5">{selectedRequest.contact}</span>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600 flex items-center">
+                        <Icon name="briefcase" size={14} className="mr-1" />
+                        신청위치: 
+                      </span>
+                      <span className="text-sm ml-5">{selectedRequest.location}</span>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600 flex items-center">
+                        <Icon name="calendar" size={14} className="mr-1" />
+                        신청일시: 
+                      </span>
+                      <span className="text-sm ml-5">{selectedRequest.requestDate}</span>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600 flex items-center">
+                        <Icon name="message-square" size={14} className="mr-1" />
+                        현재상태: 
+                      </span>
+                      <span className="text-sm ml-5">{selectedRequest.currentStatus}</span>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">실제신청자: </span>
+                      <span className="text-sm ml-5">{selectedRequest.actualRequester || selectedRequest.requester}</span>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">실제연락처: </span>
+                      <span className="text-sm ml-5">{selectedRequest.actualContact || selectedRequest.contact}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 재배정정보 */}
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <Icon name="settings" size={20} className="text-gray-600" />
+                    <h3 className="text-lg font-semibold text-gray-800">재배정정보</h3>
+                  </div>
+                  
+                  <div className="space-y-0">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">조치담당 소속</label>
+                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">부서를 선택하세요</option>
+                        <option value="IT팀">IT팀</option>
+                        <option value="운영팀">운영팀</option>
+                        <option value="개발팀">개발팀</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">조치담당자</label>
+                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">담당자를 선택하세요</option>
+                        <option value="김기술">김기술</option>
+                        <option value="박기술">박기술</option>
+                        <option value="홍기술">홍기술</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">재배정의견</label>
+                      <textarea 
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 h-20"
+                        placeholder="배정 담당자 의견"
+                      />
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600 flex items-center">
+                        <Icon name="calendar" size={14} className="mr-1" />
+                        재배정일시(현재): 
+                      </span>
+                      <span className="text-sm ml-5">
+                        {new Date().toLocaleString('ko-KR', { 
+                          year: 'numeric', 
+                          month: '2-digit', 
+                          day: '2-digit', 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })}
+                      </span>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">서비스 조치 유형</label>
+                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="구성">구성</option>
+                        <option value="요청">요청</option>
+                        <option value="장애">장애</option>
+                        <option value="변경">변경</option>
+                        <option value="문제">문제</option>
+                        <option value="적용">적용</option>
+                        <option value="자산">자산</option>
+                      </select>
+                    </div>
+                    
+                    {/* 이전 배정 정보 */}
+                    <div className="border-t pt-3 mt-4">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-3">이전 배정 정보</h4>
+                      
+                      <div className="space-y-0">
+                        <div>
+                          <span className="text-xs font-medium text-gray-500">전) 배정일시: </span>
+                          <span className="text-xs ml-2">{selectedRequest.assignTime || '2025.08.31 11:40'}</span>
+                        </div>
+                        
+                        <div>
+                          <span className="text-xs font-medium text-gray-500">전) 배정담당자: </span>
+                          <span className="text-xs ml-2">이배정 (관리팀)</span>
+                        </div>
+                        
+                        <div>
+                          <span className="text-xs font-medium text-gray-500">전) 배정의견: </span>
+                          <span className="text-xs ml-2">업무에 적합하여 배정</span>
+                        </div>
+                        
+                        <div>
+                          <span className="text-xs font-medium text-gray-500">전) 조치담당자: </span>
+                          <span className="text-xs ml-2">{selectedRequest.assignee || '홍기술'}</span>
+                        </div>
+                        
+                        <div>
+                          <span className="text-xs font-medium text-red-600">반려의견: </span>
+                          <span className="text-xs ml-2 text-red-600">금일 휴가 입니다.</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 모달 하단 버튼 */}
+            <div className="flex justify-end py-4 px-6 border-t border-gray-200 space-x-3">
+              <button
+                onClick={closeModal}
+                className="px-6 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg font-medium transition-all duration-200"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => {
+                  // 재배정 완료 로직
+                  alert('재배정이 완료되었습니다.')
+                  closeModal()
+                }}
+                className="px-6 py-2 text-white rounded-lg font-medium transition-all duration-200"
+                style={{backgroundColor: '#DBFCE7', color: '#000'}}
+              >
+                재배정하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 답변하기 모달 */}
+      {showAnswerModal && selectedInquiry && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            {/* 모달 헤더 */}
+            <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200" style={{paddingTop: '30px'}}>
+              <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                <Icon name="message-square" size={24} className="mr-2" />
+                답변하기
+              </h2>
+              <button
+                onClick={closeModal}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <Icon name="close" size={24} />
+              </button>
+            </div>
+
+            {/* 모달 내용 */}
+            <div className="py-4 px-6 space-y-4">
+              {/* 일반문의사항 정보 */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2 mb-4">
+                  <Icon name="help-circle" size={20} className="text-gray-600" />
+                  <h3 className="text-lg font-semibold text-gray-800">일반문의사항 정보</h3>
+                </div>
+                
+                <div className="space-y-0">
+                  <div>
+                    <span className="text-sm font-medium text-gray-600 flex items-center">
+                      <Icon name="calendar" size={14} className="mr-1" />
+                      문의일시: 
+                    </span>
+                    <span className="text-sm ml-5">{selectedInquiry.inquiryDate}</span>
+                  </div>
+                  
+                  <div>
+                    <span className="text-sm font-medium text-gray-600 flex items-center">
+                      <Icon name="user" size={14} className="mr-1" />
+                      문의자: 
+                    </span>
+                    <span className="text-sm ml-5">{selectedInquiry.inquirer}</span>
+                  </div>
+                  
+                  <div>
+                    <span className="text-sm font-medium text-gray-600 flex items-center">
+                      <Icon name="message-square" size={14} className="mr-1" />
+                      문의내용: 
+                    </span>
+                    <div className="text-sm mt-1 p-2 bg-gray-50 rounded text-gray-700">
+                      {selectedInquiry.content}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 답변하기 정보 */}
+              <div className="space-y-4">
+                <div className="flex items-center space-x-2 mb-4">
+                  <Icon name="edit" size={20} className="text-gray-600" />
+                  <h3 className="text-lg font-semibold text-gray-800">답변하기 정보</h3>
+                </div>
+                
+                <div className="space-y-0">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">답변내용</label>
+                    <textarea 
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 h-32"
+                      placeholder="답변 내용을 입력하세요"
+                      defaultValue="네트워크 케이블이 정확히 꼽혀 있는지 확인 해 주세요!"
+                    />
+                  </div>
+                  
+                  <div>
+                    <span className="text-sm font-medium text-gray-600">답변자: </span>
+                    <span className="text-sm ml-5">이배정 (관리팀)</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 모달 하단 버튼 */}
+            <div className="flex justify-end py-4 px-6 border-t border-gray-200 space-x-3">
+              <button
+                onClick={closeModal}
+                className="px-6 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg font-medium transition-all duration-200"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => {
+                  // 답변 완료 로직
+                  alert('답변이 완료되었습니다.')
+                  closeModal()
+                }}
+                className="px-6 py-2 text-white rounded-lg font-medium transition-all duration-200"
+                style={{backgroundColor: '#DBFCE7', color: '#000'}}
+              >
+                답변하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 정보변경 모달 */}
       {showInfoModal && !showPasswordModal && (
