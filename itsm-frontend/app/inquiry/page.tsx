@@ -196,6 +196,17 @@ export default function InquiryPage() {
   }
 
   const handleSubmitInquiry = () => {
+    // 문의 내용 유효성 검사
+    if (!inquiryContent.trim()) {
+      alert('문의 내용을 입력해주세요.')
+      return
+    }
+    
+    if (inquiryContent.trim().length < 10) {
+      alert('문의 내용을 10자 이상 입력해주세요.')
+      return
+    }
+    
     // 실제로는 API 호출
     console.log('문의 등록:', { content: inquiryContent, isSecret })
     setShowWriteModal(false)
@@ -495,9 +506,28 @@ export default function InquiryPage() {
                 <textarea
                   value={inquiryContent}
                   onChange={(e) => setInquiryContent(e.target.value)}
-                  placeholder="일반적인 묻고 답하기로 작성해 주세요!"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg h-32 resize-none"
+                  placeholder="일반적인 묻고 답하기로 작성해 주세요! (최소 10자 이상)"
+                  className={`w-full px-3 py-2 border rounded-lg h-32 resize-none ${
+                    inquiryContent.trim().length > 0 && inquiryContent.trim().length < 10
+                      ? 'border-red-300 focus:border-red-500 focus:ring-red-500'
+                      : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'
+                  }`}
                 />
+                <div className="flex justify-between items-center mt-1">
+                  <span className={`text-xs ${
+                    inquiryContent.trim().length > 0 && inquiryContent.trim().length < 10
+                      ? 'text-red-500'
+                      : 'text-gray-500'
+                  }`}>
+                    {inquiryContent.trim().length > 0 && inquiryContent.trim().length < 10
+                      ? '최소 10자 이상 입력해주세요.'
+                      : '문의 내용을 자세히 작성해주세요.'
+                    }
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    {inquiryContent.length}/500
+                  </span>
+                </div>
               </div>
               
               <div className="flex items-center">
@@ -517,7 +547,12 @@ export default function InquiryPage() {
             <div className="px-6 py-4 bg-gray-50 flex justify-end">
               <button
                 onClick={handleSubmitInquiry}
-                className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-colors"
+                disabled={!inquiryContent.trim() || inquiryContent.trim().length < 10}
+                className={`px-6 py-2 rounded-lg font-medium transition-colors ${
+                  !inquiryContent.trim() || inquiryContent.trim().length < 10
+                    ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                    : 'bg-red-500 hover:bg-red-600 text-white'
+                }`}
               >
                 문의 등록
               </button>
@@ -581,6 +616,16 @@ export default function InquiryPage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-green-50 text-gray-700 h-32 resize-none"
                 />
               </div>
+            </div>
+
+            {/* 모달 하단 버튼 */}
+            <div className="flex justify-end py-4 px-6 border-t border-gray-200">
+              <button
+                onClick={() => setShowAnswerModal(false)}
+                className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200 button-smooth"
+              >
+                나가기
+              </button>
             </div>
           </div>
         </div>

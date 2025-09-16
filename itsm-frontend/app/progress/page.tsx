@@ -33,6 +33,7 @@ export default function ProgressPage() {
   const [showInfoModal, setShowInfoModal] = useState(false)
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [showDeleteSuccessModal, setShowDeleteSuccessModal] = useState(false)
+  const [showEditSuccessModal, setShowEditSuccessModal] = useState(false)
   const [showInfoSuccessModal, setShowInfoSuccessModal] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -822,7 +823,10 @@ export default function ProgressPage() {
             {/* 모달 하단 버튼 */}
             <div className="flex justify-end py-4 px-6 border-t border-gray-200">
               <button
-                onClick={closeModal}
+                onClick={() => {
+                  setShowEditModal(false)
+                  setShowEditSuccessModal(true)
+                }}
                 className="bg-gray-800 hover:bg-gray-900 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200 button-smooth"
               >
                 수정 완료
@@ -940,7 +944,7 @@ export default function ProgressPage() {
       )}
 
       {/* 정보변경 모달 */}
-      {showInfoModal && (
+      {showInfoModal && !showPasswordModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
             {/* 모달 헤더 */}
@@ -1064,7 +1068,7 @@ export default function ProgressPage() {
 
       {/* 비밀번호 변경 모달 */}
       {showPasswordModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
             <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200" style={{paddingTop: '30px'}}>
               <h2 className="text-xl font-bold text-gray-800">비밀번호 변경</h2>
@@ -1168,6 +1172,33 @@ export default function ProgressPage() {
               <button
                 onClick={() => {
                   setShowDeleteSuccessModal(false)
+                  setSelectedRequest(null)
+                }}
+                className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200 button-smooth animate-fade-in-up"
+                style={{animationDelay: '0.4s'}}
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 수정 완료 메시지 모달 */}
+      {showEditSuccessModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 animate-bounce-in">
+            <div className="p-8 text-center">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+                <img src="/icons/check-circle.svg" alt="완료" className="w-12 h-12" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-800 mb-2 animate-fade-in-up">수정 완료</h2>
+              <p className="text-gray-600 mb-6 animate-fade-in-up" style={{animationDelay: '0.2s'}}>
+                서비스 신청이 성공적으로 수정되었습니다.
+              </p>
+              <button
+                onClick={() => {
+                  setShowEditSuccessModal(false)
                   setSelectedRequest(null)
                 }}
                 className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200 button-smooth animate-fade-in-up"
