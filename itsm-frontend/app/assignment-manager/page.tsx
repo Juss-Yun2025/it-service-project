@@ -541,6 +541,90 @@ export default function AssignmentManagerPage() {
         department: '개발팀',
         isWorking: true,
         assignedCount: 6
+      },
+      {
+        id: '11',
+        name: '서기술',
+        department: '운영팀',
+        isWorking: true,
+        assignedCount: 9
+      },
+      {
+        id: '12',
+        name: '임기술',
+        department: 'IT팀',
+        isWorking: false,
+        assignedCount: 3
+      },
+      {
+        id: '13',
+        name: '오기술',
+        department: '개발팀',
+        isWorking: true,
+        assignedCount: 2
+      },
+      {
+        id: '14',
+        name: '신기술',
+        department: '운영팀',
+        isWorking: true,
+        assignedCount: 11
+      },
+      {
+        id: '15',
+        name: '배기술',
+        department: 'IT팀',
+        isWorking: false,
+        assignedCount: 0
+      },
+      {
+        id: '16',
+        name: '송기술',
+        department: '개발팀',
+        isWorking: true,
+        assignedCount: 7
+      },
+      {
+        id: '17',
+        name: '노기술',
+        department: '운영팀',
+        isWorking: true,
+        assignedCount: 4
+      },
+      {
+        id: '18',
+        name: '문기술',
+        department: 'IT팀',
+        isWorking: false,
+        assignedCount: 2
+      },
+      {
+        id: '19',
+        name: '양기술',
+        department: '개발팀',
+        isWorking: true,
+        assignedCount: 8
+      },
+      {
+        id: '20',
+        name: '백기술',
+        department: '운영팀',
+        isWorking: true,
+        assignedCount: 5
+      },
+      {
+        id: '21',
+        name: '남기술',
+        department: 'IT팀',
+        isWorking: false,
+        assignedCount: 1
+      },
+      {
+        id: '22',
+        name: '심기술',
+        department: '개발팀',
+        isWorking: true,
+        assignedCount: 6
       }
     ])
 
@@ -603,6 +687,78 @@ export default function AssignmentManagerPage() {
       {
         id: '10',
         technician: '강기술',
+        lastWeekPending: 2,
+        longTermPending: 1
+      },
+      {
+        id: '11',
+        technician: '서기술',
+        lastWeekPending: 0,
+        longTermPending: 3
+      },
+      {
+        id: '12',
+        technician: '임기술',
+        lastWeekPending: 1,
+        longTermPending: 2
+      },
+      {
+        id: '13',
+        technician: '오기술',
+        lastWeekPending: 2,
+        longTermPending: 0
+      },
+      {
+        id: '14',
+        technician: '신기술',
+        lastWeekPending: 0,
+        longTermPending: 1
+      },
+      {
+        id: '15',
+        technician: '배기술',
+        lastWeekPending: 3,
+        longTermPending: 2
+      },
+      {
+        id: '16',
+        technician: '송기술',
+        lastWeekPending: 1,
+        longTermPending: 0
+      },
+      {
+        id: '17',
+        technician: '노기술',
+        lastWeekPending: 0,
+        longTermPending: 4
+      },
+      {
+        id: '18',
+        technician: '문기술',
+        lastWeekPending: 2,
+        longTermPending: 1
+      },
+      {
+        id: '19',
+        technician: '양기술',
+        lastWeekPending: 1,
+        longTermPending: 3
+      },
+      {
+        id: '20',
+        technician: '백기술',
+        lastWeekPending: 0,
+        longTermPending: 2
+      },
+      {
+        id: '21',
+        technician: '남기술',
+        lastWeekPending: 1,
+        longTermPending: 0
+      },
+      {
+        id: '22',
+        technician: '심기술',
         lastWeekPending: 2,
         longTermPending: 1
       }
@@ -734,6 +890,10 @@ export default function AssignmentManagerPage() {
     return true
   })
 
+  // 페이지 범위 안전장치
+  const maxTechnicianPage = Math.ceil(filteredTechnicians.length / 10)
+  const safeTechnicianPage = Math.min(technicianPage, Math.max(1, maxTechnicianPage))
+
   const filteredPendingWorks = pendingWorks.filter(work => {
     if (selectedPendingDepartment) {
       const technician = technicians.find(t => t.name === work.technician)
@@ -744,8 +904,12 @@ export default function AssignmentManagerPage() {
     return true
   })
 
+  // 페이지 범위 안전장치
+  const maxPendingWorkPage = Math.ceil(filteredPendingWorks.length / 10)
+  const safePendingWorkPage = Math.min(pendingWorkPage, Math.max(1, maxPendingWorkPage))
+
   return (
-    <div className="min-h-screen relative overflow-hidden">
+    <div className="h-screen relative overflow-hidden">
       {/* 배경 이미지 */}
       <div 
         className="absolute inset-0 bg-no-repeat bg-cover"
@@ -796,18 +960,10 @@ export default function AssignmentManagerPage() {
         {/* 사용자 정보 및 네비게이션 */}
         <div className="max-w-7xl mx-auto px-6 py-6 w-full">
           <div className="flex items-center justify-between mb-12">
-            <div className="bg-white px-20 py-0 rounded-full -ml-72 smooth-hover animate-fade-in shadow-lg">
+            <div className="px-20 py-0 rounded-full -ml-72 smooth-hover animate-fade-in shadow-lg" style={{backgroundColor: '#DBFCE7'}}>
               <span className="text-black font-medium">배정담당자 (김배정)</span>
             </div>
             <div className="flex items-center space-x-4">
-              {!showTechnicianStatus && (
-                <button
-                  onClick={() => setShowTechnicianStatus(true)}
-                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-all duration-300 ease-out"
-                >
-                  조치담당자 작업현황 표시
-                </button>
-              )}
               <button 
                 onClick={handleInfoChange}
                 className="text-white/70 hover:text-white transition-all duration-300 ease-out flex items-center space-x-2 button-smooth"
@@ -822,116 +978,127 @@ export default function AssignmentManagerPage() {
       </div>
 
       {/* 메인 콘텐츠 - 4개 프레임 */}
-      <div className="relative z-10 w-full h-screen" style={{marginTop: '-70px'}}>
+      <div className="relative z-10 w-full" style={{height: 'calc(100vh - 140px)', marginTop: '-70px'}}>
         
         {/* 좌측: 조치담당자 작업현황 */}
-        {showTechnicianStatus && (
-          <div 
-            className="absolute bg-white/80 rounded-lg shadow-xl p-4 z-20" 
-            style={{
-              left: '20px',
-              top: '20px',
-              width: '300px',
-              height: '705px'
-            }}
-          >
-            <div className="flex justify-between items-center mb-4">
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={handleTechnicianRefresh}
-                  className="w-6 h-6 text-gray-600 hover:text-gray-800 transition-colors"
-                >
-                  <Icon name="refresh" size={16} />
-                </button>
-                <h3 className="text-lg font-bold text-gray-800">조치담당자 작업현황</h3>
-              </div>
+        <div 
+          className="absolute bg-white/80 rounded-lg shadow-xl p-4 z-20" 
+          style={{
+            left: '20px',
+            top: '10px',
+            width: '300px',
+            height: 'calc(100vh - 240px)'
+          }}
+        >
+          <div className="mb-4">
+            <div className="flex items-center space-x-2 mb-2">
+              <button
+                onClick={handleTechnicianRefresh}
+                className="w-6 h-6 text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                <Icon name="refresh" size={16} />
+              </button>
+              <h3 className="text-lg font-bold text-gray-800">조치담당자 작업현황</h3>
+            </div>
+            <div className="flex justify-end">
               <button
                 onClick={() => setShowTechnicianStatus(!showTechnicianStatus)}
-                className="text-gray-600 hover:text-gray-800 transition-colors text-sm font-medium"
+                className={`w-8 h-4 rounded-full transition-colors ${
+                  showTechnicianStatus ? 'bg-green-500' : 'bg-gray-400'
+                }`}
               >
-                숨기기
+                <div className={`w-3 h-3 bg-white rounded-full transition-transform ${
+                  showTechnicianStatus ? 'translate-x-4' : 'translate-x-0.5'
+                }`} />
               </button>
             </div>
-
-            {/* 부서 선택 */}
-            <div className="mb-4">
-              <select
-                value={selectedDepartment}
-                onChange={(e) => setSelectedDepartment(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-              >
-                <option value="">전체 부서</option>
-                <option value="IT팀">IT팀</option>
-                <option value="운영팀">운영팀</option>
-              </select>
-            </div>
-
-            {/* 현재 시간 */}
-            <div className="text-sm text-gray-600 mb-4">
-              2025.08.31 18:00 현재
-            </div>
-
-            {/* 조치담당자 테이블 */}
-            <div className="overflow-x-auto overflow-y-auto" style={{height: '580px'}}>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-50">
-                    <th className="px-2 py-1.5 text-left font-semibold text-gray-700">조치담당자</th>
-                    <th className="px-2 py-1.5 text-center font-semibold text-gray-700">작업</th>
-                    <th className="px-2 py-1.5 text-center font-semibold text-gray-700">배정건수</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredTechnicians.slice((technicianPage - 1) * 5, technicianPage * 5).map((technician) => (
-                    <tr key={technician.id} className="border-b border-gray-100">
-                      <td className="px-2 py-1 text-gray-800">{technician.name}</td>
-                      <td className="px-2 py-1 text-center">
-                        <span className={`px-2 py-1 rounded text-xs font-semibold ${
-                          technician.isWorking ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                        }`}>
-                          {technician.isWorking ? 'Y' : 'N'}
-                        </span>
-                      </td>
-                      <td className="px-2 py-1 text-center text-gray-800">{technician.assignedCount}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* 페이지네이션 */}
-            <div className="flex justify-center" style={{marginTop: '-64px'}}>
-              <div className="flex items-center space-x-2">
-                <button 
-                  onClick={() => setTechnicianPage(Math.max(1, technicianPage - 1))}
-                  disabled={technicianPage === 1}
-                  className="px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  이전
-                </button>
-                <span className="px-2 py-1 bg-blue-500 text-white rounded text-xs">
-                  {technicianPage}/{Math.ceil(filteredTechnicians.length / 5)}
-                </span>
-                <button 
-                  onClick={() => setTechnicianPage(Math.min(Math.ceil(filteredTechnicians.length / 5), technicianPage + 1))}
-                  disabled={technicianPage >= Math.ceil(filteredTechnicians.length / 5)}
-                  className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  다음
-                </button>
-              </div>
-            </div>
           </div>
-        )}
+
+          {showTechnicianStatus && (
+            <>
+              {/* 부서 선택 */}
+              <div className="mb-4">
+                <select
+                  value={selectedDepartment}
+                  onChange={(e) => {
+                    setSelectedDepartment(e.target.value)
+                    setTechnicianPage(1)
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                >
+                  <option value="">전체 부서</option>
+                  <option value="IT팀">IT팀</option>
+                  <option value="운영팀">운영팀</option>
+                </select>
+              </div>
+
+              {/* 현재 시간 */}
+              <div className="text-sm text-gray-600 mb-4">
+                2025.08.31 18:00 현재
+              </div>
+
+              {/* 조치담당자 테이블 */}
+              <div className="overflow-x-auto overflow-y-auto" style={{height: 'calc(100vh - 360px)'}}>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="px-2 py-1.5 text-left font-semibold text-gray-700">조치담당자</th>
+                      <th className="px-2 py-1.5 text-center font-semibold text-gray-700">작업</th>
+                      <th className="px-2 py-1.5 text-center font-semibold text-gray-700">배정건수</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredTechnicians.slice((safeTechnicianPage - 1) * 10, safeTechnicianPage * 10).map((technician) => (
+                      <tr key={technician.id} className="border-b border-gray-100">
+                        <td className="px-2 py-1 text-gray-800">{technician.name}</td>
+                        <td className="px-2 py-1 text-center">
+                          <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                            technician.isWorking ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                          }`}>
+                            {technician.isWorking ? 'Y' : 'N'}
+                          </span>
+                        </td>
+                        <td className="px-2 py-1 text-center text-gray-800">{technician.assignedCount}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* 페이지네이션 */}
+              <div className="flex justify-center" style={{marginTop: '-90px'}}>
+                <div className="flex items-center space-x-2">
+                  <button 
+                    onClick={() => setTechnicianPage(Math.max(1, technicianPage - 1))}
+                    disabled={technicianPage === 1}
+                    className="px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    이전
+                  </button>
+                  <span className="px-2 py-1 bg-blue-500 text-white rounded text-xs">
+                    {safeTechnicianPage}/{maxTechnicianPage}
+                  </span>
+                  <button 
+                    onClick={() => setTechnicianPage(Math.min(maxTechnicianPage, technicianPage + 1))}
+                    disabled={technicianPage >= maxTechnicianPage}
+                    className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    다음
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
 
         {/* 중앙: 서비스신청현황 */}
         <div 
           className="absolute bg-white/80 rounded-lg shadow-xl p-4 z-20" 
           style={{
-            left: '340px',
-            top: '20px',
+            left: '347px',
+            top: '10px',
             width: '1218px',
-            height: '350px'
+            height: 'calc(50vh - 130px)'
           }}
         >
           <div className="flex justify-between items-center mb-4">
@@ -979,7 +1146,7 @@ export default function AssignmentManagerPage() {
           </div>
 
           {/* 서비스신청 테이블 */}
-          <div className="overflow-x-auto overflow-y-auto" style={{height: '280px'}}>
+          <div className="overflow-x-auto overflow-y-auto" style={{height: 'calc(50vh - 240px)'}}>
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50">
@@ -1051,7 +1218,7 @@ export default function AssignmentManagerPage() {
           </div>
 
           {/* 페이지네이션 */}
-          <div className="flex justify-center" style={{marginTop: '-76px'}}>
+          <div className="flex justify-center" style={{marginTop: '-41px'}}>
             <div className="flex items-center space-x-2">
               <button 
                 onClick={() => setServiceRequestPage(Math.max(1, serviceRequestPage - 1))}
@@ -1075,26 +1242,26 @@ export default function AssignmentManagerPage() {
         </div>
 
         {/* 우측: 작업미결현황 */}
-        {showPendingWork && (
-          <div 
-            className="absolute bg-white/80 rounded-lg shadow-xl p-4 z-20" 
-            style={{
-              left: '1580px',
-              top: '20px',
-              width: '300px',
-              height: '705px'
-            }}
-          >
-            <div className="flex justify-between items-center mb-4">
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={handlePendingWorkRefresh}
-                  className="w-6 h-6 text-gray-600 hover:text-gray-800 transition-colors"
-                >
-                  <Icon name="refresh" size={16} />
-                </button>
-                <h3 className="text-lg font-bold text-gray-800">작업미결현황</h3>
-              </div>
+        <div 
+          className="absolute bg-white/80 rounded-lg shadow-xl p-4 z-20" 
+          style={{
+            left: '1595px',
+            top: '10px',
+            width: '300px',
+            height: 'calc(100vh - 240px)'
+          }}
+        >
+          <div className="mb-4">
+            <div className="flex items-center space-x-2 mb-2">
+              <button
+                onClick={handlePendingWorkRefresh}
+                className="w-6 h-6 text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                <Icon name="refresh" size={16} />
+              </button>
+              <h3 className="text-lg font-bold text-gray-800">작업미결현황</h3>
+            </div>
+            <div className="flex justify-end">
               <button
                 onClick={() => setShowPendingWork(!showPendingWork)}
                 className={`w-8 h-4 rounded-full transition-colors ${
@@ -1106,75 +1273,82 @@ export default function AssignmentManagerPage() {
                 }`} />
               </button>
             </div>
-
-            {/* 부서 선택 */}
-            <div className="mb-4">
-              <select
-                value={selectedPendingDepartment}
-                onChange={(e) => setSelectedPendingDepartment(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-              >
-                <option value="">전체 부서</option>
-                <option value="IT팀">IT팀</option>
-                <option value="운영팀">운영팀</option>
-              </select>
-            </div>
-
-            {/* 작업미결 테이블 */}
-            <div className="overflow-x-auto overflow-y-auto" style={{height: '580px'}}>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-gray-50">
-                    <th className="px-2 py-1.5 text-left font-semibold text-gray-700">조치담당자</th>
-                    <th className="px-2 py-1.5 text-center font-semibold text-gray-700">전주미결</th>
-                    <th className="px-2 py-1.5 text-center font-semibold text-gray-700">장기미결</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredPendingWorks.slice((pendingWorkPage - 1) * 5, pendingWorkPage * 5).map((work) => (
-                    <tr key={work.id} className="border-b border-gray-100">
-                      <td className="px-2 py-1 text-gray-800">{work.technician}</td>
-                      <td className="px-2 py-1 text-center text-gray-800">{work.lastWeekPending}</td>
-                      <td className="px-2 py-1 text-center text-gray-800">{work.longTermPending}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* 페이지네이션 */}
-            <div className="flex justify-center" style={{marginTop: '-24px'}}>
-              <div className="flex items-center space-x-2">
-                <button 
-                  onClick={() => setPendingWorkPage(Math.max(1, pendingWorkPage - 1))}
-                  disabled={pendingWorkPage === 1}
-                  className="px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  이전
-                </button>
-                <span className="px-2 py-1 bg-blue-500 text-white rounded text-xs">
-                  {pendingWorkPage}/{Math.ceil(filteredPendingWorks.length / 5)}
-                </span>
-                <button 
-                  onClick={() => setPendingWorkPage(Math.min(Math.ceil(filteredPendingWorks.length / 5), pendingWorkPage + 1))}
-                  disabled={pendingWorkPage >= Math.ceil(filteredPendingWorks.length / 5)}
-                  className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  다음
-                </button>
-              </div>
-            </div>
           </div>
-        )}
+
+          {showPendingWork && (
+            <>
+              {/* 부서 선택 */}
+              <div className="mb-4">
+                <select
+                  value={selectedPendingDepartment}
+                  onChange={(e) => {
+                    setSelectedPendingDepartment(e.target.value)
+                    setPendingWorkPage(1)
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                >
+                  <option value="">전체 부서</option>
+                  <option value="IT팀">IT팀</option>
+                  <option value="운영팀">운영팀</option>
+                </select>
+              </div>
+
+              {/* 작업미결 테이블 */}
+              <div className="overflow-x-auto overflow-y-auto" style={{height: 'calc(100vh - 360px)'}}>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="px-2 py-1.5 text-left font-semibold text-gray-700">조치담당자</th>
+                      <th className="px-2 py-1.5 text-center font-semibold text-gray-700">전주미결</th>
+                      <th className="px-2 py-1.5 text-center font-semibold text-gray-700">장기미결</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredPendingWorks.slice((safePendingWorkPage - 1) * 10, safePendingWorkPage * 10).map((work) => (
+                      <tr key={work.id} className="border-b border-gray-100">
+                        <td className="px-2 py-1 text-gray-800">{work.technician}</td>
+                        <td className="px-2 py-1 text-center text-gray-800">{work.lastWeekPending}</td>
+                        <td className="px-2 py-1 text-center text-gray-800">{work.longTermPending}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* 페이지네이션 */}
+              <div className="flex justify-center" style={{marginTop: '-54px'}}>
+                <div className="flex items-center space-x-2">
+                  <button 
+                    onClick={() => setPendingWorkPage(Math.max(1, pendingWorkPage - 1))}
+                    disabled={pendingWorkPage === 1}
+                    className="px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    이전
+                  </button>
+                  <span className="px-2 py-1 bg-blue-500 text-white rounded text-xs">
+                    {safePendingWorkPage}/{maxPendingWorkPage}
+                  </span>
+                  <button 
+                    onClick={() => setPendingWorkPage(Math.min(maxPendingWorkPage, pendingWorkPage + 1))}
+                    disabled={pendingWorkPage >= maxPendingWorkPage}
+                    className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    다음
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
 
         {/* 하단: 일반문의답변현황 */}
         <div 
           className="absolute bg-white/80 rounded-lg shadow-xl p-4 z-20" 
           style={{
-            left: '340px',
-            top: '375px',
+            left: '347px',
+            top: 'calc(50vh - 110px)',
             width: '1218px',
-            height: '350px'
+            height: 'calc(50vh - 120px)'
           }}
         >
           <div className="flex justify-between items-center mb-4">
@@ -1222,7 +1396,7 @@ export default function AssignmentManagerPage() {
           </div>
 
           {/* 일반문의 테이블 */}
-          <div className="overflow-x-auto overflow-y-auto" style={{height: '220px'}}>
+          <div className="overflow-x-auto overflow-y-auto" style={{height: 'calc(50vh - 230px)'}}>
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50">
@@ -1268,7 +1442,7 @@ export default function AssignmentManagerPage() {
           </div>
 
           {/* 페이지네이션 */}
-          <div className="flex justify-center" style={{marginTop: '-14px'}}>
+          <div className="flex justify-center" style={{marginTop: '-39px'}}>
             <div className="flex items-center space-x-2">
               <button 
                 onClick={() => setInquiryPage(Math.max(1, inquiryPage - 1))}
@@ -1292,7 +1466,7 @@ export default function AssignmentManagerPage() {
         </div>
 
         {/* 푸터 */}
-        <div className="absolute text-center" style={{bottom: '20px', left: '20px', right: '20px'}}>
+        <div className="absolute text-center" style={{bottom: '47px', left: '20px', right: '20px'}}>
           <span className="text-sm text-gray-400">
             © 2025 IT 서비스 관리 시스템. 모든 권리는 Juss 가 보유
           </span>
