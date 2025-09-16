@@ -97,10 +97,15 @@ export default function AssignmentManagerPage() {
   // 컴포넌트 마운트 시 초기화
   useEffect(() => {
     const today = new Date()
+    const oneWeekAgo = new Date()
+    oneWeekAgo.setDate(today.getDate() - 7)
+    
     const todayString = today.toISOString().split('T')[0]
-    setServiceRequestStartDate(todayString)
+    const oneWeekAgoString = oneWeekAgo.toISOString().split('T')[0]
+    
+    setServiceRequestStartDate(oneWeekAgoString)
     setServiceRequestEndDate(todayString)
-    setInquiryStartDate(todayString)
+    setInquiryStartDate(oneWeekAgoString)
     setInquiryEndDate(todayString)
     
     // 샘플 데이터 로드
@@ -612,11 +617,29 @@ export default function AssignmentManagerPage() {
   // 새로고침 함수들
   const handleServiceRequestRefresh = () => {
     setServiceRequestPage(1)
+    const today = new Date()
+    const oneWeekAgo = new Date()
+    oneWeekAgo.setDate(today.getDate() - 7)
+    
+    const todayString = today.toISOString().split('T')[0]
+    const oneWeekAgoString = oneWeekAgo.toISOString().split('T')[0]
+    
+    setServiceRequestStartDate(oneWeekAgoString)
+    setServiceRequestEndDate(todayString)
     loadSampleData()
   }
 
   const handleInquiryRefresh = () => {
     setInquiryPage(1)
+    const today = new Date()
+    const oneWeekAgo = new Date()
+    oneWeekAgo.setDate(today.getDate() - 7)
+    
+    const todayString = today.toISOString().split('T')[0]
+    const oneWeekAgoString = oneWeekAgo.toISOString().split('T')[0]
+    
+    setInquiryStartDate(oneWeekAgoString)
+    setInquiryEndDate(todayString)
     loadSampleData()
   }
 
@@ -663,16 +686,44 @@ export default function AssignmentManagerPage() {
 
   // 필터링된 데이터
   const filteredServiceRequests = serviceRequests.filter(request => {
+    // 미 배정만 조회 필터
     if (showUnassignedOnly && !['접수', '재배정'].includes(request.stage)) {
       return false
     }
+    
+    // 날짜 필터링
+    if (serviceRequestStartDate && serviceRequestEndDate) {
+      // 날짜 형식 변환 (YYYY-MM-DD -> YYYY.MM.DD)
+      const requestDate = request.requestDate.split(' ')[0].replace(/\./g, '-')
+      const startDateFormatted = serviceRequestStartDate
+      const endDateFormatted = serviceRequestEndDate
+      
+      if (requestDate < startDateFormatted || requestDate > endDateFormatted) {
+        return false
+      }
+    }
+    
     return true
   })
 
   const filteredInquiries = inquiries.filter(inquiry => {
+    // 미 답변만 조회 필터
     if (showUnansweredOnly && inquiry.answerDate) {
       return false
     }
+    
+    // 날짜 필터링
+    if (inquiryStartDate && inquiryEndDate) {
+      // 날짜 형식 변환 (YYYY-MM-DD -> YYYY.MM.DD)
+      const inquiryDate = inquiry.inquiryDate.split(' ')[0].replace(/\./g, '-')
+      const startDateFormatted = inquiryStartDate
+      const endDateFormatted = inquiryEndDate
+      
+      if (inquiryDate < startDateFormatted || inquiryDate > endDateFormatted) {
+        return false
+      }
+    }
+    
     return true
   })
 
@@ -891,19 +942,19 @@ export default function AssignmentManagerPage() {
 
           {/* 검색 조건 */}
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-3">
               <input
                 type="date"
                 value={serviceRequestStartDate}
                 onChange={(e) => setServiceRequestStartDate(e.target.value)}
-                className="px-3 py-1 border border-gray-300 rounded text-sm"
+                className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
               />
-              <span className="text-gray-600">~</span>
+              <span className="text-gray-600 font-medium">~</span>
               <input
                 type="date"
                 value={serviceRequestEndDate}
                 onChange={(e) => setServiceRequestEndDate(e.target.value)}
-                className="px-3 py-1 border border-gray-300 rounded text-sm"
+                className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
               />
             </div>
             <div className="flex items-center space-x-2">
@@ -1134,19 +1185,19 @@ export default function AssignmentManagerPage() {
 
           {/* 검색 조건 */}
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-3">
               <input
                 type="date"
                 value={inquiryStartDate}
                 onChange={(e) => setInquiryStartDate(e.target.value)}
-                className="px-3 py-1 border border-gray-300 rounded text-sm"
+                className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
               />
-              <span className="text-gray-600">~</span>
+              <span className="text-gray-600 font-medium">~</span>
               <input
                 type="date"
                 value={inquiryEndDate}
                 onChange={(e) => setInquiryEndDate(e.target.value)}
-                className="px-3 py-1 border border-gray-300 rounded text-sm"
+                className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
               />
             </div>
             <div className="flex items-center space-x-2">
