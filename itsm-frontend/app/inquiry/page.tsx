@@ -280,8 +280,8 @@ export default function InquiryPage() {
         <div className="max-w-7xl mx-auto px-6 py-6 w-full">
           {/* 사용자 정보 및 네비게이션 */}
           <div className="flex items-center justify-between mb-12">
-            <div className="bg-white px-20 py-0 rounded-full -ml-74 smooth-hover animate-fade-in shadow-lg">
-              <span className="text-black font-medium">일반사용자 (이영희)</span>
+            <div className="bg-white px-20 py-0 rounded-full -ml-74 smooth-hover animate-fade-in shadow-lg" style={{marginLeft: '-310px'}}>
+              <span className="text-black font-medium" style={{fontSize: '14px'}}>일반사용자 (이영희)</span>
             </div>
             <div className="flex absolute" style={{left: '50%', transform: 'translateX(-350px)', gap: '170px'}}>
               <button 

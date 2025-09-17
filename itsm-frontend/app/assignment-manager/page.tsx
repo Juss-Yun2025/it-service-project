@@ -976,14 +976,14 @@ export default function AssignmentManagerPage() {
         {/* 사용자 정보 및 네비게이션 */}
         <div className="max-w-7xl mx-auto px-6 py-6 w-full">
           <div className="flex items-center justify-between mb-12">
-            <div className="px-20 py-0 rounded-full -ml-72 smooth-hover animate-fade-in shadow-lg" style={{backgroundColor: '#DBFCE7'}}>
-              <span className="text-black font-medium">배정담당자 (김배정)</span>
+            <div className="px-20 py-0 rounded-full -ml-72 smooth-hover animate-fade-in shadow-lg" style={{backgroundColor: '#DBFCE7', marginLeft: '-312px'}}>
+              <span className="text-green-600 font-medium" style={{fontSize: '14px'}}>배정담당자 (김배정)</span>
             </div>
             <div className="flex items-center space-x-4">
               <button 
                 onClick={handleInfoChange}
                 className="text-white/70 hover:text-white transition-all duration-300 ease-out flex items-center space-x-2 button-smooth"
-                style={{position: 'absolute', right: '120px', top: 'calc(50% + 36px)', transform: 'translateY(-50%)'}}
+                style={{position: 'absolute', right: '130px', top: 'calc(50% + 36px)', transform: 'translateY(-50%)'}}
               >
                 <Icon name="settings" size={20} className="text-white hover:text-white" />
                 <span>정보 변경</span>
