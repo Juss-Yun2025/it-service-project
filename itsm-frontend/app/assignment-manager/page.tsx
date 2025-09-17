@@ -1016,7 +1016,7 @@ export default function AssignmentManagerPage() {
               </button>
               <h3 className="text-lg font-bold text-gray-800">조치담당자 작업현황</h3>
             </div>
-            <div className="flex justify-end">
+            <div className="flex justify-end" style={{marginTop: '30px'}}>
               <button
                 onClick={() => setShowTechnicianStatus(!showTechnicianStatus)}
                 className={`w-8 h-4 rounded-full transition-colors ${
@@ -1058,7 +1058,7 @@ export default function AssignmentManagerPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50">
-                      <th className="px-2 py-1.5 text-left font-semibold text-gray-700">조치담당자</th>
+                      <th className="px-2 py-1.5 text-center font-semibold text-gray-700">조치담당자</th>
                       <th className="px-2 py-1.5 text-center font-semibold text-gray-700">작업</th>
                       <th className="px-2 py-1.5 text-center font-semibold text-gray-700">배정건수</th>
                     </tr>
@@ -1066,7 +1066,7 @@ export default function AssignmentManagerPage() {
                   <tbody>
                     {filteredTechnicians.slice((safeTechnicianPage - 1) * 10, safeTechnicianPage * 10).map((technician) => (
                       <tr key={technician.id} className="border-b border-gray-100">
-                        <td className="px-2 py-1 text-gray-800">{technician.name}</td>
+                        <td className="px-2 py-1 text-center text-gray-800">{technician.name}</td>
                         <td className="px-2 py-1 text-center">
                           <span className={`px-2 py-1 rounded text-xs font-semibold ${
                             technician.isWorking ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
@@ -1082,27 +1082,29 @@ export default function AssignmentManagerPage() {
               </div>
 
               {/* 페이지네이션 */}
-              <div className="flex justify-center" style={{marginTop: '-90px'}}>
-                <div className="flex items-center space-x-2">
-                  <button 
-                    onClick={() => setTechnicianPage(Math.max(1, technicianPage - 1))}
-                    disabled={technicianPage === 1}
-                    className="px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    이전
-                  </button>
-                  <span className="px-2 py-1 bg-blue-500 text-white rounded text-xs">
-                    {safeTechnicianPage}/{maxTechnicianPage}
-                  </span>
-                  <button 
-                    onClick={() => setTechnicianPage(Math.min(maxTechnicianPage, technicianPage + 1))}
-                    disabled={technicianPage >= maxTechnicianPage}
-                    className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    다음
-                  </button>
+              {filteredTechnicians.length > 0 && maxTechnicianPage > 1 && (
+                <div className="flex justify-center" style={{marginTop: '-120px'}}>
+                  <div className="flex items-center space-x-2">
+                    <button 
+                      onClick={() => setTechnicianPage(Math.max(1, technicianPage - 1))}
+                      disabled={technicianPage === 1}
+                      className="px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      이전
+                    </button>
+                    <span className="px-2 py-1 bg-blue-500 text-white rounded text-xs">
+                      {safeTechnicianPage}/{maxTechnicianPage}
+                    </span>
+                    <button 
+                      onClick={() => setTechnicianPage(Math.min(maxTechnicianPage, technicianPage + 1))}
+                      disabled={technicianPage >= maxTechnicianPage}
+                      className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      다음
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
             </>
           )}
         </div>
@@ -1166,24 +1168,24 @@ export default function AssignmentManagerPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50">
-                  <th className="px-2 py-1.5 text-left font-semibold text-gray-700">신청번호</th>
-                  <th className="px-2 py-1.5 text-left font-semibold text-gray-700">신청일시</th>
-                  <th className="px-2 py-1.5 text-left font-semibold text-gray-700">신청제목</th>
+                  <th className="px-2 py-1.5 text-center font-semibold text-gray-700">신청번호</th>
+                  <th className="px-2 py-1.5 text-center font-semibold text-gray-700">신청일시</th>
+                  <th className="px-2 py-1.5 text-center font-semibold text-gray-700">신청제목</th>
                   <th className="px-2 py-1.5 text-center font-semibold text-gray-700">현재상태</th>
-                  <th className="px-2 py-1.5 text-left font-semibold text-gray-700">신청자</th>
-                  <th className="px-2 py-1.5 text-left font-semibold text-gray-700">신청소속</th>
+                  <th className="px-2 py-1.5 text-center font-semibold text-gray-700">신청자</th>
+                  <th className="px-2 py-1.5 text-center font-semibold text-gray-700">신청소속</th>
                   <th className="px-2 py-1.5 text-center font-semibold text-gray-700">단계</th>
                   <th className="px-2 py-1.5 text-center font-semibold text-gray-700">배정시간</th>
-                  <th className="px-2 py-1.5 text-left font-semibold text-gray-700">조치자</th>
-                  <th className="px-2 py-1.5 text-left font-semibold text-gray-700">조치소속</th>
+                  <th className="px-2 py-1.5 text-center font-semibold text-gray-700">조치자</th>
+                  <th className="px-2 py-1.5 text-center font-semibold text-gray-700">조치소속</th>
                   <th className="px-2 py-1.5 text-center font-semibold text-gray-700">관리</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredServiceRequests.slice((serviceRequestPage - 1) * 5, serviceRequestPage * 5).map((request) => (
                   <tr key={request.id} className="border-b border-gray-100 hover:bg-blue-50">
-                    <td className="px-2 py-1 text-blue-600 font-medium">{request.requestNumber}</td>
-                    <td className="px-2 py-1 text-gray-800">{request.requestDate.split(' ')[1]}</td>
+                    <td className="px-2 py-1 text-center text-blue-600 font-medium">{request.requestNumber}</td>
+                    <td className="px-2 py-1 text-center text-gray-800">{request.requestDate.split(' ')[1]}</td>
                     <td className="px-2 py-1 text-gray-800 max-w-xs truncate" title={request.title}>
                       {request.title}
                     </td>
@@ -1197,8 +1199,8 @@ export default function AssignmentManagerPage() {
                         {request.currentStatus}
                       </span>
                     </td>
-                    <td className="px-2 py-1 text-gray-800">{request.requester}</td>
-                    <td className="px-2 py-1 text-gray-800">{request.department}</td>
+                    <td className="px-2 py-1 text-center text-gray-800">{request.requester}</td>
+                    <td className="px-2 py-1 text-center text-gray-800">{request.department}</td>
                     <td className="px-2 py-1 text-center">
                       {request.stage === '접수' && <Icon name="check-circle" size={16} className="text-green-500 mx-auto" />}
                       {request.stage === '재배정' && <Icon name="refresh" size={16} className="text-orange-500 mx-auto" />}
@@ -1206,9 +1208,9 @@ export default function AssignmentManagerPage() {
                       {request.stage === '확인' && <Icon name="eye" size={16} className="text-purple-500 mx-auto" />}
                       {request.stage === '작업' && <Icon name="settings" size={16} className="text-indigo-500 mx-auto" />}
                     </td>
-                    <td className="px-2 py-1 text-gray-800">{request.assignTime || '-'}</td>
-                    <td className="px-2 py-1 text-gray-800">{request.assignee || '-'}</td>
-                    <td className="px-2 py-1 text-gray-800">{request.assigneeDepartment || '-'}</td>
+                    <td className="px-2 py-1 text-center text-gray-800">{request.assignTime || '-'}</td>
+                    <td className="px-2 py-1 text-center text-gray-800">{request.assignee || '-'}</td>
+                    <td className="px-2 py-1 text-center text-gray-800">{request.assigneeDepartment || '-'}</td>
                     <td className="px-2 py-1 text-center">
                       {request.stage === '접수' && (
                         <button
@@ -1234,27 +1236,29 @@ export default function AssignmentManagerPage() {
           </div>
 
           {/* 페이지네이션 */}
-          <div className="flex justify-center" style={{marginTop: '-41px'}}>
-            <div className="flex items-center space-x-2">
-              <button 
-                onClick={() => setServiceRequestPage(Math.max(1, serviceRequestPage - 1))}
-                disabled={serviceRequestPage === 1}
-                className="px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                이전
-              </button>
-              <span className="px-2 py-1 bg-blue-500 text-white rounded text-xs">
-                {serviceRequestPage}/{Math.ceil(filteredServiceRequests.length / 5)}
-              </span>
-              <button 
-                onClick={() => setServiceRequestPage(Math.min(Math.ceil(filteredServiceRequests.length / 5), serviceRequestPage + 1))}
-                disabled={serviceRequestPage >= Math.ceil(filteredServiceRequests.length / 5)}
-                className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                다음
-              </button>
+          {filteredServiceRequests.length > 0 && Math.ceil(filteredServiceRequests.length / 5) > 1 && (
+            <div className="flex justify-center" style={{marginTop: '-41px'}}>
+              <div className="flex items-center space-x-2">
+                <button 
+                  onClick={() => setServiceRequestPage(Math.max(1, serviceRequestPage - 1))}
+                  disabled={serviceRequestPage === 1}
+                  className="px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  이전
+                </button>
+                <span className="px-2 py-1 bg-blue-500 text-white rounded text-xs">
+                  {serviceRequestPage}/{Math.ceil(filteredServiceRequests.length / 5)}
+                </span>
+                <button 
+                  onClick={() => setServiceRequestPage(Math.min(Math.ceil(filteredServiceRequests.length / 5), serviceRequestPage + 1))}
+                  disabled={serviceRequestPage >= Math.ceil(filteredServiceRequests.length / 5)}
+                  className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  다음
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* 우측: 작업미결현황 */}
@@ -1277,7 +1281,7 @@ export default function AssignmentManagerPage() {
               </button>
               <h3 className="text-lg font-bold text-gray-800">작업미결현황</h3>
             </div>
-            <div className="flex justify-end">
+            <div className="flex justify-end" style={{marginTop: '30px'}}>
               <button
                 onClick={() => setShowPendingWork(!showPendingWork)}
                 className={`w-8 h-4 rounded-full transition-colors ${
@@ -1314,7 +1318,7 @@ export default function AssignmentManagerPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50">
-                      <th className="px-2 py-1.5 text-left font-semibold text-gray-700">조치담당자</th>
+                      <th className="px-2 py-1.5 text-center font-semibold text-gray-700">조치담당자</th>
                       <th className="px-2 py-1.5 text-center font-semibold text-gray-700">전주미결</th>
                       <th className="px-2 py-1.5 text-center font-semibold text-gray-700">장기미결</th>
                     </tr>
@@ -1322,7 +1326,7 @@ export default function AssignmentManagerPage() {
                   <tbody>
                     {filteredPendingWorks.slice((safePendingWorkPage - 1) * 10, safePendingWorkPage * 10).map((work) => (
                       <tr key={work.id} className="border-b border-gray-100">
-                        <td className="px-2 py-1 text-gray-800">{work.technician}</td>
+                        <td className="px-2 py-1 text-center text-gray-800">{work.technician}</td>
                         <td className="px-2 py-1 text-center text-gray-800">{work.lastWeekPending}</td>
                         <td className="px-2 py-1 text-center text-gray-800">{work.longTermPending}</td>
                       </tr>
@@ -1332,27 +1336,29 @@ export default function AssignmentManagerPage() {
               </div>
 
               {/* 페이지네이션 */}
-              <div className="flex justify-center" style={{marginTop: '-54px'}}>
-                <div className="flex items-center space-x-2">
-                  <button 
-                    onClick={() => setPendingWorkPage(Math.max(1, pendingWorkPage - 1))}
-                    disabled={pendingWorkPage === 1}
-                    className="px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    이전
-                  </button>
-                  <span className="px-2 py-1 bg-blue-500 text-white rounded text-xs">
-                    {safePendingWorkPage}/{maxPendingWorkPage}
-                  </span>
-                  <button 
-                    onClick={() => setPendingWorkPage(Math.min(maxPendingWorkPage, pendingWorkPage + 1))}
-                    disabled={pendingWorkPage >= maxPendingWorkPage}
-                    className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    다음
-                  </button>
+              {filteredPendingWorks.length > 0 && maxPendingWorkPage > 1 && (
+                <div className="flex justify-center" style={{marginTop: '-84px'}}>
+                  <div className="flex items-center space-x-2">
+                    <button 
+                      onClick={() => setPendingWorkPage(Math.max(1, pendingWorkPage - 1))}
+                      disabled={pendingWorkPage === 1}
+                      className="px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      이전
+                    </button>
+                    <span className="px-2 py-1 bg-blue-500 text-white rounded text-xs">
+                      {safePendingWorkPage}/{maxPendingWorkPage}
+                    </span>
+                    <button 
+                      onClick={() => setPendingWorkPage(Math.min(maxPendingWorkPage, pendingWorkPage + 1))}
+                      disabled={pendingWorkPage >= maxPendingWorkPage}
+                      className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      다음
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
             </>
           )}
         </div>
@@ -1416,22 +1422,22 @@ export default function AssignmentManagerPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-gray-50">
-                  <th className="px-2 py-1.5 text-left font-semibold text-gray-700">문의일시</th>
-                  <th className="px-2 py-1.5 text-left font-semibold text-gray-700">문의내용</th>
-                  <th className="px-2 py-1.5 text-left font-semibold text-gray-700">문의자</th>
-                  <th className="px-2 py-1.5 text-left font-semibold text-gray-700">답변일시</th>
+                  <th className="px-2 py-1.5 text-center font-semibold text-gray-700">문의일시</th>
+                  <th className="px-2 py-1.5 text-center font-semibold text-gray-700">문의내용</th>
+                  <th className="px-2 py-1.5 text-center font-semibold text-gray-700">문의자</th>
+                  <th className="px-2 py-1.5 text-center font-semibold text-gray-700">답변일시</th>
                   <th className="px-2 py-1.5 text-center font-semibold text-gray-700">관리</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredInquiries.slice((inquiryPage - 1) * 5, inquiryPage * 5).map((inquiry) => (
                   <tr key={inquiry.id} className="border-b border-gray-100 hover:bg-blue-50">
-                    <td className="px-2 py-1 text-gray-800">{inquiry.inquiryDate}</td>
+                    <td className="px-2 py-1 text-center text-gray-800">{inquiry.inquiryDate}</td>
                     <td className="px-2 py-1 text-gray-800 max-w-xs truncate" title={inquiry.content}>
                       {inquiry.content}
                     </td>
-                    <td className="px-2 py-1 text-gray-800">{inquiry.inquirer}</td>
-                    <td className="px-2 py-1 text-gray-800">{inquiry.answerDate || '-'}</td>
+                    <td className="px-2 py-1 text-center text-gray-800">{inquiry.inquirer}</td>
+                    <td className="px-2 py-1 text-center text-gray-800">{inquiry.answerDate || '-'}</td>
                     <td className="px-2 py-1 text-center">
                       {inquiry.isLocked ? (
                         <Icon name="lock" size={16} className="text-gray-400 mx-auto" />
@@ -1458,27 +1464,29 @@ export default function AssignmentManagerPage() {
           </div>
 
           {/* 페이지네이션 */}
-          <div className="flex justify-center" style={{marginTop: '-39px'}}>
-            <div className="flex items-center space-x-2">
-              <button 
-                onClick={() => setInquiryPage(Math.max(1, inquiryPage - 1))}
-                disabled={inquiryPage === 1}
-                className="px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                이전
-              </button>
-              <span className="px-2 py-1 bg-blue-500 text-white rounded text-xs">
-                {inquiryPage}/{Math.ceil(filteredInquiries.length / 5)}
-              </span>
-              <button 
-                onClick={() => setInquiryPage(Math.min(Math.ceil(filteredInquiries.length / 5), inquiryPage + 1))}
-                disabled={inquiryPage >= Math.ceil(filteredInquiries.length / 5)}
-                className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                다음
-              </button>
+          {filteredInquiries.length > 0 && Math.ceil(filteredInquiries.length / 5) > 1 && (
+            <div className="flex justify-center" style={{marginTop: '-39px'}}>
+              <div className="flex items-center space-x-2">
+                <button 
+                  onClick={() => setInquiryPage(Math.max(1, inquiryPage - 1))}
+                  disabled={inquiryPage === 1}
+                  className="px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  이전
+                </button>
+                <span className="px-2 py-1 bg-blue-500 text-white rounded text-xs">
+                  {inquiryPage}/{Math.ceil(filteredInquiries.length / 5)}
+                </span>
+                <button 
+                  onClick={() => setInquiryPage(Math.min(Math.ceil(filteredInquiries.length / 5), inquiryPage + 1))}
+                  disabled={inquiryPage >= Math.ceil(filteredInquiries.length / 5)}
+                  className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  다음
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* 푸터 */}
