@@ -12,6 +12,7 @@ interface ServiceRequest {
   status: string
   currentStatus: string
   requestDate: string
+  requestTime?: string
   requester: string
   department: string
   stage: string
@@ -59,6 +60,7 @@ export default function TechnicianPage() {
   const [showRejectionInAssignment, setShowRejectionInAssignment] = useState(false)
   const [showInfoViewModal, setShowInfoViewModal] = useState(false)
   const [showWorkRegistrationModal, setShowWorkRegistrationModal] = useState(false)
+  const [showWorkRegistrationInInfo, setShowWorkRegistrationInInfo] = useState(false)
   const [showWorkCompleteModal, setShowWorkCompleteModal] = useState(false)
   const [rejectionOpinion, setRejectionOpinion] = useState('')
   
@@ -118,6 +120,7 @@ export default function TechnicianPage() {
       status: '진행중',
       currentStatus: '부분불능',
       requestDate: '2025.08.31',
+      requestTime: '09:30',
       requester: '김영자',
       department: '운영팀',
       stage: '배정',
@@ -141,6 +144,7 @@ export default function TechnicianPage() {
       status: '진행중',
       currentStatus: '정상작동',
       requestDate: '2025.08.30',
+      requestTime: '14:15',
       requester: '김철수',
       department: '관리부',
       stage: '확인',
@@ -519,10 +523,27 @@ export default function TechnicianPage() {
     setShowWorkRegistrationModal(true)
   }
 
+  // 정보확인 모달에서 작업정보등록 열기
+  const handleWorkRegistrationInInfo = () => {
+    setShowWorkRegistrationInInfo(true)
+    // 예정조율일시에 현재 시점 자동 설정 (한국 시간)
+    const now = new Date()
+    const kstOffset = 9 * 60 // 한국은 UTC+9
+    const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000))
+    const formattedNow = kstTime.toISOString().slice(0, 16)
+    setScheduledDate(formattedNow)
+  }
+
   // 단계별 처리 함수들
   const handleScheduledProcess = () => {
     if (scheduledDate) {
       setCurrentStage('작업') // 예정 → 작업으로 변경
+      // 작업시작일시에 현재 시점 자동 설정 (한국 시간)
+      const now = new Date()
+      const kstOffset = 9 * 60 // 한국은 UTC+9
+      const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000))
+      const formattedNow = kstTime.toISOString().slice(0, 16)
+      setWorkStartDate(formattedNow)
       console.log('예정 단계 처리:', scheduledDate)
       alert('예정조율일시가 등록되었습니다. 작업 단계로 진행합니다.')
     } else {
@@ -533,6 +554,12 @@ export default function TechnicianPage() {
   const handleWorkStartProcess = () => {
     if (workStartDate) {
       setCurrentStage('완료') // 작업 → 완료로 변경
+      // 작업완료일시에 현재 시점 자동 설정 (한국 시간)
+      const now = new Date()
+      const kstOffset = 9 * 60 // 한국은 UTC+9
+      const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000))
+      const formattedNow = kstTime.toISOString().slice(0, 16)
+      setWorkCompleteDate(formattedNow)
       console.log('작업 시작:', workStartDate)
       alert('작업이 시작되었습니다. 완료 단계로 진행합니다.')
     } else {
@@ -553,8 +580,7 @@ export default function TechnicianPage() {
   const handleUnresolvedProcess = () => {
     if (problemIssue) {
       setCurrentStage('미결')
-      setShowWorkRegistrationModal(false)
-      setShowWorkCompleteModal(true)
+      // 데이터 업데이트만 수행
       console.log('미결 처리:', problemIssue)
       alert('미결 처리가 완료되었습니다.')
     } else {
@@ -625,6 +651,7 @@ export default function TechnicianPage() {
     setShowWorkRegistrationModal(false)
     setShowWorkCompleteModal(false)
     setShowPasswordModal(false)
+    setShowWorkRegistrationInInfo(false)
     setSelectedRequest(null)
     setRejectionOpinion('')
     // 작업정보등록 상태 초기화
@@ -779,10 +806,9 @@ export default function TechnicianPage() {
                         onClick={() => setIsWorking(!isWorking)}
             className={`px-8 py-4 rounded-lg border-2 transition-all duration-200 ${
               isWorking
-                ? 'bg-green-500 text-white border-green-500 shadow-lg'
+                ? 'bg-blue-500 text-white border-blue-500 shadow-lg'
                 : 'bg-red-500 text-white border-red-500 shadow-lg'
             }`}
-                        style={{ borderColor: '#3B82F6' }}
                       >
                         <span className="text-xl font-bold">
                           {isWorking ? '서비스 가능' : '서비스 불가'}
@@ -1002,12 +1028,12 @@ export default function TechnicianPage() {
       {/* 배정확인 모달 */}
       {showAssignmentModal && selectedRequest && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
-          <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             {/* 모달 헤더 */}
             <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200" style={{paddingTop: '30px'}}>
               <h2 className="text-xl font-bold text-gray-800 flex items-center">
-                <Icon name="document" size={24} className="mr-2" />
-                서비스 신청 정보
+                <Icon name="assignment-confirm" size={24} className="mr-2" />
+                배정 확인
               </h2>
               <button
                 onClick={closeModal}
@@ -1024,23 +1050,23 @@ export default function TechnicianPage() {
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2 mb-4">
                     <Icon name="user" size={20} className="text-gray-600" />
-                    <h3 className="text-lg font-semibold text-gray-800">서비스신청정보</h3>
+                    <h3 className="text-lg font-semibold text-gray-800">서비스 신청 정보</h3>
                   </div>
                   
                   <div className="space-y-0">
                     <div>
-                      <span className="text-sm font-medium text-gray-600">신청번호: </span>
+                      <span className="text-sm font-medium text-gray-600">신청 번호 : </span>
                       <span className="text-sm font-bold text-red-600">{selectedRequest.requestNumber}</span>
                     </div>
                     
                     <div>
-                      <span className="text-sm font-medium text-gray-600">신청제목: </span>
+                      <span className="text-sm font-medium text-gray-600">신청 제목 : </span>
                       <span className="text-sm">{selectedRequest.title}</span>
                     </div>
                     
                     <div>
-                      <span className="text-sm font-medium text-gray-600">신청내용: </span>
-                      <div className="text-sm mt-1 p-2 bg-gray-50 rounded text-gray-700">
+                      <span className="text-sm font-medium text-gray-600">신청 내용 </span>
+                      <div className="text-sm mt-1 p-3 bg-gray-50 rounded text-gray-700 min-h-24 max-h-48 overflow-y-auto whitespace-pre-wrap">
                         {selectedRequest.content}
                       </div>
                     </div>
@@ -1048,23 +1074,21 @@ export default function TechnicianPage() {
                     <div>
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="user" size={14} className="mr-1" />
-                        신청자: 
+                        신청자 : <span className="text-sm ml-1 text-black">{selectedRequest.requester} ({selectedRequest.department})</span>
                       </span>
-                      <span className="text-sm ml-5">{selectedRequest.requester} ({selectedRequest.department})</span>
                     </div>
                     
                     <div>
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="mail" size={14} className="mr-1" />
-                        신청연락처: 
-                      </span>
-                      <span className="text-sm ml-5">{selectedRequest.contact}</span>
+                        신청 연락처 : <span className="text-sm ml-1 text-black">{selectedRequest.contact}</span>
+                      </span>                    
                     </div>
                     
                     <div>
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="briefcase" size={14} className="mr-1" />
-                        신청위치: 
+                        신청 위치 
                       </span>
                       <span className="text-sm ml-5">{selectedRequest.location}</span>
                     </div>
@@ -1072,34 +1096,32 @@ export default function TechnicianPage() {
                     <div>
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="calendar" size={14} className="mr-1" />
-                        신청일시: 
+                        신청 일시 : <span className="text-sm ml-1 text-black">{selectedRequest.requestDate} {selectedRequest.requestTime}</span>
                       </span>
-                      <span className="text-sm ml-5">{selectedRequest.requestDate} 13:00</span>
                     </div>
                     
                     <div>
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="message-square" size={14} className="mr-1" />
-                        현재상태: 
+                        현재 상태 : <span className="text-sm ml-1 text-red-600 font-semibold">{selectedRequest.currentStatus}</span>
                       </span>
-                      <span className="text-sm ml-5 text-red-600 font-semibold">{selectedRequest.currentStatus}</span>
                     </div>
                     
                     <div>
-                      <span className="text-sm font-medium text-gray-600">실제신청자: </span>
-                      <span className="text-sm ml-5">{selectedRequest.actualRequester || selectedRequest.requester}</span>
+                      <span className="text-sm font-medium text-gray-600">실제 신청자 : </span>
+                      <span className="text-sm ml-1">{selectedRequest.actualRequester || selectedRequest.requester}</span>
                     </div>
                     
                     <div>
-                      <span className="text-sm font-medium text-gray-600">실제연락처: </span>
-                      <span className="text-sm ml-5">{selectedRequest.actualContact || selectedRequest.contact}</span>
+                      <span className="text-sm font-medium text-gray-600">실제 연락처 : </span>
+                      <span className="text-sm ml-1">{selectedRequest.actualContact || selectedRequest.contact}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* 오른쪽: 배정 반려 (반려 버튼 클릭 시에만 표시) */}
                 {showRejectionInAssignment && (
-                  <div className="space-y-4">
+                  <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
                     <div className="flex items-center space-x-2 mb-4">
                       <Icon name="assignment-reject" size={20} className="text-orange-600" />
                       <h3 className="text-lg font-semibold text-gray-800">배정 반려</h3>
@@ -1107,32 +1129,32 @@ export default function TechnicianPage() {
                     
                     <div className="space-y-0">
                       <div>
-                        <span className="text-sm font-medium text-gray-600">배정일시: </span>
+                        <span className="text-sm font-medium text-gray-600">배정 일시 : </span>
                         <span className="text-sm">{selectedRequest.assignDate || '2025.08.31 11:10'}</span>
                       </div>
                       
                       <div>
-                        <span className="text-sm font-medium text-gray-600">배정담당자: </span>
+                        <span className="text-sm font-medium text-gray-600">배정 담당자 : </span>
                         <span className="text-sm">{selectedRequest.assignee || '이배정'}</span>
                       </div>
                       
                       <div>
-                        <span className="text-sm font-medium text-gray-600">배정의견: </span>
+                        <span className="text-sm font-medium text-gray-600">배정 의견 : </span>
                         <span className="text-sm">{selectedRequest.assignmentOpinion || '업무에 적합하여 배정'}</span>
                       </div>
                       
                       <div>
-                        <span className="text-sm font-medium text-gray-600">서비스 조치 유형: </span>
+                        <span className="text-sm font-medium text-gray-600">서비스 조치유형 → </span>
                         <span className="text-sm">{selectedRequest.serviceType}</span>
                       </div>
                       
                       <div>
-                        <span className="text-sm font-medium text-gray-600">조치담당자: </span>
+                        <span className="text-sm font-medium text-gray-600">조치 담당자 : </span>
                         <span className="text-sm">김기술</span>
                       </div>
                       
                       <div>
-                        <span className="text-sm font-medium text-gray-600">반려의견: </span>
+                        <span className="text-sm font-medium text-gray-600">반려 의견 : </span>
                         <textarea
                           value={rejectionOpinion}
                           onChange={(e) => setRejectionOpinion(e.target.value)}
@@ -1193,8 +1215,8 @@ export default function TechnicianPage() {
             {/* 모달 헤더 */}
             <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200" style={{paddingTop: '30px'}}>
               <h2 className="text-xl font-bold text-gray-800 flex items-center">
-                <Icon name="document" size={24} className="mr-2" />
-                서비스 신청 정보
+                <Icon name="assignment-confirm" size={24} className="mr-2" />
+                정보 확인
               </h2>
               <button
                 onClick={closeModal}
@@ -1227,7 +1249,7 @@ export default function TechnicianPage() {
                     
                     <div>
                       <span className="text-sm font-medium text-gray-600">신청내용: </span>
-                      <div className="text-sm mt-1 p-2 bg-gray-50 rounded text-gray-700">
+                      <div className="text-sm mt-1 p-3 bg-gray-50 rounded text-gray-700 min-h-24 max-h-48 overflow-y-auto whitespace-pre-wrap">
                         {selectedRequest.content}
                       </div>
                     </div>
@@ -1259,9 +1281,8 @@ export default function TechnicianPage() {
                     <div>
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="calendar" size={14} className="mr-1" />
-                        신청일시: 
+                        신청일시: <span className="text-sm ml-1 text-black">{selectedRequest.requestDate} {selectedRequest.requestTime}</span>
                       </span>
-                      <span className="text-sm ml-5">{selectedRequest.requestDate} 13:00</span>
                     </div>
                     
                     <div>
@@ -1284,8 +1305,203 @@ export default function TechnicianPage() {
                   </div>
                 </div>
 
-                {/* 오른쪽: 빈 공간 (작업정보등록으로 이동) */}
-                <div className="space-y-4">
+                {/* 오른쪽: 작업정보등록 (작업정보등록 버튼 클릭 시에만 표시) */}
+                {showWorkRegistrationInInfo && (
+                  <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <Icon name="settings" size={20} className="text-gray-600" />
+                      <h3 className="text-lg font-semibold text-gray-800">작업정보등록</h3>
+                    </div>
+                    
+                    <div className="space-y-0 py-0">
+                      {/* 배정 정보 */}
+                      <div className="bg-gray-50 px-4 py-0 rounded-lg">
+                        <div className="space-y-2">
+                          <div>
+                            <span className="text-sm font-medium text-gray-600">배정일시 :</span>
+                            <span className="text-sm text-gray-800 ml-2">{selectedRequest.assignDate || '2025.08.31 10:40'}</span>
+                          </div>
+                          <div>
+                            <span className="text-sm font-medium text-gray-600">배정 담당자 :</span>
+                            <span className="text-sm text-gray-800 ml-2">{selectedRequest.assignee || '이배정'}</span>
+                          </div>
+                          <div>
+                            <span className="text-sm font-medium text-gray-600">서비스 조치 정보 :</span>
+                            <span className="text-sm text-gray-800 ml-2">{selectedRequest.serviceType || '문제'}</span>
+                          </div>
+                          <div>
+                            <span className="text-sm font-medium text-gray-600">조치담당자 :</span>
+                            <span className="text-sm text-gray-800 ml-2">김기술</span>
+                          </div>
+                        </div>
+                      </div>
+
+
+                      {/* 예정 조율 일시 */}
+                      <div className={`px-4 py-0 rounded-lg border-2 ${currentStage === '예정' ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
+                        <div className="flex items-center gap-4">
+                          <div className="flex-1">
+                            <label className="block text-sm font-medium text-gray-600 mb-2">예정 조율 일시</label>
+                            <input
+                              type="datetime-local"
+                              value={scheduledDate}
+                              onChange={(e) => setScheduledDate(e.target.value)}
+                              disabled={currentStage !== '예정'}
+                              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                currentStage !== '예정' ? 'bg-gray-100 cursor-not-allowed' : ''
+                              }`}
+                            />
+                          </div>
+                          {currentStage === '예정' && (
+                            <div className="flex items-center gap-2">
+                              <Icon name="calendar" className="w-5 h-5 text-gray-400" />
+                              <button
+                                onClick={handleScheduledProcess}
+                                disabled={!scheduledDate}
+                                className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                                  scheduledDate
+                                    ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                }`}
+                              >
+                                처리
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 작업 시작 일시 */}
+                      <div className={`px-4 py-0 rounded-lg border-2 ${currentStage === '작업' ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
+                        <div className="flex items-center gap-4">
+                          <div className="flex-1">
+                            <label className="block text-sm font-medium text-gray-600 mb-2">작업 시작 일시</label>
+                            <input
+                              type="datetime-local"
+                              value={workStartDate}
+                              onChange={(e) => setWorkStartDate(e.target.value)}
+                              disabled={currentStage !== '작업'}
+                              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                currentStage !== '작업' ? 'bg-gray-100 cursor-not-allowed' : ''
+                              }`}
+                            />
+                          </div>
+                          {currentStage === '작업' && (
+                            <div className="flex items-center gap-2">
+                              <Icon name="calendar" className="w-5 h-5 text-gray-400" />
+                              <button
+                                onClick={handleWorkStartProcess}
+                                disabled={!workStartDate}
+                                className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                                  workStartDate
+                                    ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                }`}
+                              >
+                                처리
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 작업 내역 및 완료 일시 */}
+                      <div className={`px-4 py-0 rounded-lg border-2 ${currentStage === '완료' ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
+                        <div className="space-y-0">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-600 mb-2">작업 내역</label>
+                            <textarea
+                              value={workContent}
+                              onChange={(e) => setWorkContent(e.target.value)}
+                              disabled={currentStage !== '완료'}
+                              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                currentStage !== '완료' ? 'bg-gray-100 cursor-not-allowed' : ''
+                              }`}
+                              rows={3}
+                              placeholder="작업 내용 입력"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-600 mb-2">작업 완료 일시</label>
+                            <input
+                              type="datetime-local"
+                              value={workCompleteDate}
+                              onChange={(e) => setWorkCompleteDate(e.target.value)}
+                              disabled={currentStage !== '완료'}
+                              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                currentStage !== '완료' ? 'bg-gray-100 cursor-not-allowed' : ''
+                              }`}
+                            />
+                          </div>
+                          {currentStage === '완료' && (
+                            <div className="flex justify-end">
+                              <button
+                                onClick={handleWorkCompleteProcess}
+                                disabled={!workContent || !workCompleteDate}
+                                className={`px-6 py-2 rounded-lg font-medium transition-all duration-200 ${
+                                  workContent && workCompleteDate
+                                    ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                }`}
+                              >
+                                처리
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 문제 사항 */}
+                      <div className={`px-4 py-0 rounded-lg border-2 ${currentStage === '미결' ? 'border-orange-300 bg-orange-50' : 'border-gray-200 bg-gray-50'}`}>
+                        <div className="flex items-start gap-4">
+                          <div className="flex-1">
+                            <label className="block text-sm font-medium text-gray-600 mb-2">문제 사항</label>
+                            <textarea
+                              value={problemIssue}
+                              onChange={(e) => setProblemIssue(e.target.value)}
+                              disabled={currentStage !== '미결'}
+                              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 ${
+                                currentStage !== '미결' ? 'bg-gray-100 cursor-not-allowed' : ''
+                              }`}
+                              rows={3}
+                              placeholder="작업 중 발견 된 문제점 입력"
+                            />
+                          </div>
+                          {currentStage === '미결' && (
+                            <div className="flex items-start gap-2">
+                              <button
+                                onClick={handleUnresolvedProcess}
+                                className="px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-pink-500 hover:bg-pink-600 text-white"
+                              >
+                                등재
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        <div className="mt-3 flex items-center">
+                          <input
+                            type="checkbox"
+                            id="unresolved"
+                            checked={isUnresolved}
+                            onChange={(e) => setIsUnresolved(e.target.checked)}
+                            disabled={currentStage !== '미결'}
+                            className={`mr-2 ${currentStage !== '미결' ? 'cursor-not-allowed' : ''}`}
+                          />
+                          <label htmlFor="unresolved" className={`text-sm font-medium ${
+                            currentStage !== '미결' ? 'text-gray-400' : 'text-gray-700'
+                          }`}>
+                            미결 완료
+                          </label>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                )}
+
+                {/* 오른쪽: 빈 공간 (작업정보등록 버튼 클릭 전) */}
+                {!showWorkRegistrationInInfo && (
+                <div className="space-y-4 animate-in fade-in duration-300">
                   <div className="flex items-center space-x-2 mb-4">
                     <Icon name="settings" size={20} className="text-gray-600" />
                     <h3 className="text-lg font-semibold text-gray-800">작업정보등록</h3>
@@ -1296,11 +1512,14 @@ export default function TechnicianPage() {
                     <p className="text-gray-500 mb-6">하단 버튼을 클릭하세요</p>
                   </div>
                 </div>
+                )}
               </div>
             </div>
 
             {/* 모달 하단 버튼 */}
             <div className="flex gap-3 py-4 px-6 border-t border-gray-200">
+              {!showWorkRegistrationInInfo ? (
+                <>
               <button
                 onClick={closeModal}
                 className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
@@ -1308,11 +1527,31 @@ export default function TechnicianPage() {
                 취소
               </button>
               <button
-                onClick={handleWorkRegistration}
+                    onClick={handleWorkRegistrationInInfo}
                 className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
               >
-                작업정보등록
+                작업 정보 등록
               </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setShowWorkRegistrationInInfo(false)}
+                    className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
+                  >
+                    뒤로가기
+                  </button>
+                  <button
+                    onClick={() => {
+                      closeModal()
+                      setShowWorkCompleteModal(true)
+                    }}
+                    className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
+                  >
+                    작업 확인 완료
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -1704,7 +1943,7 @@ export default function TechnicianPage() {
                     
                     <div>
                       <span className="text-sm font-medium text-gray-600">신청내용: </span>
-                      <div className="text-sm mt-1 p-2 bg-gray-50 rounded text-gray-700">
+                      <div className="text-sm mt-1 p-3 bg-gray-50 rounded text-gray-700 min-h-24 max-h-48 overflow-y-auto whitespace-pre-wrap">
                         {selectedRequest.content}
                       </div>
                     </div>
@@ -1736,9 +1975,8 @@ export default function TechnicianPage() {
                     <div>
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="calendar" size={14} className="mr-1" />
-                        신청일시: 
+                        신청일시: <span className="text-sm ml-1 text-black">{selectedRequest.requestDate} {selectedRequest.requestTime}</span>
                       </span>
-                      <span className="text-sm ml-5">{selectedRequest.requestDate} 13:00</span>
                     </div>
                     
                     <div>
@@ -1918,7 +2156,7 @@ export default function TechnicianPage() {
             <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200" style={{paddingTop: '30px'}}>
               <h2 className="text-xl font-bold text-gray-800 flex items-center">
                 <Icon name="check-circle" size={24} className="mr-2 text-green-600" />
-                작업 완료
+                작업 확인
               </h2>
               <button
                 onClick={() => setShowWorkCompleteModal(false)}
@@ -1933,7 +2171,7 @@ export default function TechnicianPage() {
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Icon name="check-circle" size={32} className="text-green-600" />
               </div>
-              <p className="text-gray-600 mb-6">작업이 성공적으로 완료되었습니다.</p>
+              <p className="text-gray-600 mb-6">작업을 확인 하셨습니다.</p>
             </div>
 
             {/* 모달 하단 버튼 */}

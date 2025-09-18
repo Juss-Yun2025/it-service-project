@@ -1,0 +1,19 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 팬 중심부 -->
+  <rect x="10" y="10" width="4" height="4" fill="currentColor"/>
+  
+  <!-- 위쪽 날개 -->
+  <path d="M10 10L12 6L14 10L10 10Z" fill="currentColor"/>
+  
+  <!-- 아래쪽 날개 -->
+  <path d="M10 14L12 18L14 14L10 14Z" fill="currentColor"/>
+  
+  <!-- 왼쪽 날개 -->
+  <path d="M10 10L6 12L10 14L10 10Z" fill="currentColor"/>
+  
+  <!-- 오른쪽 날개 -->
+  <path d="M14 10L18 12L14 14L14 10Z" fill="currentColor"/>
+  
+  <!-- 중앙 원 -->
+  <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+</svg>
