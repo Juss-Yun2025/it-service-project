@@ -97,6 +97,21 @@ export default function ServiceManagerPage() {
   const [showFAQAddModal, setShowFAQAddModal] = useState(false)
   const [showFAQCompleteModal, setShowFAQCompleteModal] = useState(false)
   const [selectedFAQ, setSelectedFAQ] = useState<any>(null)
+  
+  // 일반문의 List 관리 관련 상태
+  const [showGeneralInquiryList, setShowGeneralInquiryList] = useState(false)
+  const [showGeneralInquiryReplyModal, setShowGeneralInquiryReplyModal] = useState(false)
+  const [showGeneralInquiryEditModal, setShowGeneralInquiryEditModal] = useState(false)
+  const [showGeneralInquiryDeleteModal, setShowGeneralInquiryDeleteModal] = useState(false)
+  const [selectedInquiry, setSelectedInquiry] = useState<any>(null)
+  const [generalInquiryCurrentPage, setGeneralInquiryCurrentPage] = useState(1)
+  const [generalInquirySearchStartDate, setGeneralInquirySearchStartDate] = useState(() => {
+    const oneWeekAgo = new Date()
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+    return oneWeekAgo.toISOString().split('T')[0]
+  })
+  const [generalInquirySearchEndDate, setGeneralInquirySearchEndDate] = useState(new Date().toISOString().split('T')[0])
+  const [showUnansweredOnly, setShowUnansweredOnly] = useState(false)
   const [showServiceAssignmentModal, setShowServiceAssignmentModal] = useState(false)
   const [showServiceReassignmentModal, setShowServiceReassignmentModal] = useState(false)
   const [showServiceWorkInfoModal, setShowServiceWorkInfoModal] = useState(false)
@@ -1501,6 +1516,7 @@ export default function ServiceManagerPage() {
 
                   {/* 일반문의 List 관리 - 우측에서 날아오는 애니메이션 */}
                   <div 
+                    onClick={() => setShowGeneralInquiryList(true)}
                     className="bg-gray-800 rounded-lg p-6 cursor-pointer hover:bg-gray-700 hover:scale-105 transition-all duration-300 ease-in-out flex flex-col items-start justify-start animate-slide-in-right"
                     style={{
                       backgroundImage: `url('/image/선택_일반문의List관리.jpg')`,
@@ -1607,19 +1623,19 @@ export default function ServiceManagerPage() {
                 <div className="flex-1 overflow-hidden">
                   <div className="overflow-x-auto overflow-y-auto px-4" style={{height: '450px'}}>
                     <table className="w-full text-sm">
-                      <thead className="sticky top-0" style={{backgroundColor: '#DBEAFE'}}>
+                      <thead className="sticky top-0" style={{backgroundColor: '#D4B8F9'}}>
                         <tr>
-                          <th className="px-2 py-2 text-center text-sm font-bold text-blue-600">신청번호</th>
-                          <th className="px-2 py-2 text-center text-sm font-bold text-blue-600">신청시간</th>
-                          <th className="px-2 py-2 text-center text-sm font-bold text-blue-600">신청제목</th>
-                          <th className="px-2 py-2 text-center text-sm font-bold text-blue-600">현재상태</th>
-                          <th className="px-2 py-2 text-center text-sm font-bold text-blue-600">신청자</th>
-                          <th className="px-2 py-2 text-center text-sm font-bold text-blue-600">신청소속</th>
-                          <th className="px-2 py-2 text-center text-sm font-bold text-blue-600">배정시간</th>
-                          <th className="px-2 py-2 text-center text-sm font-bold text-blue-600">단계</th>
-                          <th className="px-2 py-2 text-center text-sm font-bold text-blue-600">조치자</th>
-                          <th className="px-2 py-2 text-center text-sm font-bold text-blue-600">조치소속</th>
-                          <th className="px-2 py-2 text-center text-sm font-bold text-blue-600">관리</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">신청번호</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">신청시간</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">신청제목</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">현재상태</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">신청자</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">신청소속</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">배정시간</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">단계</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">조치자</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">조치소속</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">관리</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
@@ -3540,7 +3556,7 @@ export default function ServiceManagerPage() {
                       <span className="text-sm font-medium text-gray-600">신청내용: </span>
                       <div className="text-sm mt-1 p-3 bg-gray-50 rounded text-gray-700 min-h-24 max-h-48 overflow-y-auto whitespace-pre-wrap">
                         {selectedWorkRequest.content}
-                      </div>
+                    </div>
                     </div>
                     
                     <div>
@@ -3599,28 +3615,28 @@ export default function ServiceManagerPage() {
                   <div className="flex items-center space-x-2 mb-4">
                     <Icon name="settings" size={20} className="text-gray-600" />
                     <h3 className="text-lg font-semibold text-gray-800">작업정보등록</h3>
-                  </div>
+                    </div>
                   
                   <div className="space-y-0 py-0">
                     {/* 배정 정보 */}
                     <div className="bg-gray-50 px-4 py-0 rounded-lg">
                       <div className="space-y-2">
-                        <div>
+                    <div>
                           <span className="text-sm font-medium text-gray-600">배정일시 :</span>
                           <span className="text-sm text-gray-800 ml-2">{selectedWorkRequest.assignDate || '2025.08.31 10:40'}</span>
-                        </div>
-                        <div>
+                    </div>
+                    <div>
                           <span className="text-sm font-medium text-gray-600">배정 담당자 :</span>
                           <span className="text-sm text-gray-800 ml-2">{selectedWorkRequest.assignee || '이배정'}</span>
-                        </div>
-                        <div>
+                    </div>
+                    <div>
                           <span className="text-sm font-medium text-gray-600">서비스 조치 정보 :</span>
                           <span className="text-sm text-gray-800 ml-2">{selectedWorkRequest.serviceType || '문제'}</span>
-                        </div>
-                        <div>
+                    </div>
+                    <div>
                           <span className="text-sm font-medium text-gray-600">조치담당자 :</span>
                           <span className="text-sm text-gray-800 ml-2">김기술</span>
-                        </div>
+                    </div>
                       </div>
                     </div>
 
@@ -3629,16 +3645,16 @@ export default function ServiceManagerPage() {
                       <div className="flex items-center gap-4">
                         <div className="flex-1">
                           <label className="block text-sm font-medium text-gray-600 mb-2">예정 조율 일시</label>
-                          <input
-                            type="datetime-local"
+                      <input
+                        type="datetime-local"
                             value={serviceWorkScheduledDate}
                             onChange={(e) => setServiceWorkScheduledDate(e.target.value)}
                             disabled={serviceWorkCurrentStage !== '예정' && serviceWorkCurrentStage !== '완료' && serviceWorkCurrentStage !== '미결'}
                             className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                               (serviceWorkCurrentStage !== '예정' && serviceWorkCurrentStage !== '완료' && serviceWorkCurrentStage !== '미결') ? 'bg-gray-100 cursor-not-allowed' : ''
                             }`}
-                          />
-                        </div>
+                      />
+                    </div>
                         {serviceWorkCurrentStage === '예정' && (
                           <div className="flex items-center gap-2">
                             <Icon name="calendar" className="w-5 h-5 text-gray-400" />
@@ -3676,16 +3692,16 @@ export default function ServiceManagerPage() {
                       <div className="flex items-center gap-4">
                         <div className="flex-1">
                           <label className="block text-sm font-medium text-gray-600 mb-2">작업 시작 일시</label>
-                          <input
-                            type="datetime-local"
+                      <input
+                        type="datetime-local"
                             value={serviceWorkStartDate}
                             onChange={(e) => setServiceWorkStartDate(e.target.value)}
                             disabled={serviceWorkCurrentStage !== '작업' && serviceWorkCurrentStage !== '완료' && serviceWorkCurrentStage !== '미결'}
                             className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                               (serviceWorkCurrentStage !== '작업' && serviceWorkCurrentStage !== '완료' && serviceWorkCurrentStage !== '미결') ? 'bg-gray-100 cursor-not-allowed' : ''
                             }`}
-                          />
-                        </div>
+                      />
+                    </div>
                         {serviceWorkCurrentStage === '작업' && (
                           <div className="flex items-center gap-2">
                             <Icon name="calendar" className="w-5 h-5 text-gray-400" />
@@ -3721,31 +3737,31 @@ export default function ServiceManagerPage() {
                     {/* 작업 내역 및 완료 일시 */}
                     <div className={`px-4 py-0 rounded-lg border-2 ${(serviceWorkCurrentStage === '완료' || serviceWorkCurrentStage === '미결') ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
                       <div className="space-y-0">
-                        <div>
+                    <div>
                           <label className="block text-sm font-medium text-gray-600 mb-2">작업 내역</label>
-                          <textarea
+                      <textarea
                             value={serviceWorkContent}
                             onChange={(e) => setServiceWorkContent(e.target.value)}
                             disabled={serviceWorkCurrentStage !== '완료' && serviceWorkCurrentStage !== '미결'}
                             className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                               (serviceWorkCurrentStage !== '완료' && serviceWorkCurrentStage !== '미결') ? 'bg-gray-100 cursor-not-allowed' : ''
                             }`}
-                            rows={3}
+                        rows={3}
                             placeholder="작업 내용 입력"
                           />
-                        </div>
-                        <div>
+                    </div>
+                    <div>
                           <label className="block text-sm font-medium text-gray-600 mb-2">작업 완료 일시</label>
-                          <input
-                            type="datetime-local"
+                      <input
+                        type="datetime-local"
                             value={serviceWorkCompleteDate}
                             onChange={(e) => setServiceWorkCompleteDate(e.target.value)}
                             disabled={serviceWorkCurrentStage !== '완료' && serviceWorkCurrentStage !== '미결'}
                             className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                               (serviceWorkCurrentStage !== '완료' && serviceWorkCurrentStage !== '미결') ? 'bg-gray-100 cursor-not-allowed' : ''
                             }`}
-                          />
-                        </div>
+                      />
+                    </div>
                         {serviceWorkCurrentStage === '완료' && (
                           <div className="flex justify-end">
                             <button
@@ -3776,17 +3792,17 @@ export default function ServiceManagerPage() {
                       <div className="flex items-start gap-4">
                         <div className="flex-1">
                           <label className="block text-sm font-medium text-gray-600 mb-2">문제 사항</label>
-                          <textarea
+                      <textarea
                             value={serviceWorkProblemIssue}
                             onChange={(e) => setServiceWorkProblemIssue(e.target.value)}
                             disabled={serviceWorkCurrentStage !== '미결'}
                             className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 ${
                               serviceWorkCurrentStage !== '미결' ? 'bg-gray-100 cursor-not-allowed' : ''
                             }`}
-                            rows={3}
+                        rows={3}
                             placeholder="작업 중 발견 된 문제점 입력"
                           />
-                        </div>
+                    </div>
                         {serviceWorkCurrentStage === '미결' && (
                           <div className="flex items-start gap-2">
                             <button
@@ -3806,8 +3822,8 @@ export default function ServiceManagerPage() {
                         )}
                       </div>
                       <div className="mt-3 flex items-center">
-                        <input
-                          type="checkbox"
+                      <input
+                        type="checkbox"
                           id="serviceWorkUnresolved"
                           checked={serviceWorkIsUnresolved}
                           onChange={(e) => setServiceWorkIsUnresolved(e.target.checked)}
@@ -3819,32 +3835,32 @@ export default function ServiceManagerPage() {
                         }`}>
                           미결 완료
                         </label>
-                      </div>
+                    </div>
                       
                     </div>
 
                   </div>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* 모달 하단 버튼 */}
+              {/* 모달 하단 버튼 */}
             <div className="flex gap-3 py-4 px-6 border-t border-gray-200">
-              <button
-                onClick={() => setShowServiceWorkInfoModal(false)}
+                <button
+                  onClick={() => setShowServiceWorkInfoModal(false)}
                 className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
-              >
-                취소
-              </button>
-              <button
-                onClick={() => {
-                  setShowServiceWorkInfoModal(false);
+                >
+                  취소
+                </button>
+                <button
+                  onClick={() => {
+                    setShowServiceWorkInfoModal(false);
                   setShowServiceWorkCompleteModal(true);
-                }}
+                  }}
                 className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
-              >
-                수정완료
-              </button>
+                >
+                  수정완료
+                </button>
             </div>
           </div>
         </div>
@@ -3893,7 +3909,7 @@ export default function ServiceManagerPage() {
                       <span className="text-sm font-medium text-gray-600">신청내용: </span>
                       <div className="text-sm mt-1 p-3 bg-gray-50 rounded text-gray-700 min-h-24 max-h-48 overflow-y-auto whitespace-pre-wrap">
                         {selectedWorkRequest.content}
-                      </div>
+                    </div>
                     </div>
                     
                     <div>
@@ -3958,82 +3974,82 @@ export default function ServiceManagerPage() {
                     {/* 배정 정보 */}
                     <div className="bg-gray-50 px-4 py-0 rounded-lg">
                       <div className="space-y-2">
-                        <div>
+                    <div>
                           <span className="text-sm font-medium text-gray-600">배정일시 :</span>
                           <span className="text-sm ml-2">{selectedWorkRequest.assignDate || '2025.08.31 10:40'}</span>
-                        </div>
-                        <div>
+                    </div>
+                    <div>
                           <span className="text-sm font-medium text-gray-600">배정담당자 :</span>
                           <span className="text-sm ml-2">{selectedWorkRequest.assignee || '이배정'}</span>
-                        </div>
-                        <div>
+                    </div>
+                    <div>
                           <span className="text-sm font-medium text-gray-600">배정의견 :</span>
                           <span className="text-sm ml-2">{selectedWorkRequest.assignmentOpinion || '업무에 적합하여 배정'}</span>
-                        </div>
-                        <div>
+                    </div>
+                    <div>
                           <span className="text-sm font-medium text-gray-600">서비스유형 :</span>
                           <span className="text-sm ml-2">{selectedWorkRequest.serviceType}</span>
-                        </div>
-                        <div>
+                    </div>
+                    <div>
                           <span className="text-sm font-medium text-gray-600">조치담당자 :</span>
                           <span className="text-sm ml-2">김기술</span>
-                        </div>
+                    </div>
                       </div>
                     </div>
 
                     {/* 예정 조율 일시 */}
                     <div className="bg-gray-50 px-4 py-0 rounded-lg">
                       <div className="space-y-2">
-                        <div>
+                    <div>
                           <span className="text-sm font-medium text-gray-600">예정조율일시 :</span>
                           <span className="text-sm ml-2">{selectedWorkRequest.scheduledDate || '2025.08.31 15:00'}</span>
-                        </div>
+                    </div>
                       </div>
                     </div>
 
                     {/* 작업 시작 일시 */}
                     <div className="bg-gray-50 px-4 py-0 rounded-lg">
                       <div className="space-y-2">
-                        <div>
+                    <div>
                           <span className="text-sm font-medium text-gray-600">작업시작일시 :</span>
                           <span className="text-sm ml-2">{selectedWorkRequest.workStartDate || '2025.09.01 15:00'}</span>
-                        </div>
+                    </div>
                       </div>
                     </div>
 
                     {/* 작업 내역 및 완료 일시 */}
                     <div className="bg-gray-50 px-4 py-0 rounded-lg">
                       <div className="space-y-2">
-                        <div>
+                    <div>
                           <span className="text-sm font-medium text-gray-600">작업내역 :</span>
                           <div className="text-sm mt-1 p-2 bg-white rounded border text-gray-700 min-h-16 max-h-32 overflow-y-auto whitespace-pre-wrap">
                             {selectedWorkRequest.workContent || '작업 내용 수정'}
                           </div>
-                        </div>
-                        <div>
+                    </div>
+                    <div>
                           <span className="text-sm font-medium text-gray-600">작업완료일시 :</span>
                           <span className="text-sm ml-2">{selectedWorkRequest.workCompleteDate || '2025.08.31 15:00'}</span>
-                        </div>
+                    </div>
                       </div>
                     </div>
 
                     {/* 문제 사항 */}
                     <div className="bg-gray-50 px-4 py-0 rounded-lg">
                       <div className="space-y-2">
-                        <div>
+                    <div>
                           <span className="text-sm font-medium text-gray-600">문제사항 :</span>
                           <div className="text-sm mt-1 p-2 bg-white rounded border text-gray-700 min-h-16 max-h-32 overflow-y-auto whitespace-pre-wrap">
                             {selectedWorkRequest.problemIssue || '작업 중 발견된 문제점 수정'}
                           </div>
-                        </div>
-                        <div className="flex items-center">
-                          <input
-                            type="checkbox"
+                    </div>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
                             id="unresolved-delete-display"
-                            className="mr-2"
+                        className="mr-2"
                             checked={selectedWorkRequest.isUnresolved || false}
-                            readOnly
-                          />
+                        readOnly
+                      />
                           <label htmlFor="unresolved-delete-display" className="text-sm font-medium text-gray-600">
                             미결완료
                           </label>
@@ -4050,32 +4066,32 @@ export default function ServiceManagerPage() {
                   <div className="text-red-800">
                     <p className="font-medium">⚠️ 작업정보를 삭제하시겠습니까?</p>
                     <p className="text-sm mt-1">삭제된 작업정보는 복구할 수 없습니다.</p>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* 모달 하단 버튼 */}
+              {/* 모달 하단 버튼 */}
             <div className="flex gap-3 py-4 px-6 border-t border-gray-200">
-              <button
-                onClick={() => setShowServiceWorkDeleteModal(false)}
+                <button
+                  onClick={() => setShowServiceWorkDeleteModal(false)}
                 className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
-              >
-                취소
-              </button>
-              <button
-                onClick={() => {
-                  if (confirm('정말로 삭제하시겠습니까?')) {
-                    setShowServiceWorkDeleteModal(false);
+                >
+                  취소
+                </button>
+                <button
+                  onClick={() => {
+                    if (confirm('정말로 삭제하시겠습니까?')) {
+                      setShowServiceWorkDeleteModal(false);
                     setShowServiceWorkDeleteCompleteModal(true);
-                    // 삭제 완료 로직
-                  }
-                }}
+                      // 삭제 완료 로직
+                    }
+                  }}
                 className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
-              >
-                삭제하기
-              </button>
-            </div>
+                >
+                  삭제하기
+                </button>
+              </div>
           </div>
         </div>
       )}
@@ -4644,6 +4660,653 @@ export default function ServiceManagerPage() {
                 className="bg-gray-800 hover:bg-gray-900 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200 button-smooth"
               >
                 확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 일반문의 List 관리 프레임 */}
+      {showGeneralInquiryList && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
+          <div className="bg-white rounded-lg shadow-xl max-w-7xl w-full mx-4 max-h-[90vh] overflow-hidden">
+            {/* 프레임 헤더 */}
+            <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200">
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={() => {
+                    setGeneralInquiryCurrentPage(1);
+                    setShowUnansweredOnly(false);
+                    const oneWeekAgo = new Date()
+                    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+                    setGeneralInquirySearchStartDate(oneWeekAgo.toISOString().split('T')[0]);
+                    setGeneralInquirySearchEndDate(new Date().toISOString().split('T')[0]);
+                  }}
+                  className="w-6 h-6 text-gray-600 hover:text-gray-800 transition-colors"
+                >
+                  <Icon name="refresh" size={16} />
+                </button>
+                <h2 className="text-xl font-bold text-gray-800">일반 문의 답변</h2>
+              </div>
+              <button
+                onClick={() => setShowGeneralInquiryList(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <Icon name="close" size={24} />
+              </button>
+            </div>
+
+            {/* 검색 및 필터 영역 */}
+            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-4">
+                  {/* 날짜 선택 */}
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="date"
+                      value={generalInquirySearchStartDate}
+                      onChange={(e) => setGeneralInquirySearchStartDate(e.target.value)}
+                      className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
+                    />
+                    <span className="text-gray-600 font-medium">~</span>
+                    <input
+                      type="date"
+                      value={generalInquirySearchEndDate}
+                      onChange={(e) => setGeneralInquirySearchEndDate(e.target.value)}
+                      className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+                
+                {/* 미답변만조회 토글 - 우측 끝 배치 */}
+                <div className="flex items-center space-x-3">
+                  <span className="text-sm font-medium text-gray-700">미답변만조회</span>
+                  <button
+                    onClick={() => setShowUnansweredOnly(!showUnansweredOnly)}
+                    className={`w-8 h-4 rounded-full transition-colors ${
+                      showUnansweredOnly ? 'bg-green-500' : 'bg-gray-400'
+                    }`}
+                  >
+                    <div className={`w-3 h-3 bg-white rounded-full transition-transform ${
+                      showUnansweredOnly ? 'translate-x-4' : 'translate-x-0.5'
+                    }`} />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* 테이블 영역 */}
+            <div className="flex-1 overflow-hidden">
+              <div className="overflow-x-auto overflow-y-auto px-4" style={{height: '450px'}}>
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0" style={{backgroundColor: '#D4B8F9'}}>
+                    <tr>
+                      <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">문의일시</th>
+                      <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">문의제목</th>
+                      <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">문의자</th>
+                      <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">답변일시</th>
+                      <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">답변자</th>
+                      <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">관리</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {(() => {
+                      // 일반문의 데이터 (페이지네이션 테스트를 위해 더 많은 데이터 추가)
+                      const inquiries = [
+                        {
+                          id: '1',
+                          inquiryDate: '2025.08.31 14:00',
+                          title: '모니터 전원 문의',
+                          inquirer: '홍길순',
+                          answerDate: '2025.08.31 15:00',
+                          answerer: '이배정',
+                          content: '모니터에 전원이 들어오지 않습니다.',
+                          answerContent: '모니터 전원 케이블를 한번 더 꼽아 주세요! 모니터 전원 버튼을 켜 주십시요 이상과 같이 조치가 되지 않을 따는 서비스 신청 해 주세요!'
+                        },
+                        {
+                          id: '2',
+                          inquiryDate: '2025.08.31 13:00',
+                          title: '네트워크 문의',
+                          inquirer: '김영자',
+                          answerDate: '',
+                          answerer: '',
+                          content: '네트워크 연결이 안 됩니다.'
+                        },
+                        {
+                          id: '3',
+                          inquiryDate: '2025.08.31 12:00',
+                          title: '프린터 드라이버 업데이트',
+                          inquirer: '이영희',
+                          answerDate: '',
+                          answerer: '',
+                          content: '프린터 드라이버를 최신 버전으로 업데이트하고 싶습니다.'
+                        },
+                        {
+                          id: '4',
+                          inquiryDate: '2025.08.31 11:00',
+                          title: '이메일 문의',
+                          inquirer: '박달자',
+                          answerDate: '2025.08.31 12:00',
+                          answerer: '이배정',
+                          content: '이메일 접속이 안 됩니다.',
+                          answerContent: '이메일 계정 설정을 확인해 주세요. 비밀번호를 재설정하고 다시 시도해 보세요.'
+                        },
+                        {
+                          id: '5',
+                          inquiryDate: '2025.08.31 10:00',
+                          title: '소프트웨어 설치 요청',
+                          inquirer: '최민수',
+                          answerDate: '',
+                          answerer: '',
+                          content: '새로운 소프트웨어를 설치하고 싶습니다.'
+                        },
+                        {
+                          id: '6',
+                          inquiryDate: '2025.08.31 09:30',
+                          title: '키보드 고장 문의',
+                          inquirer: '정수진',
+                          answerDate: '2025.08.31 10:30',
+                          answerer: '김기술',
+                          content: '키보드가 작동하지 않습니다.',
+                          answerContent: '키보드 연결을 확인하고, 다른 포트에 연결해 보세요. 문제가 지속되면 교체가 필요합니다.'
+                        },
+                        {
+                          id: '7',
+                          inquiryDate: '2025.08.31 09:00',
+                          title: '웹사이트 접속 불가',
+                          inquirer: '강지훈',
+                          answerDate: '',
+                          answerer: '',
+                          content: '내부 웹사이트에 접속할 수 없습니다.'
+                        },
+                        {
+                          id: '8',
+                          inquiryDate: '2025.08.30 16:30',
+                          title: '마우스 반응 지연',
+                          inquirer: '윤서연',
+                          answerDate: '2025.08.30 17:00',
+                          answerer: '이배정',
+                          content: '마우스가 느리게 반응합니다.',
+                          answerContent: '마우스 드라이버를 업데이트하고, USB 포트를 변경해 보세요.'
+                        },
+                        {
+                          id: '9',
+                          inquiryDate: '2025.08.30 15:00',
+                          title: '폴더 권한 문의',
+                          inquirer: '송현우',
+                          answerDate: '',
+                          answerer: '',
+                          content: '특정 폴더에 접근할 수 없습니다.'
+                        },
+                        {
+                          id: '10',
+                          inquiryDate: '2025.08.30 14:00',
+                          title: '인쇄 대기열 오류',
+                          inquirer: '임지영',
+                          answerDate: '2025.08.30 14:30',
+                          answerer: '김기술',
+                          content: '프린터 대기열에 오류가 발생했습니다.',
+                          answerContent: '인쇄 대기열을 초기화하고 프린터를 재시작해 주세요.'
+                        },
+                        {
+                          id: '11',
+                          inquiryDate: '2025.08.30 13:00',
+                          title: '시스템 업데이트 문의',
+                          inquirer: '박준호',
+                          answerDate: '',
+                          answerer: '',
+                          content: '시스템 업데이트가 필요한지 확인하고 싶습니다.'
+                        },
+                        {
+                          id: '12',
+                          inquiryDate: '2025.08.30 12:00',
+                          title: '백업 시스템 문의',
+                          inquirer: '한소영',
+                          answerDate: '2025.08.30 12:30',
+                          answerer: '이배정',
+                          content: '백업 시스템이 정상 작동하는지 확인해 주세요.',
+                          answerContent: '백업 시스템을 점검한 결과 정상 작동하고 있습니다. 일정한 시간에 자동 백업이 진행됩니다.'
+                        }
+                      ];
+
+                      // 필터링된 데이터
+                      let filteredInquiries = inquiries;
+                      
+                      // 미 답변만 조회 필터
+                      if (showUnansweredOnly) {
+                        filteredInquiries = inquiries.filter(inquiry => !inquiry.answerDate);
+                      }
+
+                      // 날짜 필터링 (간단한 예시)
+                      const startDate = new Date(generalInquirySearchStartDate);
+                      const endDate = new Date(generalInquirySearchEndDate);
+                      filteredInquiries = filteredInquiries.filter(inquiry => {
+                        const inquiryDate = new Date(inquiry.inquiryDate);
+                        return inquiryDate >= startDate && inquiryDate <= endDate;
+                      });
+
+                      // 페이지네이션
+                      const itemsPerPage = 10;
+                      const totalPages = Math.ceil(filteredInquiries.length / itemsPerPage);
+                      const startIndex = (generalInquiryCurrentPage - 1) * itemsPerPage;
+                      const endIndex = startIndex + itemsPerPage;
+                      const currentInquiries = filteredInquiries.slice(startIndex, endIndex);
+
+                      return (
+                        <>
+                          {currentInquiries.map((inquiry) => (
+                            <tr key={inquiry.id} className="hover:bg-gray-50">
+                              <td className="px-2 py-2 text-gray-900 text-center">{inquiry.inquiryDate}</td>
+                              <td className="px-2 py-2 text-gray-900">{inquiry.title}</td>
+                              <td className="px-2 py-2 text-gray-900 text-center">{inquiry.inquirer}</td>
+                              <td className="px-2 py-2 text-gray-900 text-center">{inquiry.answerDate || '-'}</td>
+                              <td className="px-2 py-2 text-gray-900 text-center">
+                                <div className="flex items-center justify-center">
+                                  {inquiry.answerer && <Icon name="lock" size={16} className="text-gray-400 mr-1" />}
+                                  {inquiry.answerer || '-'}
+                                </div>
+                              </td>
+                              <td className="px-2 py-2 text-center">
+                                <div className="flex justify-center space-x-2">
+                                  {inquiry.answerDate ? (
+                                    <>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedInquiry(inquiry);
+                                          setShowGeneralInquiryEditModal(true);
+                                        }}
+                                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                                      >
+                                        수정
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedInquiry(inquiry);
+                                          setShowGeneralInquiryDeleteModal(true);
+                                        }}
+                                        className="text-red-600 hover:text-red-800 text-sm font-medium"
+                                      >
+                                        삭제
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedInquiry(inquiry);
+                                        setShowGeneralInquiryReplyModal(true);
+                                      }}
+                                      className="text-green-600 hover:text-green-800 text-sm font-medium"
+                                    >
+                                      답변하기
+                                    </button>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </>
+                      );
+                    })()}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* 페이지네이션 */}
+              {(() => {
+                // 동일한 데이터와 필터링 로직 사용
+                const inquiries = [
+                  { id: '1', inquiryDate: '2025.08.31 14:00', title: '모니터 전원 문의', inquirer: '홍길순', answerDate: '2025.08.31 15:00', answerer: '이배정' },
+                  { id: '2', inquiryDate: '2025.08.31 13:00', title: '네트워크 문의', inquirer: '김영자', answerDate: '', answerer: '' },
+                  { id: '3', inquiryDate: '2025.08.31 12:00', title: '프린터 드라이버 업데이트', inquirer: '이영희', answerDate: '', answerer: '' },
+                  { id: '4', inquiryDate: '2025.08.31 11:00', title: '이메일 문의', inquirer: '박달자', answerDate: '2025.08.31 12:00', answerer: '이배정' },
+                  { id: '5', inquiryDate: '2025.08.31 10:00', title: '소프트웨어 설치 요청', inquirer: '최민수', answerDate: '', answerer: '' },
+                  { id: '6', inquiryDate: '2025.08.31 09:30', title: '키보드 고장 문의', inquirer: '정수진', answerDate: '2025.08.31 10:30', answerer: '김기술' },
+                  { id: '7', inquiryDate: '2025.08.31 09:00', title: '웹사이트 접속 불가', inquirer: '강지훈', answerDate: '', answerer: '' },
+                  { id: '8', inquiryDate: '2025.08.30 16:30', title: '마우스 반응 지연', inquirer: '윤서연', answerDate: '2025.08.30 17:00', answerer: '이배정' },
+                  { id: '9', inquiryDate: '2025.08.30 15:00', title: '폴더 권한 문의', inquirer: '송현우', answerDate: '', answerer: '' },
+                  { id: '10', inquiryDate: '2025.08.30 14:00', title: '인쇄 대기열 오류', inquirer: '임지영', answerDate: '2025.08.30 14:30', answerer: '김기술' },
+                  { id: '11', inquiryDate: '2025.08.30 13:00', title: '시스템 업데이트 문의', inquirer: '박준호', answerDate: '', answerer: '' },
+                  { id: '12', inquiryDate: '2025.08.30 12:00', title: '백업 시스템 문의', inquirer: '한소영', answerDate: '2025.08.30 12:30', answerer: '이배정' }
+                ];
+                
+                let filteredInquiries = inquiries;
+                if (showUnansweredOnly) {
+                  filteredInquiries = inquiries.filter(inquiry => !inquiry.answerDate);
+                }
+                
+                // 날짜 필터링
+                const startDate = new Date(generalInquirySearchStartDate);
+                const endDate = new Date(generalInquirySearchEndDate);
+                filteredInquiries = filteredInquiries.filter(inquiry => {
+                  const inquiryDate = new Date(inquiry.inquiryDate);
+                  return inquiryDate >= startDate && inquiryDate <= endDate;
+                });
+                
+                const totalPages = Math.ceil(filteredInquiries.length / 10);
+                
+                return totalPages > 1 ? (
+                  <div className="flex justify-center mt-4 pt-4 pb-4 border-t border-gray-200">
+                    <div className="flex items-center space-x-2">
+                      <button 
+                        onClick={() => setGeneralInquiryCurrentPage(Math.max(1, generalInquiryCurrentPage - 1))}
+                        disabled={generalInquiryCurrentPage === 1}
+                        className="px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        이전
+                      </button>
+                      <span className="px-2 py-1 bg-blue-500 text-white rounded text-xs">
+                        {generalInquiryCurrentPage}/{totalPages}
+                      </span>
+                      <button 
+                        onClick={() => setGeneralInquiryCurrentPage(Math.min(totalPages, generalInquiryCurrentPage + 1))}
+                        disabled={generalInquiryCurrentPage >= totalPages}
+                        className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        다음
+                      </button>
+                    </div>
+                  </div>
+                ) : null;
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 답변하기 프레임 */}
+      {showGeneralInquiryReplyModal && selectedInquiry && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
+            {/* 모달 헤더 */}
+            <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200" style={{paddingTop: '30px'}}>
+              <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                <Icon name="message-square" size={24} className="mr-2 text-green-600" />
+                답변 하기
+              </h2>
+              <button
+                onClick={() => setShowGeneralInquiryReplyModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <Icon name="close" size={24} />
+              </button>
+            </div>
+
+            {/* 모달 내용 */}
+            <div className="py-6 px-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* 문의 정보 */}
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <Icon name="user" size={20} className="text-gray-600" />
+                    <h3 className="text-lg font-semibold text-gray-800">문의 정보</h3>
+                  </div>
+                  
+                  <div className="space-y-0">
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">문의 일시: </span>
+                      <span className="text-sm">{selectedInquiry.inquiryDate}</span>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">문의자: </span>
+                      <span className="text-sm">{selectedInquiry.inquirer}</span>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">문의 내용: </span>
+                      <div className="text-sm mt-1 p-3 bg-gray-50 rounded text-gray-700 min-h-24 max-h-48 overflow-y-auto whitespace-pre-wrap">
+                        {selectedInquiry.content}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 답변 작성 */}
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <Icon name="edit" size={20} className="text-gray-600" />
+                    <h3 className="text-lg font-semibold text-gray-800">답변 하기</h3>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        답변 내용
+                      </label>
+                      <textarea
+                        rows={8}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                        placeholder="답변 내용을 입력하세요"
+                        defaultValue="네트워크 케이블이 정확히 꼽혀 있는지 확인 해 주세요!"
+                      />
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">답변자: </span>
+                      <span className="text-sm">이배정 (관리팀)</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 모달 하단 버튼 */}
+            <div className="flex gap-3 py-4 px-6 border-t border-gray-200">
+              <button
+                onClick={() => setShowGeneralInquiryReplyModal(false)}
+                className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => {
+                  setShowGeneralInquiryReplyModal(false);
+                  // 답변 완료 로직 추가
+                  alert('답변이 완료되었습니다.');
+                }}
+                className="px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
+              >
+                답변 하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 답변수정하기 프레임 */}
+      {showGeneralInquiryEditModal && selectedInquiry && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
+            {/* 모달 헤더 */}
+            <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200" style={{paddingTop: '30px'}}>
+              <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                <Icon name="edit" size={24} className="mr-2 text-blue-600" />
+                답변 수정하기
+              </h2>
+              <button
+                onClick={() => setShowGeneralInquiryEditModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <Icon name="close" size={24} />
+              </button>
+            </div>
+
+            {/* 모달 내용 */}
+            <div className="py-6 px-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* 문의 정보 */}
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <Icon name="user" size={20} className="text-gray-600" />
+                    <h3 className="text-lg font-semibold text-gray-800">문의 정보</h3>
+                  </div>
+                  
+                  <div className="space-y-0">
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">문의 일시: </span>
+                      <span className="text-sm">{selectedInquiry.inquiryDate}</span>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">문의자: </span>
+                      <span className="text-sm">{selectedInquiry.inquirer}</span>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">문의 내용: </span>
+                      <div className="text-sm mt-1 p-3 bg-gray-50 rounded text-gray-700 min-h-24 max-h-48 overflow-y-auto whitespace-pre-wrap">
+                        {selectedInquiry.content}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 답변 수정 */}
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <Icon name="edit" size={20} className="text-gray-600" />
+                    <h3 className="text-lg font-semibold text-gray-800">답변 수정</h3>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        답변 내용
+                      </label>
+                      <textarea
+                        rows={8}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                        placeholder="답변 내용을 입력하세요"
+                        defaultValue={selectedInquiry.answerContent || "모니터 전원 케이블를 한번 더 꼽아 주세요! 모니터 전원 버튼을 켜 주십시요 이상과 같이 조치가 되지 않을 따는 서비스 신청 해 주세요!"}
+                      />
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">답변자: </span>
+                      <span className="text-sm">이배정 (관리팀)</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 모달 하단 버튼 */}
+            <div className="flex gap-3 py-4 px-6 border-t border-gray-200">
+              <button
+                onClick={() => setShowGeneralInquiryEditModal(false)}
+                className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => {
+                  setShowGeneralInquiryEditModal(false);
+                  // 수정 완료 로직 추가
+                  alert('답변이 수정되었습니다.');
+                }}
+                className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
+              >
+                수정 하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 답변삭제하기 프레임 */}
+      {showGeneralInquiryDeleteModal && selectedInquiry && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
+            {/* 모달 헤더 */}
+            <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200" style={{paddingTop: '30px'}}>
+              <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                <Icon name="trash" size={24} className="mr-2 text-red-600" />
+                답변 삭제하기
+              </h2>
+              <button
+                onClick={() => setShowGeneralInquiryDeleteModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <Icon name="close" size={24} />
+              </button>
+            </div>
+
+            {/* 모달 내용 */}
+            <div className="py-6 px-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* 문의 정보 */}
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <Icon name="user" size={20} className="text-gray-600" />
+                    <h3 className="text-lg font-semibold text-gray-800">문의 정보</h3>
+                  </div>
+                  
+                  <div className="space-y-0">
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">문의 일시: </span>
+                      <span className="text-sm">{selectedInquiry.inquiryDate}</span>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">문의자: </span>
+                      <span className="text-sm">{selectedInquiry.inquirer}</span>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">문의 내용: </span>
+                      <div className="text-sm mt-1 p-3 bg-gray-50 rounded text-gray-700 min-h-24 max-h-48 overflow-y-auto whitespace-pre-wrap">
+                        {selectedInquiry.content}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 답변 정보 */}
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <Icon name="edit" size={20} className="text-gray-600" />
+                    <h3 className="text-lg font-semibold text-gray-800">답변 정보</h3>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        답변 내용
+                      </label>
+                      <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 min-h-32 max-h-48 overflow-y-auto whitespace-pre-wrap">
+                        {selectedInquiry.answerContent || "모니터 전원 케이블를 한번 더 꼽아 주세요! 모니터 전원 버튼을 켜 주십시요 이상과 같이 조치가 되지 않을 따는 서비스 신청 해 주세요!"}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">답변자: </span>
+                      <span className="text-sm">이배정 (관리팀)</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 모달 하단 버튼 */}
+            <div className="flex gap-3 py-4 px-6 border-t border-gray-200">
+              <button
+                onClick={() => setShowGeneralInquiryDeleteModal(false)}
+                className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => {
+                  setShowGeneralInquiryDeleteModal(false);
+                  // 삭제 완료 로직 추가
+                  alert('답변이 삭제되었습니다.');
+                }}
+                className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
+              >
+                삭제 하기
               </button>
             </div>
           </div>
