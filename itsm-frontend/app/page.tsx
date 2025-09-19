@@ -364,7 +364,8 @@ export default function Home() {
                 </h2>
                 <p className="text-lg text-gray-200 leading-relaxed drop-shadow-md">
                   효율적인 IT 서비스 관리와 모니터링을 통해 비즈니스 연속성을 보장하고 
-                  사용자 경험을 향상시키는 통합 솔루션입니다.
+                  사용자 경험을 향상시키기 위한 통합 솔루션입니다.
+                  커피 한잔의 여유를 가지고 서비스를 이용해 보세요!
                 </p>
               </div>
             </div>
