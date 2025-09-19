@@ -151,13 +151,27 @@ export default function ServiceManagerPage() {
     return () => clearInterval(interval)
   }, [])
 
-  // 검색 기간 기본값 설정 (2025-08-31)
+  // 검색 기간 기본값 설정 (2025.08.25 ~ 2025.08.31)
   useEffect(() => {
+    // 현재시점 기준 1주일 설정
     const today = new Date()
-    const todayStr = today.toISOString().split('T')[0]
-    setSearchStartDate(todayStr)
-    setSearchEndDate(todayStr)
+    const oneWeekAgo = new Date(today)
+    oneWeekAgo.setDate(today.getDate() - 7)
+    
+    const formatDate = (date: Date) => {
+      return date.toISOString().split('T')[0]
+    }
+    
+    setSearchStartDate(formatDate(oneWeekAgo))
+    setSearchEndDate(formatDate(today))
+    setServiceWorkSearchStartDate(formatDate(oneWeekAgo))
+    setServiceWorkSearchEndDate(formatDate(today))
   }, [])
+  
+  // 검색 조건 변경 시 페이지 리셋
+  useEffect(() => {
+    setServiceWorkCurrentPage(1)
+  }, [serviceWorkSearchStartDate, serviceWorkSearchEndDate, showServiceIncompleteOnly, serviceWorkSelectedDepartment])
 
   // 서비스 요청 데이터
   const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([
@@ -166,12 +180,12 @@ export default function ServiceManagerPage() {
       requestNumber: 'SR-20250831-007',
       title: '모니터 전원 불량',
       status: '진행중',
-      currentStatus: '부분불능',
+      currentStatus: '오류발생',
       requestDate: '2025.08.31',
       requestTime: '09:30',
       requester: '김영자',
       department: '운영팀',
-      stage: '배정',
+      stage: '확인',
       assignTime: '11:40',
       assignDate: '2025.08.31 11:10',
       assignee: '김기술',
@@ -295,7 +309,7 @@ export default function ServiceManagerPage() {
       requestDate: '2025.08.25',
       requester: '박민수',
       department: '영업팀',
-      stage: '배정',
+      stage: '예정',
       assignTime: '08:30',
       assignDate: '2025.08.25',
       assignee: '김기술',
@@ -395,7 +409,7 @@ export default function ServiceManagerPage() {
       requestDate: '2025.08.20',
       requester: '김태현',
       department: '개발팀',
-      stage: '배정',
+      stage: '작업',
       assignTime: '15:10',
       assignDate: '2025.08.20',
       assignee: '김기술',
@@ -470,11 +484,11 @@ export default function ServiceManagerPage() {
       requestNumber: 'SR-20250831-016',
       title: '오늘 신청된 긴급 작업',
       status: '진행중',
-      currentStatus: '부분불능',
+      currentStatus: '메시지창',
       requestDate: '2025.08.31',
       requester: '오늘신청',
       department: '긴급팀',
-      stage: '배정',
+      stage: '미결',
       assignTime: '14:30',
       assignee: '김기술',
       assigneeDepartment: 'IT팀',
@@ -502,8 +516,269 @@ export default function ServiceManagerPage() {
       location: '완료실',
       serviceType: '완료',
       completionDate: '2025.08.31 15:30'
+    },
+    {
+      id: '18',
+      requestNumber: 'SR-20250831-018',
+      title: '운영팀 서버 점검',
+      status: '진행중',
+      currentStatus: '정상작동',
+      requestDate: '2025.08.31',
+      requestTime: '14:00',
+      requester: '김운영',
+      department: '운영팀',
+      stage: '작업',
+      assignTime: '14:30',
+      assignDate: '2025.08.31 14:15',
+      assignee: '박운영',
+      assigneeDepartment: '운영팀',
+      content: '운영팀 서버 정기 점검 작업입니다.',
+      contact: '010-1111-2222',
+      location: '운영팀 사무실',
+      serviceType: '서버',
+      completionDate: ''
+    },
+    {
+      id: '19',
+      requestNumber: 'SR-20250830-019',
+      title: '개발팀 코드 리뷰',
+      status: '완료',
+      currentStatus: '정상작동',
+      requestDate: '2025.08.30',
+      requestTime: '13:30',
+      requester: '이개발',
+      department: '개발팀',
+      stage: '완료',
+      assignTime: '13:45',
+      assignDate: '2025.08.30 13:40',
+      assignee: '최개발',
+      assigneeDepartment: '개발팀',
+      content: '새로운 기능 개발 코드 리뷰 요청입니다.',
+      contact: '010-3333-4444',
+      location: '개발팀 사무실',
+      serviceType: '개발',
+      completionDate: '2025.08.30 16:00'
+    },
+    {
+      id: '20',
+      requestNumber: 'SR-20250829-020',
+      title: '보안팀 보안 점검',
+      status: '진행중',
+      currentStatus: '점검요청',
+      requestDate: '2025.08.29',
+      requestTime: '12:00',
+      requester: '정보안',
+      department: '보안팀',
+      stage: '작업',
+      assignTime: '12:15',
+      assignDate: '2025.08.29 12:10',
+      assignee: '한보안',
+      assigneeDepartment: '보안팀',
+      content: '시스템 보안 점검 및 취약점 분석 작업입니다.',
+      contact: '010-5555-6666',
+      location: '보안팀 사무실',
+      serviceType: '보안',
+      completionDate: ''
+    },
+    {
+      id: '21',
+      requestNumber: 'SR-20250828-021',
+      title: '인사팀 시스템 업데이트',
+      status: '완료',
+      currentStatus: '정상작동',
+      requestDate: '2025.08.28',
+      requestTime: '11:00',
+      requester: '김인사',
+      department: '인사팀',
+      stage: '완료',
+      assignTime: '11:30',
+      assignDate: '2025.08.28 11:20',
+      assignee: '박인사',
+      assigneeDepartment: '인사팀',
+      content: '인사 관리 시스템 업데이트 작업입니다.',
+      contact: '010-7777-8888',
+      location: '인사팀 사무실',
+      serviceType: '시스템',
+      completionDate: '2025.08.28 15:00'
+    },
+    {
+      id: '22',
+      requestNumber: 'SR-20250827-022',
+      title: '재무팀 데이터 백업',
+      status: '진행중',
+      currentStatus: '정상작동',
+      requestDate: '2025.08.27',
+      requestTime: '10:30',
+      requester: '이재무',
+      department: '재무팀',
+      stage: '작업',
+      assignTime: '10:45',
+      assignDate: '2025.08.27 10:40',
+      assignee: '최재무',
+      assigneeDepartment: '재무팀',
+      content: '재무 데이터 정기 백업 작업입니다.',
+      contact: '010-9999-0000',
+      location: '재무팀 사무실',
+      serviceType: '데이터',
+      completionDate: ''
+    },
+    {
+      id: '23',
+      requestNumber: 'SR-20250826-023',
+      title: '시스템 장애 신고',
+      status: '접수',
+      currentStatus: '전체불능',
+      requestDate: '2025.08.26',
+      requestTime: '09:15',
+      requester: '김신고',
+      department: '영업팀',
+      stage: '접수',
+      assignTime: '',
+      assignDate: '',
+      assignee: '',
+      assigneeDepartment: '',
+      content: '영업팀 시스템이 완전히 작동하지 않습니다. 긴급 조치가 필요합니다.',
+      contact: '010-1234-5678',
+      location: '영업팀 사무실',
+      serviceType: '긴급',
+      completionDate: ''
+    },
+    {
+      id: '24',
+      requestNumber: 'SR-20250825-024',
+      title: '네트워크 연결 불안정',
+      status: '접수',
+      currentStatus: '부분불능',
+      requestDate: '2025.08.25',
+      requestTime: '14:30',
+      requester: '박네트워크',
+      department: '마케팅팀',
+      stage: '접수',
+      assignTime: '',
+      assignDate: '',
+      assignee: '',
+      assigneeDepartment: '',
+      content: '마케팅팀 네트워크 연결이 불안정하여 업무에 지장이 있습니다.',
+      contact: '010-2345-6789',
+      location: '마케팅팀 사무실',
+      serviceType: '네트워크',
+      completionDate: ''
+    },
+    {
+      id: '25',
+      requestNumber: 'SR-20250824-025',
+      title: '프린터 오류 재발',
+      status: '재배정',
+      currentStatus: '부분불능',
+      requestDate: '2025.08.24',
+      requestTime: '11:20',
+      requester: '이프린터',
+      department: '구매팀',
+      stage: '재배정',
+      assignTime: '',
+      assignDate: '',
+      assignee: '',
+      assigneeDepartment: '',
+      content: '이전에 수리했던 프린터에서 동일한 오류가 재발했습니다. 다른 담당자 배정이 필요합니다.',
+      contact: '010-3456-7890',
+      location: '구매팀 사무실',
+      serviceType: '하드웨어',
+      completionDate: ''
+    },
+    {
+      id: '26',
+      requestNumber: 'SR-20250823-026',
+      title: '소프트웨어 라이선스 갱신',
+      status: '접수',
+      currentStatus: '정상작동',
+      requestDate: '2025.08.23',
+      requestTime: '16:45',
+      requester: '최라이선스',
+      department: '법무팀',
+      stage: '접수',
+      assignTime: '',
+      assignDate: '',
+      assignee: '',
+      assigneeDepartment: '',
+      content: '법무팀에서 사용하는 소프트웨어 라이선스 갱신이 필요합니다.',
+      contact: '010-4567-8901',
+      location: '법무팀 사무실',
+      serviceType: '소프트웨어',
+      completionDate: ''
+    },
+    {
+      id: '27',
+      requestNumber: 'SR-20250822-027',
+      title: '데이터베이스 성능 저하',
+      status: '재배정',
+      currentStatus: '기타상태',
+      requestDate: '2025.08.22',
+      requestTime: '13:10',
+      requester: '한데이터',
+      department: '연구개발팀',
+      stage: '재배정',
+      assignTime: '',
+      assignDate: '',
+      assignee: '',
+      assigneeDepartment: '',
+      content: '연구개발팀 데이터베이스 성능이 저하되어 쿼리 실행이 매우 느립니다. 전문가 배정이 필요합니다.',
+      contact: '010-5678-9012',
+      location: '연구개발팀 사무실',
+      serviceType: '데이터베이스',
+      completionDate: ''
     }
   ])
+
+  // 서비스 작업 목록 필터링 및 페이지네이션
+  const filteredServiceRequests = serviceRequests.filter(request => {
+    console.log('필터링 체크:', request)
+    
+    // 날짜 필터 (현재시점 기준 1주일)
+    if (serviceWorkSearchStartDate && serviceWorkSearchEndDate) {
+      const requestDate = new Date(request.requestDate.replace(/\./g, '-'))
+      const startDate = new Date(serviceWorkSearchStartDate)
+      const endDate = new Date(serviceWorkSearchEndDate)
+      if (requestDate < startDate || requestDate > endDate) return false
+    }
+    
+    // 미결 완료 조회 필터
+    if (showServiceIncompleteOnly) {
+      return request.stage !== '완료'
+    }
+    
+    // 관리매니저 권한 필터링 로직
+    // 1. 접수/재배정 단계: 조치담당자 미확정 상태 - 모든 데이터 표시 (관리매니저 권한)
+    if (request.stage === '접수' || request.stage === '재배정') {
+      return true
+    }
+    
+    // 2. 기타 단계: 조치소속 기준 필터링
+    if (serviceWorkSelectedDepartment !== '전체') {
+      return request.assigneeDepartment === serviceWorkSelectedDepartment
+    }
+    
+    // 전체 선택 시 모든 데이터 표시
+    return true
+  })
+  
+  // 페이지네이션 계산
+  const serviceWorkItemsPerPage = 10
+  const serviceWorkTotalPages = Math.ceil(filteredServiceRequests.length / serviceWorkItemsPerPage)
+  const serviceWorkStartIndex = (serviceWorkCurrentPage - 1) * serviceWorkItemsPerPage
+  const serviceWorkEndIndex = serviceWorkStartIndex + serviceWorkItemsPerPage
+  const paginatedServiceRequests = filteredServiceRequests.slice(serviceWorkStartIndex, serviceWorkEndIndex)
+  
+  // 디버깅용 로그
+  console.log('전체 서비스 요청 수:', serviceRequests.length)
+  console.log('필터링된 요청 수:', filteredServiceRequests.length)
+  console.log('페이지네이션된 요청 수:', paginatedServiceRequests.length)
+  console.log('현재 페이지:', serviceWorkCurrentPage, '/', serviceWorkTotalPages)
+  console.log('필터 조건들:', {
+    serviceWorkSearchStartDate,
+    serviceWorkSearchEndDate,
+    showServiceIncompleteOnly,
+    serviceWorkSelectedDepartment
+  })
 
   // 미결 현황 데이터
   const [pendingWorks, setPendingWorks] = useState<PendingWork[]>([
@@ -1190,171 +1465,206 @@ export default function ServiceManagerPage() {
                 <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center space-x-4">
-                      <button
-                        onClick={() => setShowServiceIncompleteOnly(!showServiceIncompleteOnly)}
-                        className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                          showServiceIncompleteOnly 
-                            ? 'bg-pink-500 text-white' 
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                        }`}
-                      >
-                        미결 완료 조회
-                      </button>
+                      {/* 날짜 선택 */}
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="date"
+                          value={serviceWorkSearchStartDate}
+                          onChange={(e) => setServiceWorkSearchStartDate(e.target.value)}
+                          className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
+                        />
+                        <span className="text-gray-600 font-medium">~</span>
+                        <input
+                          type="date"
+                          value={serviceWorkSearchEndDate}
+                          onChange={(e) => setServiceWorkSearchEndDate(e.target.value)}
+                          className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
+                        />
+                      </div>
                       
+                      {/* 부서 선택 */}
                       <select
                         value={serviceWorkSelectedDepartment}
                         onChange={(e) => setServiceWorkSelectedDepartment(e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
                       >
                         <option value="IT팀">IT팀</option>
                         <option value="운영팀">운영팀</option>
                         <option value="개발팀">개발팀</option>
+                        <option value="보안팀">보안팀</option>
                         <option value="인사팀">인사팀</option>
+                        <option value="재무팀">재무팀</option>
+                        <option value="전체">전체</option>
                       </select>
                     </div>
                     
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="date"
-                        value={serviceWorkSearchStartDate}
-                        onChange={(e) => setServiceWorkSearchStartDate(e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                      <span className="text-gray-500">~</span>
-                      <input
-                        type="date"
-                        value={serviceWorkSearchEndDate}
-                        onChange={(e) => setServiceWorkSearchEndDate(e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
+                    {/* 미결완료조회 토글 - 우측 끝 배치 */}
+                    <div className="flex items-center space-x-3">
+                      <span className="text-sm font-medium text-gray-700">미결완료조회</span>
+                      <button
+                        onClick={() => setShowServiceIncompleteOnly(!showServiceIncompleteOnly)}
+                        className={`w-8 h-4 rounded-full transition-colors ${
+                          showServiceIncompleteOnly ? 'bg-green-500' : 'bg-gray-400'
+                        }`}
+                      >
+                        <div className={`w-3 h-3 bg-white rounded-full transition-transform ${
+                          showServiceIncompleteOnly ? 'translate-x-4' : 'translate-x-0.5'
+                        }`} />
+                      </button>
                     </div>
                   </div>
                 </div>
 
                 {/* 테이블 영역 */}
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-gray-100">
-                      <tr>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">신청번호</th>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">신청시간</th>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">신청제목</th>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">현재상태</th>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">신청자</th>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">신청소속</th>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">배정시간</th>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">단계</th>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">조치자</th>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">조치소속</th>
-                        <th className="px-4 py-3 text-left text-sm font-medium text-gray-700">관리</th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {serviceRequests.map((request) => (
-                        <tr key={request.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 text-sm text-blue-600 font-medium">{request.requestNumber}</td>
-                          <td className="px-4 py-3 text-sm text-gray-900">{request.requestTime || '13:00'}</td>
-                          <td className="px-4 py-3 text-sm text-gray-900">{request.title}</td>
-                          <td className="px-4 py-3 text-sm">
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                              request.currentStatus === '정상작동' ? 'bg-green-100 text-green-800' :
-                              request.currentStatus === '부분장애' ? 'bg-yellow-100 text-yellow-800' :
-                              request.currentStatus === '전체장애' ? 'bg-red-100 text-red-800' :
-                              'bg-gray-100 text-gray-800'
-                            }`}>
-                              {request.currentStatus}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">{request.requester}</td>
-                          <td className="px-4 py-3 text-sm text-gray-900">{request.department}</td>
-                          <td className="px-4 py-3 text-sm text-gray-900">{request.assignTime || '13:10'}</td>
-                          <td className="px-4 py-3 text-sm">
-                            <div className="flex items-center">
-                              {request.stage === '접수' && <Icon name="user" size={16} className="text-blue-500" />}
-                              {request.stage === '배정' && <Icon name="check" size={16} className="text-green-500" />}
-                              {request.stage === '진행중' && <Icon name="settings" size={16} className="text-yellow-500" />}
-                              {request.stage === '완료' && <Icon name="check-circle" size={16} className="text-green-500" />}
-                              {request.stage === '재배정' && <Icon name="x" size={16} className="text-red-500" />}
-                              <span className="ml-1 text-gray-900">{request.stage}</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-900">{request.assignee || '김기술'}</td>
-                          <td className="px-4 py-3 text-sm text-gray-900">{request.assigneeDepartment || 'IT팀'}</td>
-                          <td className="px-4 py-3 text-sm">
-                            <div className="flex space-x-2">
-                              {request.stage === '접수' && (
-                                <button
-                                  onClick={() => {
-                                    setSelectedWorkRequest(request);
-                                    setShowServiceAssignmentModal(true);
-                                  }}
-                                  className="px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
-                                >
-                                  배정작업
-                                </button>
-                              )}
-                              {request.stage === '재배정' && (
-                                <button
-                                  onClick={() => {
-                                    setSelectedWorkRequest(request);
-                                    setShowServiceReassignmentModal(true);
-                                  }}
-                                  className="px-3 py-1 bg-orange-500 text-white rounded text-xs hover:bg-orange-600 transition-colors"
-                                >
-                                  재배정작업
-                                </button>
-                              )}
-                              {(request.stage === '배정' || request.stage === '진행중' || request.stage === '완료') && (
-                                <>
-                                  <button
-                                    onClick={() => {
-                                      setSelectedWorkRequest(request);
-                                      setShowServiceWorkInfoModal(true);
-                                    }}
-                                    className="px-3 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600 transition-colors"
-                                  >
-                                    수정
-                                  </button>
-                                  <button
-                                    onClick={() => {
-                                      setSelectedWorkRequest(request);
-                                      setShowServiceWorkDeleteModal(true);
-                                    }}
-                                    className="px-3 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 transition-colors"
-                                  >
-                                    삭제
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          </td>
+                <div className="flex-1 overflow-hidden">
+                  <div className="overflow-x-auto overflow-y-auto px-4" style={{height: '450px'}}>
+                    <table className="w-full text-sm">
+                      <thead className="sticky top-0" style={{backgroundColor: '#DBEAFE'}}>
+                        <tr>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-blue-600">신청번호</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-blue-600">신청시간</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-blue-600">신청제목</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-blue-600">현재상태</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-blue-600">신청자</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-blue-600">신청소속</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-blue-600">배정시간</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-blue-600">단계</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-blue-600">조치자</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-blue-600">조치소속</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-blue-600">관리</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {paginatedServiceRequests.map((request) => (
+                          <tr key={request.id} className="hover:bg-gray-50">
+                            <td className="px-2 py-2 text-gray-900 text-center">{request.requestNumber}</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{request.requestTime || '13:00'}</td>
+                            <td className="px-2 py-2 text-gray-900">{request.title}</td>
+                            <td className="px-2 py-2 text-center">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                request.currentStatus === '정상작동' ? 'bg-green-100 text-green-800' :
+                                request.currentStatus === '오류발생' ? 'bg-red-100 text-red-800' :
+                                request.currentStatus === '메시지창' ? 'bg-blue-100 text-blue-800' :
+                                request.currentStatus === '부분불능' ? 'bg-yellow-100 text-yellow-800' :
+                                request.currentStatus === '전체불능' ? 'bg-red-200 text-red-900' :
+                                request.currentStatus === '점검요청' ? 'bg-purple-100 text-purple-800' :
+                                request.currentStatus === '기타상태' ? 'bg-gray-100 text-gray-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {request.currentStatus}
+                              </span>
+                            </td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{request.requester}</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{request.department}</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{request.assignTime || '13:10'}</td>
+                            <td className="px-2 py-2 text-center">
+                              <div className="flex items-center justify-center">
+                                {request.stage === '접수' && <Icon name="user" size={16} className="text-blue-600" />}
+                                {request.stage === '배정' && <Icon name="check" size={16} className="text-green-600" />}
+                                {request.stage === '재배정' && <Icon name="refresh-cw" size={16} className="text-orange-600" />}
+                                {request.stage === '확인' && <Icon name="eye" size={16} className="text-purple-600" />}
+                                {request.stage === '예정' && <Icon name="calendar" size={16} className="text-indigo-600" />}
+                                {request.stage === '작업' && <Icon name="settings" size={16} className="text-yellow-600" />}
+                                {request.stage === '완료' && <Icon name="check-circle" size={16} className="text-green-600" />}
+                                {request.stage === '미결' && <Icon name="x-circle" size={16} className="text-red-600" />}
+                                <span className="ml-1 text-gray-900">{request.stage}</span>
+                              </div>
+                            </td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{request.assignee || '-'}</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{request.assigneeDepartment || '-'}</td>
+                            <td className="px-2 py-2 text-center">
+                              <div className="flex space-x-1 justify-center">
+                                {/* 접수 단계: 조치담당자 미확정 - 배정작업 버튼 */}
+                                {request.stage === '접수' && (
+                                  <button
+                                    onClick={() => {
+                                      setSelectedWorkRequest(request);
+                                      setShowServiceAssignmentModal(true);
+                                    }}
+                                    className="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
+                                  >
+                                    배정작업
+                                  </button>
+                                )}
 
-                {/* 페이징 */}
-                <div className="px-6 py-4 border-t border-gray-200 flex justify-end">
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => setServiceWorkCurrentPage(Math.max(1, serviceWorkCurrentPage - 1))}
-                      disabled={serviceWorkCurrentPage === 1}
-                      className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-                    >
-                      이전
-                    </button>
-                    <span className="px-3 py-1 text-sm text-gray-700">
-                      {serviceWorkCurrentPage}/1
-                    </span>
-                    <button
-                      onClick={() => setServiceWorkCurrentPage(serviceWorkCurrentPage + 1)}
-                      className="px-3 py-1 bg-green-500 text-white rounded text-sm hover:bg-green-600 transition-colors"
-                    >
-                      다음
-                    </button>
+                                {/* 재배정 단계: 조치담당자 미확정 - 재배정작업 버튼 */}
+                                {request.stage === '재배정' && (
+                                  <button
+                                    onClick={() => {
+                                      setSelectedWorkRequest(request);
+                                      setShowServiceReassignmentModal(true);
+                                    }}
+                                    className="px-2 py-1 bg-orange-500 text-white rounded text-xs hover:bg-orange-600 transition-colors"
+                                  >
+                                    재배정작업
+                                  </button>
+                                )}
+
+                                {/* 배정/확인/예정/작업/완료/미결 단계: 조치담당자 확정 - 수정/삭제 버튼 (관리매니저 소속만) */}
+                                {(request.stage === '배정' || request.stage === '확인' || request.stage === '예정' || 
+                                  request.stage === '작업' || request.stage === '완료' || request.stage === '미결') && 
+                                  request.assigneeDepartment === 'IT팀' && (
+                                  <>
+                                    <button
+                                      onClick={() => {
+                                        setSelectedWorkRequest(request);
+                                        setShowServiceWorkInfoModal(true);
+                                      }}
+                                      className="px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600 transition-colors"
+                                    >
+                                      수정
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        setSelectedWorkRequest(request);
+                                        setShowServiceWorkDeleteModal(true);
+                                      }}
+                                      className="px-2 py-1 bg-red-500 text-white rounded text-xs hover:bg-red-600 transition-colors"
+                                    >
+                                      삭제
+                                    </button>
+                                  </>
+                                )}
+
+                                {/* 조치소속이 IT팀이 아닌 경우: 버튼 없음 */}
+                                {(request.stage === '배정' || request.stage === '확인' || request.stage === '예정' || 
+                                  request.stage === '작업' || request.stage === '완료' || request.stage === '미결') && 
+                                  request.assigneeDepartment !== 'IT팀' && (
+                                  <span className="text-gray-400 text-xs">권한없음</span>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
+
+                {/* 페이지네이션 */}
+                {serviceWorkTotalPages > 1 && (
+                  <div className="flex justify-center mt-4 pt-4 pb-4 border-t border-gray-200">
+                    <div className="flex items-center space-x-2">
+                      <button 
+                        onClick={() => setServiceWorkCurrentPage(Math.max(1, serviceWorkCurrentPage - 1))}
+                        disabled={serviceWorkCurrentPage === 1}
+                        className="px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        이전
+                      </button>
+                      <span className="px-2 py-1 bg-blue-500 text-white rounded text-xs">
+                        {serviceWorkCurrentPage}/{serviceWorkTotalPages}
+                      </span>
+                      <button 
+                        onClick={() => setServiceWorkCurrentPage(Math.min(serviceWorkTotalPages, serviceWorkCurrentPage + 1))}
+                        disabled={serviceWorkCurrentPage >= serviceWorkTotalPages}
+                        className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        다음
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -2657,11 +2967,11 @@ export default function ServiceManagerPage() {
       {/* 배정작업 모달 */}
       {showServiceAssignmentModal && selectedWorkRequest && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             {/* 모달 헤더 */}
-            <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200">
+            <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200" style={{paddingTop: '30px'}}>
               <h2 className="text-xl font-bold text-gray-800 flex items-center">
-                <Icon name="user-plus" size={24} className="mr-2" />
+                <Icon name="user" size={24} className="mr-2" />
                 배정작업
               </h2>
               <button
@@ -2673,110 +2983,176 @@ export default function ServiceManagerPage() {
             </div>
 
             {/* 모달 내용 */}
-            <div className="p-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* 서비스 신청 정보 */}
+            <div className="py-4 px-6">
+              <div className="grid grid-cols-2 gap-6">
+                {/* 서비스신청정보 */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">서비스 신청 정보</h3>
-                  <div className="space-y-3">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <Icon name="user" size={20} className="text-gray-600" />
+                    <h3 className="text-lg font-semibold text-gray-800">서비스신청정보</h3>
+                  </div>
+                  
+                  <div className="space-y-0">
                     <div>
-                      <label className="block text-sm font-medium text-gray-600">신청번호</label>
-                      <div className="text-blue-600 font-medium">{selectedWorkRequest.requestNumber}</div>
+                      <span className="text-sm font-medium text-gray-600">신청번호: </span>
+                      <span className="text-sm font-bold text-red-600">{selectedWorkRequest.requestNumber}</span>
                     </div>
+                    
                     <div>
-                      <label className="block text-sm font-medium text-gray-600">신청제목</label>
-                      <div className="text-gray-900">{selectedWorkRequest.title}</div>
+                      <span className="text-sm font-medium text-gray-600">신청제목: </span>
+                      <span className="text-sm">{selectedWorkRequest.title}</span>
                     </div>
+                    
                     <div>
-                      <label className="block text-sm font-medium text-gray-600">신청내용</label>
-                      <div className="text-gray-900">{selectedWorkRequest.content}</div>
+                      <span className="text-sm font-medium text-gray-600">신청내용: </span>
+                      <div className="text-sm mt-1 p-2 bg-gray-50 rounded text-gray-700">
+                        {selectedWorkRequest.content}
+                      </div>
                     </div>
+                    
                     <div>
-                      <label className="block text-sm font-medium text-gray-600">신청자</label>
-                      <div className="text-gray-900">{selectedWorkRequest.requester} ({selectedWorkRequest.department})</div>
+                      <span className="text-sm font-medium text-gray-600 flex items-center">
+                        <Icon name="user" size={14} className="mr-1" />
+                        신청자: 
+                      </span>
+                      <span className="text-sm ml-5">{selectedWorkRequest.requester} ({selectedWorkRequest.department})</span>
                     </div>
+                    
                     <div>
-                      <label className="block text-sm font-medium text-gray-600">신청연락처</label>
-                      <div className="text-gray-900">{selectedWorkRequest.contact}</div>
+                      <span className="text-sm font-medium text-gray-600 flex items-center">
+                        <Icon name="mail" size={14} className="mr-1" />
+                        신청연락처: 
+                      </span>
+                      <span className="text-sm ml-5">{selectedWorkRequest.contact}</span>
                     </div>
+                    
                     <div>
-                      <label className="block text-sm font-medium text-gray-600">신청위치</label>
-                      <div className="text-gray-900">{selectedWorkRequest.location}</div>
+                      <span className="text-sm font-medium text-gray-600 flex items-center">
+                        <Icon name="briefcase" size={14} className="mr-1" />
+                        신청위치: 
+                      </span>
+                      <span className="text-sm ml-5">{selectedWorkRequest.location}</span>
                     </div>
+                    
                     <div>
-                      <label className="block text-sm font-medium text-gray-600">신청일시</label>
-                      <div className="text-gray-900">{selectedWorkRequest.requestDate}</div>
+                      <span className="text-sm font-medium text-gray-600 flex items-center">
+                        <Icon name="calendar" size={14} className="mr-1" />
+                        신청일시: 
+                      </span>
+                      <span className="text-sm ml-5">{selectedWorkRequest.requestDate}</span>
                     </div>
+                    
                     <div>
-                      <label className="block text-sm font-medium text-gray-600">현재상태</label>
-                      <div className="text-gray-900">{selectedWorkRequest.currentStatus}</div>
+                      <span className="text-sm font-medium text-gray-600 flex items-center">
+                        <Icon name="message-square" size={14} className="mr-1" />
+                        현재상태: 
+                      </span>
+                      <span className="text-sm ml-5">{selectedWorkRequest.currentStatus}</span>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">실제신청자: </span>
+                      <span className="text-sm ml-5">{selectedWorkRequest.requester}</span>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">실제연락처: </span>
+                      <span className="text-sm ml-5">{selectedWorkRequest.contact}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* 배정정보 */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">배정정보</h3>
-                  <div className="space-y-4">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <Icon name="settings" size={20} className="text-gray-600" />
+                    <h3 className="text-lg font-semibold text-gray-800">배정정보</h3>
+                  </div>
+                  
+                  <div className="space-y-0">
                     <div>
-                      <label className="block text-sm font-medium text-gray-600 mb-1">부서</label>
-                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <label className="block text-sm font-medium text-gray-600 mb-1">조치담당 소속</label>
+                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">부서를 선택하세요</option>
                         <option value="IT팀">IT팀</option>
                         <option value="운영팀">운영팀</option>
                         <option value="개발팀">개발팀</option>
+                        <option value="보안팀">보안팀</option>
                         <option value="인사팀">인사팀</option>
+                        <option value="재무팀">재무팀</option>
                       </select>
                     </div>
+                    
                     <div>
-                      <label className="block text-sm font-medium text-gray-600 mb-1">담당자</label>
-                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <label className="block text-sm font-medium text-gray-600 mb-1">조치담당자</label>
+                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">담당자를 선택하세요</option>
                         <option value="김기술">김기술</option>
-                        <option value="이배정">이배정</option>
-                        <option value="박담당">박담당</option>
+                        <option value="박기술">박기술</option>
+                        <option value="홍기술">홍기술</option>
+                        <option value="최기술">최기술</option>
+                        <option value="정기술">정기술</option>
                       </select>
                     </div>
+                    
                     <div>
-                      <label className="block text-sm font-medium text-gray-600 mb-1">배정 의견</label>
-                      <textarea
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        rows={3}
-                        placeholder="배정 의견을 입력하세요"
-                      ></textarea>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">배정의견</label>
+                      <textarea 
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 h-20"
+                        placeholder="배정 담당자 의견"
+                      />
                     </div>
+                    
                     <div>
-                      <label className="block text-sm font-medium text-gray-600 mb-1">배정 일시(현재)</label>
-                      <div className="text-gray-900">{new Date().toLocaleString('ko-KR')}</div>
+                      <label className="block text-sm font-medium text-gray-600 mb-1 flex items-center">
+                        <Icon name="calendar" size={16} className="mr-1" />
+                        배정일시(현재)
+                      </label>
+                      <div className="px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-sm">
+                        {new Date().toLocaleString('ko-KR', { 
+                          year: 'numeric', 
+                          month: '2-digit', 
+                          day: '2-digit', 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })}
+                      </div>
                     </div>
+                    
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-1">서비스 조치 유형</label>
-                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="요청">요청</option>
-                        <option value="문제">문제</option>
+                        <option value="장애">장애</option>
                         <option value="변경">변경</option>
+                        <option value="문제">문제</option>
+                        <option value="적용">적용</option>
+                        <option value="구성">구성</option>
+                        <option value="자산">자산</option>
                       </select>
                     </div>
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* 모달 하단 버튼 */}
-              <div className="flex justify-end space-x-3 mt-6 pt-4 border-t border-gray-200">
-                <button
-                  onClick={() => setShowServiceAssignmentModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  취소
-                </button>
-                <button
-                  onClick={() => {
-                    setShowServiceAssignmentModal(false);
-                    // 배정 완료 로직
-                  }}
-                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
-                >
-                  배정하기
-                </button>
-              </div>
+            {/* 모달 하단 버튼 */}
+            <div className="flex justify-end py-4 px-6 border-t border-gray-200 space-x-3">
+              <button
+                onClick={() => setShowServiceAssignmentModal(false)}
+                className="px-6 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg font-medium transition-all duration-200"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => {
+                  alert('배정이 완료되었습니다.')
+                  setShowServiceAssignmentModal(false)
+                }}
+                className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all duration-200"
+              >
+                배정하기
+              </button>
             </div>
           </div>
         </div>
@@ -2785,11 +3161,11 @@ export default function ServiceManagerPage() {
       {/* 재배정작업 모달 */}
       {showServiceReassignmentModal && selectedWorkRequest && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             {/* 모달 헤더 */}
-            <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200">
+            <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200" style={{paddingTop: '30px'}}>
               <h2 className="text-xl font-bold text-gray-800 flex items-center">
-                <Icon name="refresh-cw" size={24} className="mr-2" />
+                <Icon name="refresh" size={24} className="mr-2" />
                 재배정작업
               </h2>
               <button
@@ -2801,110 +3177,208 @@ export default function ServiceManagerPage() {
             </div>
 
             {/* 모달 내용 */}
-            <div className="p-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* 서비스 신청 정보 */}
+            <div className="py-4 px-6">
+              <div className="grid grid-cols-2 gap-6">
+                {/* 서비스신청정보 */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">서비스 신청 정보</h3>
-                  <div className="space-y-3">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <Icon name="user" size={20} className="text-gray-600" />
+                    <h3 className="text-lg font-semibold text-gray-800">서비스신청정보</h3>
+                  </div>
+                  
+                  <div className="space-y-0">
                     <div>
-                      <label className="block text-sm font-medium text-gray-600">신청번호</label>
-                      <div className="text-blue-600 font-medium">{selectedWorkRequest.requestNumber}</div>
+                      <span className="text-sm font-medium text-gray-600">신청번호: </span>
+                      <span className="text-sm font-bold text-blue-600">{selectedWorkRequest.requestNumber}</span>
                     </div>
+                    
                     <div>
-                      <label className="block text-sm font-medium text-gray-600">신청제목</label>
-                      <div className="text-gray-900">{selectedWorkRequest.title}</div>
+                      <span className="text-sm font-medium text-gray-600">신청제목: </span>
+                      <span className="text-sm">{selectedWorkRequest.title}</span>
                     </div>
+                    
                     <div>
-                      <label className="block text-sm font-medium text-gray-600">신청내용</label>
-                      <div className="text-gray-900">{selectedWorkRequest.content}</div>
+                      <span className="text-sm font-medium text-gray-600">신청내용: </span>
+                      <div className="text-sm mt-1 p-2 bg-gray-50 rounded text-gray-700">
+                        {selectedWorkRequest.content}
+                      </div>
                     </div>
+                    
                     <div>
-                      <label className="block text-sm font-medium text-gray-600">신청자</label>
-                      <div className="text-gray-900">{selectedWorkRequest.requester} ({selectedWorkRequest.department})</div>
+                      <span className="text-sm font-medium text-gray-600 flex items-center">
+                        <Icon name="user" size={14} className="mr-1" />
+                        신청자: 
+                      </span>
+                      <span className="text-sm ml-5">{selectedWorkRequest.requester} ({selectedWorkRequest.department})</span>
                     </div>
+                    
                     <div>
-                      <label className="block text-sm font-medium text-gray-600">신청연락처</label>
-                      <div className="text-gray-900">{selectedWorkRequest.contact}</div>
+                      <span className="text-sm font-medium text-gray-600 flex items-center">
+                        <Icon name="mail" size={14} className="mr-1" />
+                        신청연락처: 
+                      </span>
+                      <span className="text-sm ml-5">{selectedWorkRequest.contact}</span>
                     </div>
+                    
                     <div>
-                      <label className="block text-sm font-medium text-gray-600">신청위치</label>
-                      <div className="text-gray-900">{selectedWorkRequest.location}</div>
+                      <span className="text-sm font-medium text-gray-600 flex items-center">
+                        <Icon name="briefcase" size={14} className="mr-1" />
+                        신청위치: 
+                      </span>
+                      <span className="text-sm ml-5">{selectedWorkRequest.location}</span>
                     </div>
+                    
                     <div>
-                      <label className="block text-sm font-medium text-gray-600">신청일시</label>
-                      <div className="text-gray-900">{selectedWorkRequest.requestDate}</div>
+                      <span className="text-sm font-medium text-gray-600 flex items-center">
+                        <Icon name="calendar" size={14} className="mr-1" />
+                        신청일시: 
+                      </span>
+                      <span className="text-sm ml-5">{selectedWorkRequest.requestDate}</span>
                     </div>
+                    
                     <div>
-                      <label className="block text-sm font-medium text-gray-600">현재상태</label>
-                      <div className="text-gray-900">{selectedWorkRequest.currentStatus}</div>
+                      <span className="text-sm font-medium text-gray-600 flex items-center">
+                        <Icon name="message-square" size={14} className="mr-1" />
+                        현재상태: 
+                      </span>
+                      <span className="text-sm ml-5">{selectedWorkRequest.currentStatus}</span>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">실제신청자: </span>
+                      <span className="text-sm ml-5">{selectedWorkRequest.requester}</span>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium text-gray-600">실제연락처: </span>
+                      <span className="text-sm ml-5">{selectedWorkRequest.contact}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* 재배정정보 */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-800 border-b pb-2">재배정정보</h3>
-                  <div className="space-y-4">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <Icon name="settings" size={20} className="text-gray-600" />
+                    <h3 className="text-lg font-semibold text-gray-800">재배정정보</h3>
+                  </div>
+                  
+                  <div className="space-y-0">
                     <div>
-                      <label className="block text-sm font-medium text-gray-600 mb-1">부서</label>
-                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <label className="block text-sm font-medium text-gray-600 mb-1">조치담당 소속</label>
+                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">부서를 선택하세요</option>
                         <option value="IT팀">IT팀</option>
                         <option value="운영팀">운영팀</option>
                         <option value="개발팀">개발팀</option>
+                        <option value="보안팀">보안팀</option>
                         <option value="인사팀">인사팀</option>
+                        <option value="재무팀">재무팀</option>
                       </select>
                     </div>
+                    
                     <div>
-                      <label className="block text-sm font-medium text-gray-600 mb-1">담당자</label>
-                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <label className="block text-sm font-medium text-gray-600 mb-1">조치담당자</label>
+                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">담당자를 선택하세요</option>
                         <option value="김기술">김기술</option>
-                        <option value="이배정">이배정</option>
-                        <option value="박담당">박담당</option>
+                        <option value="박기술">박기술</option>
+                        <option value="홍기술">홍기술</option>
+                        <option value="최기술">최기술</option>
+                        <option value="정기술">정기술</option>
                       </select>
                     </div>
+                    
                     <div>
-                      <label className="block text-sm font-medium text-gray-600 mb-1">재배정 의견</label>
-                      <textarea
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        rows={3}
-                        placeholder="재배정 의견을 입력하세요"
-                      ></textarea>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">재배정의견</label>
+                      <textarea 
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 h-20"
+                        placeholder="배정 담당자 의견"
+                      />
                     </div>
+                    
                     <div>
-                      <label className="block text-sm font-medium text-gray-600 mb-1">재배정 일시(현재)</label>
-                      <div className="text-gray-900">{new Date().toLocaleString('ko-KR')}</div>
+                      <span className="text-sm font-medium text-gray-600 flex items-center">
+                        <Icon name="calendar" size={14} className="mr-1" />
+                        재배정일시(현재): 
+                      </span>
+                      <span className="text-sm ml-5">
+                        {new Date().toLocaleString('ko-KR', { 
+                          year: 'numeric', 
+                          month: '2-digit', 
+                          day: '2-digit', 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })}
+                      </span>
                     </div>
+                    
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-1">서비스 조치 유형</label>
-                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="구성">구성</option>
                         <option value="요청">요청</option>
-                        <option value="문제">문제</option>
+                        <option value="장애">장애</option>
                         <option value="변경">변경</option>
+                        <option value="문제">문제</option>
+                        <option value="적용">적용</option>
+                        <option value="자산">자산</option>
                       </select>
+                    </div>
+                    
+                    {/* 이전 배정 정보 */}
+                    <div className="border-t pt-3 mt-4">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-3">이전 배정 정보</h4>
+                      
+                      <div className="space-y-0">
+                        <div>
+                          <span className="text-xs font-medium text-gray-500">전) 배정일시: </span>
+                          <span className="text-xs ml-2">{selectedWorkRequest.assignTime || '2025.08.31 11:40'}</span>
+                        </div>
+                        
+                        <div>
+                          <span className="text-xs font-medium text-gray-500">전) 배정담당자: </span>
+                          <span className="text-xs ml-2">이배정 (관리팀)</span>
+                        </div>
+                        
+                        <div>
+                          <span className="text-xs font-medium text-gray-500">전) 배정의견: </span>
+                          <span className="text-xs ml-2">업무에 적합하여 배정</span>
+                        </div>
+                        
+                        <div>
+                          <span className="text-xs font-medium text-gray-500">전) 조치담당자: </span>
+                          <span className="text-xs ml-2">{selectedWorkRequest.assignee || '홍기술'}</span>
+                        </div>
+                        
+                        <div>
+                          <span className="text-xs font-medium text-red-600">반려의견: </span>
+                          <span className="text-xs ml-2 text-red-600">금일 휴가 입니다.</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* 모달 하단 버튼 */}
-              <div className="flex justify-end space-x-3 mt-6 pt-4 border-t border-gray-200">
-                <button
-                  onClick={() => setShowServiceReassignmentModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  취소
-                </button>
-                <button
-                  onClick={() => {
-                    setShowServiceReassignmentModal(false);
-                    // 재배정 완료 로직
-                  }}
-                  className="px-4 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
-                >
-                  재배정하기
-                </button>
-              </div>
+            {/* 모달 하단 버튼 */}
+            <div className="flex justify-end py-4 px-6 border-t border-gray-200 space-x-3">
+              <button
+                onClick={() => setShowServiceReassignmentModal(false)}
+                className="px-6 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 rounded-lg font-medium transition-all duration-200"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => {
+                  alert('재배정이 완료되었습니다.')
+                  setShowServiceReassignmentModal(false)
+                }}
+                className="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-all duration-200"
+              >
+                재배정하기
+              </button>
             </div>
           </div>
         </div>
