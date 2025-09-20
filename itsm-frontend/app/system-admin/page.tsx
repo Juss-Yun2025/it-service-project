@@ -100,6 +100,21 @@ export default function SystemAdminPage() {
   const [serviceReportDepartmentFilter, setServiceReportDepartmentFilter] = useState('전체')
   const [serviceReportStageFilter, setServiceReportStageFilter] = useState('전체')
   
+  // 사용자관리 관련 상태
+  const [userManagementCurrentPage, setUserManagementCurrentPage] = useState(1)
+  const [userManagementSearchDepartment, setUserManagementSearchDepartment] = useState('전체')
+  const [userManagementSearchRole, setUserManagementSearchRole] = useState('전체')
+  const [userManagementSearchStartDate, setUserManagementSearchStartDate] = useState(() => {
+    const oneWeekAgo = new Date()
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+    return oneWeekAgo.toISOString().split('T')[0]
+  })
+  const [userManagementSearchEndDate, setUserManagementSearchEndDate] = useState(new Date().toISOString().split('T')[0])
+  const [userManagementSearchName, setUserManagementSearchName] = useState('')
+  const [showUserEditModal, setShowUserEditModal] = useState(false)
+  const [showUserResetModal, setShowUserResetModal] = useState(false)
+  const [selectedUser, setSelectedUser] = useState<any>(null)
+  
   // 드래그 관련 상태
   const [isDragging, setIsDragging] = useState(false)
   const [startX, setStartX] = useState(0)
@@ -259,6 +274,11 @@ export default function SystemAdminPage() {
   useEffect(() => {
     setServiceReportCurrentPage(1)
   }, [serviceReportSearchStartDate, serviceReportSearchEndDate, serviceReportStatusFilter, serviceReportDepartmentFilter, serviceReportStageFilter])
+
+  // 사용자관리 검색 조건 변경 시 페이지 리셋
+  useEffect(() => {
+    setUserManagementCurrentPage(1)
+  }, [userManagementSearchDepartment, userManagementSearchRole, userManagementSearchStartDate, userManagementSearchEndDate, userManagementSearchName])
 
   // 서비스 요청 데이터
   const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([
@@ -1003,6 +1023,164 @@ export default function SystemAdminPage() {
     XLSX.writeFile(wb, filename);
   };
 
+  // 사용자 데이터
+  const [users, setUsers] = useState([
+    {
+      id: '1',
+      email: 'admin@itsm.com',
+      name: '김시스템',
+      department: 'IT팀',
+      position: '부장',
+      role: '시스템관리',
+      createDate: '2025.08.01 13:00',
+      status: '정상'
+    },
+    {
+      id: '2',
+      email: 'manager@itsm.com',
+      name: '황매니저',
+      department: '운영팀',
+      position: '과장',
+      role: '관리매니저',
+      createDate: '2025.08.01 13:00',
+      status: '정상'
+    },
+    {
+      id: '3',
+      email: 'tech@itsm.com',
+      name: '김기술',
+      department: '운영팀',
+      position: '대리',
+      role: '조치담당자',
+      createDate: '2025.08.01 13:00',
+      status: '정상'
+    },
+    {
+      id: '4',
+      email: 'assign@itsm.com',
+      name: '이배정',
+      department: '관리팀',
+      position: '사원',
+      role: '배정담당자',
+      createDate: '2025.08.01 13:00',
+      status: '정상'
+    },
+    {
+      id: '5',
+      email: 'user@itsm.com',
+      name: '이영희',
+      department: '생산팀',
+      position: '사원',
+      role: '일반사용자',
+      createDate: '2025.08.01 13:00',
+      status: '정상'
+    },
+    {
+      id: '6',
+      email: 'user_del@itsm.com',
+      name: '이퇴사',
+      department: '총무팀',
+      position: '사원',
+      role: '일반사용자',
+      createDate: '2025.08.01 13:00',
+      status: '정지'
+    },
+    {
+      id: '7',
+      email: 'tech1@itsm.com',
+      name: '박기술',
+      department: '운영팀',
+      position: '사원',
+      role: '조치담당자',
+      createDate: '2025.08.01 13:00',
+      status: '정상'
+    },
+    {
+      id: '8',
+      email: 'tech2@itsm.com',
+      name: '홍기술',
+      department: 'IT팀',
+      position: '사원',
+      role: '조치담당자',
+      createDate: '2025.08.01 13:00',
+      status: '정상'
+    },
+    {
+      id: '9',
+      email: 'user1@itsm.com',
+      name: '박달자',
+      department: '운송부',
+      position: '촉탁',
+      role: '일반사용자',
+      createDate: '2025.08.01 13:00',
+      status: '정상'
+    },
+    {
+      id: '10',
+      email: 'user2@itsm.com',
+      name: '김철수',
+      department: '관리부',
+      position: '차장',
+      role: '일반사용자',
+      createDate: '2025.07.01 13:00',
+      status: '정상'
+    },
+    {
+      id: '11',
+      email: 'user3@itsm.com',
+      name: '최민수',
+      department: '구매팀',
+      position: '대리',
+      role: '일반사용자',
+      createDate: '2025.07.15 09:30',
+      status: '정상'
+    },
+    {
+      id: '12',
+      email: 'user4@itsm.com',
+      name: '정수진',
+      department: '마케팅팀',
+      position: '과장',
+      role: '일반사용자',
+      createDate: '2025.07.20 14:15',
+      status: '정상'
+    }
+  ]);
+
+  // 사용자관리 필터링
+  const filteredUsers = users.filter(user => {
+    // 부서 필터
+    if (userManagementSearchDepartment !== '전체' && user.department !== userManagementSearchDepartment) return false;
+    
+    // 권한 필터
+    if (userManagementSearchRole !== '전체' && user.role !== userManagementSearchRole) return false;
+    
+    // 성명 검색
+    if (userManagementSearchName && !user.name.includes(userManagementSearchName)) return false;
+    
+    // 기간 필터 (기간이 설정된 경우에만)
+    if (userManagementSearchStartDate && userManagementSearchEndDate) {
+      // 사용자 데이터의 날짜 형식: "2025.08.01 13:00" -> "2025-08-01"
+      const userDateStr = user.createDate.split(' ')[0].replace(/\./g, '-');
+      const userDate = new Date(userDateStr);
+      const startDate = new Date(userManagementSearchStartDate);
+      const endDate = new Date(userManagementSearchEndDate);
+      
+      // 날짜 범위 확인
+      if (userDate < startDate || userDate > endDate) return false;
+    }
+    
+    return true;
+  });
+
+  // 사용자관리 페이지네이션
+  const userManagementItemsPerPage = 10;
+  const userManagementTotalPages = Math.ceil(filteredUsers.length / userManagementItemsPerPage);
+  const paginatedUsers = filteredUsers.slice(
+    (userManagementCurrentPage - 1) * userManagementItemsPerPage,
+    userManagementCurrentPage * userManagementItemsPerPage
+  );
+
   // 서비스 작업 목록 필터링 및 페이지네이션
   const filteredServiceRequests = serviceRequests.filter(request => {
     console.log('필터링 체크:', request)
@@ -1427,8 +1605,8 @@ export default function SystemAdminPage() {
         {/* 사용자 정보 및 네비게이션 */}
         <div className="max-w-7xl mx-auto px-6 py-6 w-full">
           <div className="flex items-center justify-between mb-12">
-            <div className="px-20 py-0 rounded-full -ml-72 smooth-hover animate-fade-in shadow-lg" style={{backgroundColor: '#D4B8F9', marginLeft: '-310px'}}>
-              <span className="text-purple-800 font-medium" style={{fontSize: '14px'}}>시스템관리 ({managerInfo.name})</span>
+            <div className="px-20 py-0 rounded-full -ml-72 smooth-hover animate-fade-in shadow-lg" style={{backgroundColor: '#FFD4D4', marginLeft: '-310px'}}>
+              <span className="text-red-600 font-medium" style={{fontSize: '14px'}}>시스템관리 ({managerInfo.name})</span>
             </div>
           </div>
         </div>
@@ -1629,7 +1807,8 @@ export default function SystemAdminPage() {
                   backgroundColor: 'rgba(255, 255, 255, 0)'
                 }}>
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-bold text-gray-800">시스템 관리</h3>
+                  <h3 className="text-lg font-bold text-red-600">시스템 관리</h3>
+                  <h3 className="text-sm text-red-600">(선택항목 슬라이드를 좌←→우 드레그 하세요!)</h3>
                 </div>
 
                 {/* 4가지 관리 항목 - 슬라이드 가능한 컨테이너 */}
@@ -1657,8 +1836,7 @@ export default function SystemAdminPage() {
                       backgroundPosition: 'center',
                       width: '320px',
                       height: '400px',
-                      boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5), 0 10px 20px rgba(0, 0, 0, 0.3), 0 0 0 3px rgba(255, 255, 255, 0.3)',
-                      border: '2px solid rgba(255, 255, 255, 0.2)'
+                      boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5), 0 10px 20px rgba(0, 0, 0, 0.3)'
                     }}
                   >
                     <div className="text-left">
@@ -1677,8 +1855,7 @@ export default function SystemAdminPage() {
                       backgroundPosition: 'center',
                       width: '320px',
                       height: '400px',
-                      boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5), 0 10px 20px rgba(0, 0, 0, 0.3), 0 0 0 3px rgba(255, 255, 255, 0.3)',
-                      border: '2px solid rgba(255, 255, 255, 0.2)'
+                      boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5), 0 10px 20px rgba(0, 0, 0, 0.3)'
                     }}
                   >
                     <div className="text-left">
@@ -1697,8 +1874,7 @@ export default function SystemAdminPage() {
                       backgroundPosition: 'center',
                       width: '320px',
                       height: '400px',
-                      boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5), 0 10px 20px rgba(0, 0, 0, 0.3), 0 0 0 3px rgba(255, 255, 255, 0.3)',
-                      border: '2px solid rgba(255, 255, 255, 0.2)'
+                      boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5), 0 10px 20px rgba(0, 0, 0, 0.3)'
                     }}
                   >
                     <div className="text-left">
@@ -1717,8 +1893,7 @@ export default function SystemAdminPage() {
                       backgroundPosition: 'center',
                       width: '320px',
                       height: '400px',
-                      boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5), 0 10px 20px rgba(0, 0, 0, 0.3), 0 0 0 3px rgba(255, 255, 255, 0.3)',
-                      border: '2px solid rgba(255, 255, 255, 0.2)'
+                      boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5), 0 10px 20px rgba(0, 0, 0, 0.3)'
                     }}
                   >
                     <div className="text-left">
@@ -2185,6 +2360,196 @@ export default function SystemAdminPage() {
             </div>
           )}
 
+          {/* 사용자관리 프레임 */}
+          {showUserManagement && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
+              <div className="bg-white rounded-lg shadow-xl max-w-7xl w-full mx-4 max-h-[90vh] overflow-hidden">
+                {/* 모달 헤더 */}
+                <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200">
+                  <div className="flex items-center space-x-4">
+                    <button
+                      onClick={() => {
+                        setUserManagementCurrentPage(1);
+                        setUserManagementSearchDepartment('전체');
+                        setUserManagementSearchRole('전체');
+                        setUserManagementSearchName('');
+                        const oneWeekAgo = new Date()
+                        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+                        setUserManagementSearchStartDate(oneWeekAgo.toISOString().split('T')[0]);
+                        setUserManagementSearchEndDate(new Date().toISOString().split('T')[0]);
+                      }}
+                      className="w-6 h-6 text-gray-600 hover:text-gray-800 transition-colors"
+                    >
+                      <Icon name="refresh" size={16} />
+                    </button>
+                    <h2 className="text-xl font-bold text-gray-800">사용자 관리</h2>
+                  </div>
+                  <button
+                    onClick={() => setShowUserManagement(false)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <Icon name="close" size={24} />
+                  </button>
+                </div>
+
+                {/* 검색 및 필터 영역 */}
+                <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-4">
+                      {/* 부서 선택 */}
+                      <select
+                        value={userManagementSearchDepartment}
+                        onChange={(e) => setUserManagementSearchDepartment(e.target.value)}
+                        className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
+                      >
+                        <option value="전체">전체</option>
+                        <option value="IT팀">IT팀</option>
+                        <option value="운영팀">운영팀</option>
+                        <option value="관리팀">관리팀</option>
+                        <option value="생산팀">생산팀</option>
+                        <option value="총무팀">총무팀</option>
+                        <option value="운송부">운송부</option>
+                        <option value="관리부">관리부</option>
+                        <option value="구매팀">구매팀</option>
+                        <option value="마케팅팀">마케팅팀</option>
+                      </select>
+                      
+                      {/* 권한 선택 */}
+                      <select
+                        value={userManagementSearchRole}
+                        onChange={(e) => setUserManagementSearchRole(e.target.value)}
+                        className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
+                      >
+                        <option value="전체">전체</option>
+                        <option value="시스템관리">시스템관리</option>
+                        <option value="관리매니저">관리매니저</option>
+                        <option value="배정담당자">배정담당자</option>
+                        <option value="조치담당자">조치담당자</option>
+                        <option value="일반사용자">일반사용자</option>
+                      </select>
+                      
+                      {/* 성명 찾기 */}
+                      <div className="flex items-center space-x-2">
+                        <Icon name="search" size={16} className="text-gray-500" />
+                        <input
+                          type="text"
+                          placeholder="성명 찾기"
+                          value={userManagementSearchName}
+                          onChange={(e) => setUserManagementSearchName(e.target.value)}
+                          className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
+                        />
+                      </div>
+                      
+                      {/* 기간 선택 */}
+                      <div className="flex items-center space-x-2">
+                        <Icon name="calendar" size={16} className="text-gray-500" />
+                        <input
+                          type="date"
+                          value={userManagementSearchStartDate}
+                          onChange={(e) => setUserManagementSearchStartDate(e.target.value)}
+                          className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
+                        />
+                        <span className="text-gray-600 font-medium">~</span>
+                        <input
+                          type="date"
+                          value={userManagementSearchEndDate}
+                          onChange={(e) => setUserManagementSearchEndDate(e.target.value)}
+                          className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 테이블 영역 */}
+                <div className="flex-1 overflow-hidden">
+                  <div className="overflow-x-auto overflow-y-auto px-4" style={{height: '450px'}}>
+                    <table className="w-full text-sm">
+                      <thead className="sticky top-0 bg-gray-100">
+                        <tr>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">이메일/ID</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">성명</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">소속</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">직급</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">권한</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">생성일시</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">상태</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">관리</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {paginatedUsers.map((user) => (
+                          <tr key={user.id} className="hover:bg-gray-50">
+                            <td className="px-2 py-2 text-gray-900 text-center">{user.email}</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{user.name}</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{user.department}</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{user.position}</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{user.role}</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{user.createDate}</td>
+                            <td className="px-2 py-2 text-center">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                user.status === '정상' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                              }`}>
+                                {user.status}
+                              </span>
+                            </td>
+                            <td className="px-2 py-2 text-center">
+                              <div className="flex justify-center space-x-2">
+                                <button
+                                  onClick={() => {
+                                    setSelectedUser(user);
+                                    setShowUserEditModal(true);
+                                  }}
+                                  className="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
+                                >
+                                  수정
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setSelectedUser(user);
+                                    setShowUserResetModal(true);
+                                  }}
+                                  className="px-2 py-1 bg-orange-500 text-white rounded text-xs hover:bg-orange-600 transition-colors"
+                                >
+                                  초기화
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* 페이지네이션 */}
+                {userManagementTotalPages > 1 && (
+                  <div className="flex justify-center mt-4 pt-4 pb-4 border-t border-gray-200">
+                    <div className="flex items-center space-x-2">
+                      <button 
+                        onClick={() => setUserManagementCurrentPage(Math.max(1, userManagementCurrentPage - 1))}
+                        disabled={userManagementCurrentPage === 1}
+                        className="px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        이전
+                      </button>
+                      <span className="px-2 py-1 bg-blue-500 text-white rounded text-xs">
+                        {userManagementCurrentPage}/{userManagementTotalPages}
+                      </span>
+                      <button 
+                        onClick={() => setUserManagementCurrentPage(Math.min(userManagementTotalPages, userManagementCurrentPage + 1))}
+                        disabled={userManagementCurrentPage >= userManagementTotalPages}
+                        className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        다음
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* 프레임 3: 일반문의 현황 */}
           <div className="absolute" style={{left: '1590px', top: '84px'}}>
             <div className="w-80" style={{width: '306px'}}>
@@ -2307,6 +2672,203 @@ export default function SystemAdminPage() {
           <p className="text-sm">ⓒ 2025 시스템 관리 시스템. 모든권리는 Juss 가 보유</p>
         </div>
       </footer>
+
+      {/* 사용자 정보 수정 모달 */}
+      {showUserEditModal && selectedUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            {/* 모달 헤더 */}
+            <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200" style={{paddingTop: '30px'}}>
+              <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                <Icon name="user" size={24} className="mr-2" />
+                회원정보 수정
+              </h2>
+              <button
+                onClick={() => setShowUserEditModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <Icon name="close" size={24} />
+              </button>
+            </div>
+
+            {/* 모달 내용 */}
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* 왼쪽 컬럼 */}
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">이메일/ID</label>
+                    <input
+                      type="email"
+                      defaultValue={selectedUser.email}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      readOnly
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">성명</label>
+                    <input
+                      type="text"
+                      defaultValue={selectedUser.name}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">소속</label>
+                    <select 
+                      defaultValue={selectedUser.department}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="IT팀">IT팀</option>
+                      <option value="운영팀">운영팀</option>
+                      <option value="관리팀">관리팀</option>
+                      <option value="생산팀">생산팀</option>
+                      <option value="총무팀">총무팀</option>
+                      <option value="운송부">운송부</option>
+                      <option value="관리부">관리부</option>
+                      <option value="구매팀">구매팀</option>
+                      <option value="마케팅팀">마케팅팀</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* 오른쪽 컬럼 */}
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">직급</label>
+                    <select 
+                      defaultValue={selectedUser.position}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="부장">부장</option>
+                      <option value="과장">과장</option>
+                      <option value="차장">차장</option>
+                      <option value="대리">대리</option>
+                      <option value="사원">사원</option>
+                      <option value="촉탁">촉탁</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">권한</label>
+                    <select 
+                      defaultValue={selectedUser.role}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="시스템관리">시스템관리</option>
+                      <option value="관리매니저">관리매니저</option>
+                      <option value="배정담당자">배정담당자</option>
+                      <option value="조치담당자">조치담당자</option>
+                      <option value="일반사용자">일반사용자</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">상태</label>
+                    <select 
+                      defaultValue={selectedUser.status}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="정상">정상</option>
+                      <option value="정지">정지</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 모달 하단 버튼 */}
+            <div className="flex justify-end py-4 px-6 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  setShowUserEditModal(false);
+                  alert('회원정보가 수정되었습니다.');
+                }}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200"
+              >
+                수정 완료
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 비밀번호 초기화 모달 */}
+      {showUserResetModal && selectedUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            {/* 모달 헤더 */}
+            <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200" style={{paddingTop: '30px'}}>
+              <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                <Icon name="lock" size={24} className="mr-2" />
+                비밀번호 초기화
+              </h2>
+              <button
+                onClick={() => setShowUserResetModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <Icon name="close" size={24} />
+              </button>
+            </div>
+
+            {/* 모달 내용 */}
+            <div className="p-6">
+              <div className="mb-4">
+                <p className="text-gray-600 mb-2">다음 사용자의 비밀번호를 초기화하시겠습니까?</p>
+                <div className="bg-gray-50 p-3 rounded-lg">
+                  <p className="font-medium text-gray-800">{selectedUser.name} ({selectedUser.email})</p>
+                  <p className="text-sm text-gray-600">{selectedUser.department} - {selectedUser.position}</p>
+                </div>
+              </div>
+              
+              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  ⚠️ 비밀번호 초기화 후 임시 비밀번호가 발급됩니다.<br/>
+                  사용자에게 새 비밀번호를 안전하게 전달해 주세요.
+                </p>
+              </div>
+
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-600 mb-2">임시 비밀번호</label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    value="TempPass123!"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
+                    readOnly
+                  />
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText('TempPass123!');
+                      alert('임시 비밀번호가 클립보드에 복사되었습니다.');
+                    }}
+                    className="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
+                  >
+                    복사
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* 모달 하단 버튼 */}
+            <div className="flex justify-end space-x-3 py-4 px-6 border-t border-gray-200">
+              <button
+                onClick={() => setShowUserResetModal(false)}
+                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={() => {
+                  setShowUserResetModal(false);
+                  alert('비밀번호가 초기화되었습니다. 임시 비밀번호를 사용자에게 전달해 주세요.');
+                }}
+                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+              >
+                초기화 실행
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 배정확인 모달 */}
       {showAssignmentModal && selectedRequest && (
@@ -5126,14 +5688,14 @@ export default function SystemAdminPage() {
             <div className="flex-1 overflow-hidden">
               <div className="overflow-x-auto overflow-y-auto px-4" style={{height: '450px'}}>
                 <table className="w-full text-sm">
-                  <thead className="sticky top-0" style={{backgroundColor: '#D4B8F9'}}>
+                  <thead className="sticky top-0" style={{backgroundColor: '#FFD4D4'}}>
                     <tr>
-                      <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">문의일시</th>
-                      <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">문의제목</th>
-                      <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">문의자</th>
-                      <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">답변일시</th>
-                      <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">답변자</th>
-                      <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">관리</th>
+                      <th className="px-2 py-2 text-center text-sm font-bold text-red-600">문의일시</th>
+                      <th className="px-2 py-2 text-center text-sm font-bold text-red-600">문의제목</th>
+                      <th className="px-2 py-2 text-center text-sm font-bold text-red-600">문의자</th>
+                      <th className="px-2 py-2 text-center text-sm font-bold text-red-600">답변일시</th>
+                      <th className="px-2 py-2 text-center text-sm font-bold text-red-600">답변자</th>
+                      <th className="px-2 py-2 text-center text-sm font-bold text-red-600">관리</th>
                         </tr>
                       </thead>
                   <tbody className="divide-y divide-gray-200">

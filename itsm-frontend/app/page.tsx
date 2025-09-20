@@ -28,7 +28,7 @@ type User = {
 // 샘플 사용자 데이터 (ITSM 개발 설명서 반영)
 const users: User[] = [
   { email: "system@itsm.com", password: "system123", name: "시스템관리", role: "system_admin" },
-  { email: "service@itsm.com", password: "service123", name: "서비스관리", role: "service_manager" },
+  { email: "service@itsm.com", password: "service123", name: "관리매니저", role: "service_manager" },
   { email: "tech@itsm.com", password: "tech123", name: "조치담당자", role: "technician" },
   { email: "assign@itsm.com", password: "assign123", name: "배정담당자", role: "assignment_manager" },
   { email: "user@itsm.com", password: "user123", name: "일반사용자", role: "user" }
@@ -628,7 +628,7 @@ export default function Home() {
                 <h4 className="text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">테스트 계정:</h4>
                 <div className="text-xs text-gray-600 space-y-0.5 sm:space-y-1">
                   <div className="break-all">• 시스템관리: system@itsm.com / system123</div>
-                  <div className="break-all">• 서비스관리: service@itsm.com / service123</div>
+                  <div className="break-all">• 관리매니저: service@itsm.com / service123</div>
                   <div className="break-all">• 조치담당자: tech@itsm.com / tech123</div>
                   <div className="break-all">• 배정담당자: assign@itsm.com / assign123</div>
                   <div className="break-all">• 일반사용자: user@itsm.com / user123</div>

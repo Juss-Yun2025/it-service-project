@@ -51,8 +51,10 @@ export default function SignupPage() {
 
   const roleOptions = [
     { value: 'user', label: '일반사용자' },
-    { value: 'technician', label: '기술자' },
-    { value: 'assignment_manager', label: '배정담당자' }
+    { value: 'technician', label: '조치담당자' },
+    { value: 'assignment_manager', label: '배정담당자' },
+    { value: 'service_manager', label: '관리매니저' },
+    { value: 'system_admin', label: '시스템관리' }
   ]
 
   const handleInputChange = (field: string, value: string) => {

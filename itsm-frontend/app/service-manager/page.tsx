@@ -1463,7 +1463,8 @@ export default function ServiceManagerPage() {
                   backgroundColor: 'rgba(255, 255, 255, 0)'
                 }}>
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-bold text-gray-800">서비스선택</h3>
+                  <h3 className="text-lg font-bold text-purple-900">서비스 관리</h3>
+                  <h3 className="text-sm text-purple-900">(아래 선택항목을 선택 하세요!)</h3>
                 </div>
 
                 {/* 3가지 관리 항목 */}
