@@ -89,8 +89,16 @@ export default function SystemAdminPage() {
   
   // 서비스작업 List 관리 관련 상태
   const [showServiceWorkList, setShowServiceWorkList] = useState(false)
-  const [showFAQManagement, setShowFAQManagement] = useState(false)
   const [showUserManagement, setShowUserManagement] = useState(false)
+  
+  // 서비스현황 리포트 관련 상태
+  const [showServiceReport, setShowServiceReport] = useState(false)
+  const [serviceReportCurrentPage, setServiceReportCurrentPage] = useState(1)
+  const [serviceReportSearchStartDate, setServiceReportSearchStartDate] = useState(new Date().toISOString().split('T')[0])
+  const [serviceReportSearchEndDate, setServiceReportSearchEndDate] = useState(new Date().toISOString().split('T')[0])
+  const [serviceReportStatusFilter, setServiceReportStatusFilter] = useState('전체')
+  const [serviceReportDepartmentFilter, setServiceReportDepartmentFilter] = useState('전체')
+  const [serviceReportStageFilter, setServiceReportStageFilter] = useState('전체')
   
   // 드래그 관련 상태
   const [isDragging, setIsDragging] = useState(false)
@@ -129,12 +137,6 @@ export default function SystemAdminPage() {
     action()
   }
   
-  // 자주하는 질문 관리 관련 상태
-  const [faqCurrentPage, setFaqCurrentPage] = useState(1)
-  const [showFAQEditModal, setShowFAQEditModal] = useState(false)
-  const [showFAQAddModal, setShowFAQAddModal] = useState(false)
-  const [showFAQCompleteModal, setShowFAQCompleteModal] = useState(false)
-  const [selectedFAQ, setSelectedFAQ] = useState<any>(null)
   
   // 일반문의 List 관리 관련 상태
   const [showGeneralInquiryList, setShowGeneralInquiryList] = useState(false)
@@ -252,6 +254,11 @@ export default function SystemAdminPage() {
   useEffect(() => {
     setServiceWorkCurrentPage(1)
   }, [serviceWorkSearchStartDate, serviceWorkSearchEndDate, showServiceIncompleteOnly, serviceWorkSelectedDepartment])
+
+  // 서비스현황 리포트 검색 조건 변경 시 페이지 리셋
+  useEffect(() => {
+    setServiceReportCurrentPage(1)
+  }, [serviceReportSearchStartDate, serviceReportSearchEndDate, serviceReportStatusFilter, serviceReportDepartmentFilter, serviceReportStageFilter])
 
   // 서비스 요청 데이터
   const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([
@@ -869,6 +876,133 @@ export default function SystemAdminPage() {
     }
   ])
 
+  // 서비스현황 리포트 데이터 생성 (서비스 요청 데이터를 기반으로)
+  const serviceReportData = serviceRequests.map(request => {
+    // 배정(h) 계산: 신청시간 - 배정시간
+    const assignmentHours = request.assignTime && request.requestTime ? 
+      Math.round((new Date(`2025-08-31 ${request.assignTime}`).getTime() - new Date(`2025-08-31 ${request.requestTime}`).getTime()) / (1000 * 60 * 60) * 10) / 10 : 0.2;
+    
+    // 작업(h) 계산: 작업시작시간 - 작업완료시간 (임시로 0.2h 설정)
+    const workHours = request.stage === '완료' ? 0.5 : 0.2;
+
+    return {
+      id: request.id,
+      requestNumber: request.requestNumber,
+      title: request.title,
+      currentStatus: request.currentStatus,
+      requester: request.requester,
+      requesterDepartment: request.department,
+      stage: request.stage,
+      assignmentHours: assignmentHours,
+      serviceType: request.serviceType,
+      assignee: request.assignee || '',
+      assigneeDepartment: request.assigneeDepartment || '',
+      workHours: workHours,
+      requestDateTime: `${request.requestDate} ${request.requestTime}`,
+      assignDateTime: request.assignDate || '',
+      scheduledDateTime: request.scheduledDate || '',
+      workStartDateTime: request.workStartDate || '',
+      workCompleteDateTime: request.workCompleteDate || ''
+    }
+  });
+
+  // 서비스현황 리포트 필터링
+  const filteredServiceReports = serviceReportData.filter(report => {
+    // 날짜 필터
+    if (serviceReportSearchStartDate && serviceReportSearchEndDate) {
+      const reportDate = new Date(report.requestDateTime.split(' ')[0].replace(/\./g, '-'));
+      const startDate = new Date(serviceReportSearchStartDate);
+      const endDate = new Date(serviceReportSearchEndDate);
+      if (reportDate < startDate || reportDate > endDate) return false;
+    }
+    
+    // 현재상태 필터
+    if (serviceReportStatusFilter !== '전체' && report.currentStatus !== serviceReportStatusFilter) return false;
+    
+    // 부서 필터
+    if (serviceReportDepartmentFilter !== '전체' && report.requesterDepartment !== serviceReportDepartmentFilter) return false;
+    
+    // 단계 필터
+    if (serviceReportStageFilter !== '전체' && report.stage !== serviceReportStageFilter) return false;
+    
+    return true;
+  });
+
+  // 서비스현황 리포트 페이지네이션
+  const serviceReportItemsPerPage = 10;
+  const serviceReportTotalPages = Math.ceil(filteredServiceReports.length / serviceReportItemsPerPage);
+  const paginatedServiceReports = filteredServiceReports.slice(
+    (serviceReportCurrentPage - 1) * serviceReportItemsPerPage,
+    serviceReportCurrentPage * serviceReportItemsPerPage
+  );
+
+  // 엑셀 다운로드 함수
+  const generateServiceReportExcel = (data: any[]) => {
+    const XLSX = require('xlsx');
+    
+    // 헤더 정의
+    const headers = ['신청번호', '신청제목', '현재상태', '신청자', '신청소속', '단계', '배정(h)', '서비스유형', '조치담당자', '조치담당자소속', '작업(h)', '신청일시', '배정일', '예상조율일시', '작업시작일시', '작업완료일시'];
+    
+    // 데이터 배열 생성
+    const excelData = [
+      headers,
+      ...data.map(report => [
+        report.requestNumber,
+        report.title,
+        report.currentStatus,
+        report.requester,
+        report.requesterDepartment,
+        report.stage,
+        report.assignmentHours,
+        report.serviceType,
+        report.assignee,
+        report.assigneeDepartment,
+        report.workHours,
+        report.requestDateTime,
+        report.assignDateTime,
+        report.scheduledDateTime,
+        report.workStartDateTime,
+        report.workCompleteDateTime
+      ])
+    ];
+    
+    // 워크시트 생성
+    const ws = XLSX.utils.aoa_to_sheet(excelData);
+    
+    // 컬럼 너비 설정
+    const colWidths = [
+      { wch: 15 }, // 신청번호
+      { wch: 25 }, // 신청제목
+      { wch: 12 }, // 현재상태
+      { wch: 10 }, // 신청자
+      { wch: 12 }, // 신청소속
+      { wch: 8 },  // 단계
+      { wch: 8 },  // 배정(h)
+      { wch: 12 }, // 서비스유형
+      { wch: 10 }, // 조치담당자
+      { wch: 12 }, // 조치담당자소속
+      { wch: 8 },  // 작업(h)
+      { wch: 20 }, // 신청일시
+      { wch: 20 }, // 배정일
+      { wch: 20 }, // 예상조율일시
+      { wch: 20 }, // 작업시작일시
+      { wch: 20 }  // 작업완료일시
+    ];
+    ws['!cols'] = colWidths;
+    
+    // 워크북 생성
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '서비스현황리포트');
+    
+    return wb;
+  };
+
+  const downloadExcel = (data: any[], filename: string) => {
+    const XLSX = require('xlsx');
+    const wb = generateServiceReportExcel(data);
+    XLSX.writeFile(wb, filename);
+  };
+
   // 서비스 작업 목록 필터링 및 페이지네이션
   const filteredServiceRequests = serviceRequests.filter(request => {
     console.log('필터링 체크:', request)
@@ -959,11 +1093,10 @@ export default function SystemAdminPage() {
     return true
   })
 
-  // 페이지네이션
-  const itemsPerPage = 10
-  const totalPages = Math.ceil(filteredRequests.length / itemsPerPage)
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const paginatedRequests = filteredRequests.slice(startIndex, startIndex + itemsPerPage)
+  // 페이지네이션 (이미 위에서 정의됨)
+  const totalPages = Math.ceil(filteredRequests.length / serviceWorkItemsPerPage)
+  const startIndex = (currentPage - 1) * serviceWorkItemsPerPage
+  const paginatedRequests = filteredRequests.slice(startIndex, startIndex + serviceWorkItemsPerPage)
 
   const handleAssignmentConfirm = (request: ServiceRequest) => {
     setSelectedRequest(request)
@@ -1265,10 +1398,10 @@ export default function SystemAdminPage() {
         }}
       />
 
-      {/* 헤더 */}
+        {/* 헤더 */}
       <div className="relative z-20">
         <div className="flex justify-between items-center p-8">
-          <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-4">
             <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center backdrop-blur-sm">
               <Icon name="laptop" size={24} className="text-black" />
                 </div>
@@ -1276,18 +1409,18 @@ export default function SystemAdminPage() {
               <h1 className="text-3xl font-bold text-black">IT System Administration</h1>
               <p className="text-gray-800 text-sm">통합 IT 서비스 관리 시스템</p>
             </div>
-          </div>
-          <div className="flex items-center space-x-4">
+              </div>
+              <div className="flex items-center space-x-4">
             <button
               onClick={() => router.push('/')}
               className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-300 ease-out"
               style={{marginRight: '0px'}}
-            >
-              로그아웃
+                >
+                  로그아웃
                     </button>
-                </div>
               </div>
             </div>
+          </div>
 
       {/* 메인 컨텐츠 */}
       <main className="relative z-10">
@@ -1302,7 +1435,7 @@ export default function SystemAdminPage() {
 
         {/* 완전히 분리된 정보변경 버튼 */}
         <div className="absolute z-50" style={{top: '14px', right: '116px'}}>
-          <button 
+                <button
             onClick={handleInfoChange}
             className="text-black/70 hover:text-black transition-all duration-300 ease-out flex items-center space-x-2 button-smooth px-4 py-2 rounded-lg"
           >
@@ -1338,7 +1471,7 @@ export default function SystemAdminPage() {
                       <div className={`w-3 h-3 bg-white rounded-full transition-transform ${
                         showServiceAggregation ? 'translate-x-4' : 'translate-x-0.5'
                       }`} />
-                    </button>
+                </button>
                   </div>
                 </div>
 
@@ -1536,7 +1669,7 @@ export default function SystemAdminPage() {
 
                   {/* 서비스 현황 리포트 */}
                   <div 
-                    onClick={(e) => handleCardClick(e, () => setShowServiceAggregation(true))}
+                    onClick={(e) => handleCardClick(e, () => setShowServiceReport(true))}
                     className="bg-gray-800 rounded-lg p-6 cursor-pointer hover:bg-gray-700 hover:scale-105 transition-all duration-300 ease-in-out flex flex-col items-start justify-start flex-shrink-0"
                     style={{
                       backgroundImage: `url('/image/슬라이드_선택_서비스현황리포트.jpg')`,
@@ -1607,7 +1740,7 @@ export default function SystemAdminPage() {
                 {/* 모달 헤더 */}
                 <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200">
                   <div className="flex items-center space-x-4">
-                    <button
+                <button
                       onClick={() => {/* 새로고침 로직 */}}
                       className="w-6 h-6 text-gray-600 hover:text-gray-800 transition-colors"
                     >
@@ -1672,7 +1805,7 @@ export default function SystemAdminPage() {
                         <div className={`w-3 h-3 bg-white rounded-full transition-transform ${
                           showServiceIncompleteOnly ? 'translate-x-4' : 'translate-x-0.5'
                         }`} />
-                      </button>
+                </button>
                     </div>
                   </div>
                 </div>
@@ -1738,7 +1871,7 @@ export default function SystemAdminPage() {
                               <div className="flex space-x-1 justify-center">
                                 {/* 접수 단계: 조치담당자 미확정 - 배정작업 버튼 */}
                                 {request.stage === '접수' && (
-                                  <button
+                <button
                                     onClick={() => {
                                       setSelectedWorkRequest(request);
                                       setShowServiceAssignmentModal(true);
@@ -1849,6 +1982,209 @@ export default function SystemAdminPage() {
             </div>
           )}
 
+          {/* 서비스현황 리포트 프레임 */}
+          {showServiceReport && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
+              <div className="bg-white rounded-lg shadow-xl max-w-7xl w-full mx-4 max-h-[90vh] overflow-hidden">
+                {/* 모달 헤더 */}
+                <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200">
+                  <div className="flex items-center space-x-4">
+                    <button
+                      onClick={() => {
+                        setServiceReportCurrentPage(1);
+                        const today = new Date().toISOString().split('T')[0];
+                        setServiceReportSearchStartDate(today);
+                        setServiceReportSearchEndDate(today);
+                        setServiceReportStatusFilter('전체');
+                        setServiceReportDepartmentFilter('전체');
+                        setServiceReportStageFilter('전체');
+                      }}
+                      className="w-6 h-6 text-gray-600 hover:text-gray-800 transition-colors"
+                    >
+                      <Icon name="refresh" size={16} />
+                    </button>
+                    <h2 className="text-xl font-bold text-gray-800">서비스 현황 Report</h2>
+                  </div>
+                  <button
+                    onClick={() => setShowServiceReport(false)}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <Icon name="close" size={24} />
+                  </button>
+                </div>
+
+                {/* 검색 및 필터 영역 */}
+                <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-4">
+                      {/* 날짜 선택 */}
+                      <div className="flex items-center space-x-2">
+                        <label className="text-sm font-medium text-gray-700">Q 검색 조건:</label>
+                        <input
+                          type="date"
+                          value={serviceReportSearchStartDate}
+                          onChange={(e) => setServiceReportSearchStartDate(e.target.value)}
+                          className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
+                        />
+                        <span className="text-gray-600 font-medium">~</span>
+                        <input
+                          type="date"
+                          value={serviceReportSearchEndDate}
+                          onChange={(e) => setServiceReportSearchEndDate(e.target.value)}
+                          className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
+                        />
+                      </div>
+                      
+                      {/* 현재상태 선택 */}
+                      <select
+                        value={serviceReportStatusFilter}
+                        onChange={(e) => setServiceReportStatusFilter(e.target.value)}
+                        className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
+                      >
+                        <option value="전체">전체</option>
+                        <option value="정상작동">정상작동</option>
+                        <option value="부분불능">부분불능</option>
+                        <option value="전체불능">전체불능</option>
+                        <option value="기타상태">기타상태</option>
+                        <option value="메시지창">메시지창</option>
+                        <option value="오류발생">오류발생</option>
+                        <option value="점검요청">점검요청</option>
+                      </select>
+                      
+                      {/* 부서 선택 */}
+                      <select
+                        value={serviceReportDepartmentFilter}
+                        onChange={(e) => setServiceReportDepartmentFilter(e.target.value)}
+                        className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
+                      >
+                        <option value="전체">전체</option>
+                        <option value="IT팀">IT팀</option>
+                        <option value="운영팀">운영팀</option>
+                        <option value="관리부">관리부</option>
+                        <option value="생산부">생산부</option>
+                        <option value="구매팀">구매팀</option>
+                        <option value="마케팅팀">마케팅팀</option>
+                        <option value="재무팀">재무팀</option>
+                        <option value="인사팀">인사팀</option>
+                        <option value="법무팀">법무팀</option>
+                        <option value="연구개발팀">연구개발팀</option>
+                      </select>
+                      
+                      {/* 단계 선택 */}
+                      <select
+                        value={serviceReportStageFilter}
+                        onChange={(e) => setServiceReportStageFilter(e.target.value)}
+                        className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
+                      >
+                        <option value="전체">전체</option>
+                        <option value="접수">접수</option>
+                        <option value="배정">배정</option>
+                        <option value="확인">확인</option>
+                        <option value="예정">예정</option>
+                        <option value="작업">작업</option>
+                        <option value="완료">완료</option>
+                        <option value="미결">미결</option>
+                        <option value="재배정">재배정</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 테이블 영역 */}
+                <div className="flex-1 overflow-hidden">
+                  <div className="overflow-x-auto overflow-y-auto px-4" style={{height: '450px'}}>
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-100 sticky top-0">
+                        <tr>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">신청번호</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">신청제목</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">현재상태</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">신청자</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">신청소속</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">단계</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">배정(h)</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">서비스유형</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">조치담당자</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">조치담당자소속</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">작업(h)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {paginatedServiceReports.map((report) => (
+                          <tr key={report.id} className="hover:bg-gray-50">
+                            <td className="px-2 py-2 text-gray-900 text-center">{report.requestNumber}</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{report.title}</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{report.currentStatus}</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{report.requester}</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{report.requesterDepartment}</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                report.stage === '접수' ? 'bg-purple-100 text-purple-800' :
+                                report.stage === '배정' ? 'bg-blue-100 text-blue-800' :
+                                report.stage === '확인' ? 'bg-green-100 text-green-800' :
+                                report.stage === '예정' ? 'bg-yellow-100 text-yellow-800' :
+                                report.stage === '작업' ? 'bg-blue-100 text-blue-800' :
+                                report.stage === '완료' ? 'bg-green-100 text-green-800' :
+                                report.stage === '미결' ? 'bg-red-100 text-red-800' :
+                                report.stage === '재배정' ? 'bg-orange-100 text-orange-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {report.stage}
+                              </span>
+                            </td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{report.assignmentHours}h</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{report.serviceType}</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{report.assignee}</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{report.assigneeDepartment}</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{report.workHours}h</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* 하단 버튼 영역 */}
+                <div className="flex justify-between items-center px-6 py-4 border-t border-gray-200 bg-gray-50">
+                  <button
+                    onClick={() => {
+                      // 엑셀 파일 다운로드 로직
+                      const today = new Date().toISOString().split('T')[0].replace(/-/g, '');
+                      const filename = `서비스현황리포트_${today}.xlsx`;
+                      downloadExcel(filteredServiceReports, filename);
+                    }}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  >
+                    자료 다운로드 (Excel)
+                  </button>
+                  
+                  {/* 페이지네이션 */}
+                  {serviceReportTotalPages > 1 && (
+                    <div className="flex items-center space-x-2">
+                      <button 
+                        onClick={() => setServiceReportCurrentPage(Math.max(1, serviceReportCurrentPage - 1))}
+                        disabled={serviceReportCurrentPage === 1}
+                        className="px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        이전
+                      </button>
+                      <span className="px-2 py-1 bg-blue-500 text-white rounded text-xs">
+                        {serviceReportCurrentPage}/{serviceReportTotalPages}
+                      </span>
+                      <button 
+                        onClick={() => setServiceReportCurrentPage(Math.min(serviceReportTotalPages, serviceReportCurrentPage + 1))}
+                        disabled={serviceReportCurrentPage >= serviceReportTotalPages}
+                        className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        다음
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* 프레임 3: 일반문의 현황 */}
           <div className="absolute" style={{left: '1590px', top: '84px'}}>
             <div className="w-80" style={{width: '306px'}}>
@@ -1873,7 +2209,7 @@ export default function SystemAdminPage() {
                       <div className={`w-3 h-3 bg-white rounded-full transition-transform ${
                         showGeneralInquiryStatus ? 'translate-x-4' : 'translate-x-0.5'
                       }`} />
-                    </button>
+                </button>
                   </div>
                 </div>
 
@@ -1982,7 +2318,7 @@ export default function SystemAdminPage() {
                 <Icon name="assignment-confirm" size={24} className="mr-2" />
                 배정 확인
               </h2>
-              <button
+                <button
                 onClick={closeModal}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
@@ -2312,7 +2648,7 @@ export default function SystemAdminPage() {
                                 }`}
                               >
                                 처리
-                              </button>
+                </button>
                             </div>
                           )}
                         </div>
@@ -2336,7 +2672,7 @@ export default function SystemAdminPage() {
                           {currentStage === '작업' && (
                             <div className="flex items-center gap-2">
                               <Icon name="calendar" className="w-5 h-5 text-gray-400" />
-                              <button
+                <button
                                 onClick={handleWorkStartProcess}
                                 disabled={!workStartDate}
                                 className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
@@ -2346,7 +2682,7 @@ export default function SystemAdminPage() {
                                 }`}
                               >
                                 처리
-                              </button>
+                </button>
                             </div>
                           )}
                         </div>
@@ -2382,7 +2718,7 @@ export default function SystemAdminPage() {
                           </div>
                           {currentStage === '완료' && (
                             <div className="flex justify-end">
-                              <button
+                <button
                                 onClick={handleWorkCompleteProcess}
                                 disabled={!workContent || !workCompleteDate}
                                 className={`px-6 py-2 rounded-lg font-medium transition-all duration-200 ${
@@ -2392,11 +2728,11 @@ export default function SystemAdminPage() {
                                 }`}
                               >
                                 처리
-                              </button>
+                </button>
                             </div>
                           )}
                         </div>
-                      </div>
+            </div>
 
                       {/* 문제 사항 */}
                       <div className={`px-4 py-0 rounded-lg border-2 ${currentStage === '미결' ? 'border-orange-300 bg-orange-50' : 'border-gray-200 bg-gray-50'}`}>
@@ -2413,7 +2749,7 @@ export default function SystemAdminPage() {
                               rows={3}
                               placeholder="작업 중 발견 된 문제점 입력"
                             />
-                          </div>
+                        </div>
                           {currentStage === '미결' && (
                             <div className="flex items-start gap-2">
                               <button
@@ -2422,9 +2758,9 @@ export default function SystemAdminPage() {
                               >
                                 등재
                               </button>
-                            </div>
-                          )}
                         </div>
+                          )}
+                      </div>
                         <div className="mt-3 flex items-center">
                           <input
                             type="checkbox"
@@ -2439,11 +2775,11 @@ export default function SystemAdminPage() {
                           }`}>
                             미결 완료
                           </label>
-                        </div>
+                    </div>
                       </div>
 
-                    </div>
-                  </div>
+                        </div>
+                        </div>
                 )}
 
                 {/* 오른쪽: 빈 공간 (작업정보등록 버튼 클릭 전) */}
@@ -2452,12 +2788,12 @@ export default function SystemAdminPage() {
                   <div className="flex items-center space-x-2 mb-4">
                     <Icon name="settings" size={20} className="text-gray-600" />
                     <h3 className="text-lg font-semibold text-gray-800">작업정보등록</h3>
-                  </div>
+                      </div>
                   
                   <div className="text-center py-8">
                     <p className="text-gray-500 mb-4">작업정보등록을 시작하려면</p>
                     <p className="text-gray-500 mb-6">하단 버튼을 클릭하세요</p>
-                  </div>
+                    </div>
                 </div>
                 )}
               </div>
@@ -2499,9 +2835,9 @@ export default function SystemAdminPage() {
             </button>
                 </>
               )}
-          </div>
-        </div>
-      </div>
+                        </div>
+                        </div>
+                      </div>
       )}
 
       {/* 비밀번호 변경 모달 */}
@@ -2525,7 +2861,7 @@ export default function SystemAdminPage() {
               >
                 <Icon name="close" size={24} />
               </button>
-    </div>
+                    </div>
 
             {/* 모달 내용 */}
             <div className="py-4 px-6 space-y-4">
@@ -3067,7 +3403,7 @@ export default function SystemAdminPage() {
                             placeholder="문제사항을 입력하세요"
                           />
                         </div>
-                        <div className="flex items-center">
+                      <div className="flex items-center">
                           <input
                             type="checkbox"
                             id="unresolved"
@@ -3085,12 +3421,12 @@ export default function SystemAdminPage() {
                         >
                           등재
                         </button>
-                      </div>
+                        </div>
                     )}
-                  </div>
-                </div>
+                      </div>
+                    </div>
               </div>
-            </div>
+                </div>
 
             {/* 모달 하단 버튼 */}
             <div className="flex gap-3 py-4 px-6 border-t border-gray-200">
@@ -3166,22 +3502,22 @@ export default function SystemAdminPage() {
             <div className="py-4 px-6">
               <div className="grid grid-cols-2 gap-6">
                 {/* 서비스신청정보 */}
-                <div className="space-y-4">
+                      <div className="space-y-4">
                   <div className="flex items-center space-x-2 mb-4">
                     <Icon name="user" size={20} className="text-gray-600" />
                     <h3 className="text-lg font-semibold text-gray-800">서비스신청정보</h3>
-                  </div>
+                        </div>
                   
                   <div className="space-y-0">
                     <div>
                       <span className="text-sm font-medium text-gray-600">신청번호: </span>
                       <span className="text-sm font-bold text-red-600">{selectedWorkRequest.requestNumber}</span>
-                    </div>
+                        </div>
                     
                     <div>
                       <span className="text-sm font-medium text-gray-600">신청제목: </span>
                       <span className="text-sm">{selectedWorkRequest.title}</span>
-                    </div>
+                        </div>
                     
                     <div>
                       <span className="text-sm font-medium text-gray-600">신청내용: </span>
@@ -3243,11 +3579,11 @@ export default function SystemAdminPage() {
                 </div>
 
                 {/* 배정정보 */}
-                <div className="space-y-4">
+                      <div className="space-y-4">
                   <div className="flex items-center space-x-2 mb-4">
                     <Icon name="settings" size={20} className="text-gray-600" />
                     <h3 className="text-lg font-semibold text-gray-800">배정정보</h3>
-                  </div>
+                        </div>
                   
                   <div className="space-y-0">
                     <div>
@@ -3261,7 +3597,7 @@ export default function SystemAdminPage() {
                         <option value="인사팀">인사팀</option>
                         <option value="재무팀">재무팀</option>
                       </select>
-                    </div>
+                        </div>
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-1">조치담당자</label>
@@ -3388,9 +3724,9 @@ export default function SystemAdminPage() {
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="user" size={14} className="mr-1" />
                         신청자: 
-                      </span>
+                          </span>
                       <span className="text-sm ml-5">{selectedWorkRequest.requester} ({selectedWorkRequest.department})</span>
-                    </div>
+                        </div>
                     
                     <div>
                       <span className="text-sm font-medium text-gray-600 flex items-center">
@@ -3398,7 +3734,7 @@ export default function SystemAdminPage() {
                         신청연락처: 
                       </span>
                       <span className="text-sm ml-5">{selectedWorkRequest.contact}</span>
-                    </div>
+                      </div>
                     
                     <div>
                       <span className="text-sm font-medium text-gray-600 flex items-center">
@@ -3560,9 +3896,9 @@ export default function SystemAdminPage() {
                 재배정하기
               </button>
             </div>
-          </div>
-        </div>
-      )}
+                </div>
+              </div>
+            )}
 
       {/* 작업정보관리 모달 */}
       {showServiceWorkInfoModal && selectedWorkRequest && (
@@ -3694,7 +4030,7 @@ export default function SystemAdminPage() {
                     {/* 예정 조율 일시 */}
                     <div className={`px-4 py-0 rounded-lg border-2 ${(serviceWorkCurrentStage === '예정' || serviceWorkCurrentStage === '완료' || serviceWorkCurrentStage === '미결') ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
                       <div className="flex items-center gap-4">
-                        <div className="flex-1">
+                      <div className="flex-1">
                           <label className="block text-sm font-medium text-gray-600 mb-2">예정 조율 일시</label>
                       <input
                         type="datetime-local"
@@ -3704,8 +4040,8 @@ export default function SystemAdminPage() {
                             className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                               (serviceWorkCurrentStage !== '예정' && serviceWorkCurrentStage !== '완료' && serviceWorkCurrentStage !== '미결') ? 'bg-gray-100 cursor-not-allowed' : ''
                             }`}
-                      />
-                    </div>
+                        />
+                      </div>
                         {serviceWorkCurrentStage === '예정' && (
                           <div className="flex items-center gap-2">
                             <Icon name="calendar" className="w-5 h-5 text-gray-400" />
@@ -3757,7 +4093,7 @@ export default function SystemAdminPage() {
                           <div className="flex items-center gap-2">
                             <Icon name="calendar" className="w-5 h-5 text-gray-400" />
                             <button
-                              onClick={() => {
+                          onClick={() => {
                                 if (serviceWorkStartDate) {
                                   setServiceWorkCurrentStage('완료')
                                   // 작업완료일시에 현재 시점 자동 설정 (한국 시간)
@@ -3780,10 +4116,10 @@ export default function SystemAdminPage() {
                             >
                               처리
                             </button>
-                          </div>
-                        )}
                       </div>
+                        )}
                     </div>
+                  </div>
 
                     {/* 작업 내역 및 완료 일시 */}
                     <div className={`px-4 py-0 rounded-lg border-2 ${(serviceWorkCurrentStage === '완료' || serviceWorkCurrentStage === '미결') ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
@@ -3837,7 +4173,7 @@ export default function SystemAdminPage() {
                         )}
                       </div>
                     </div>
-
+                    
                     {/* 문제 사항 */}
                     <div className={`px-4 py-0 rounded-lg border-2 ${serviceWorkCurrentStage === '미결' ? 'border-orange-300 bg-orange-50' : 'border-gray-200 bg-gray-50'}`}>
                       <div className="flex items-start gap-4">
@@ -3967,7 +4303,7 @@ export default function SystemAdminPage() {
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="user" size={14} className="mr-1" />
                         신청자: 
-                      </span>
+                                </span>
                       <span className="text-sm ml-5">{selectedWorkRequest.requester} ({selectedWorkRequest.department})</span>
                     </div>
                     
@@ -4225,8 +4561,8 @@ export default function SystemAdminPage() {
         </div>
       )}
 
-      {/* 자주하는 질문 관리 프레임 */}
-      {showFAQManagement && (
+      {/* 자주하는 질문 관리 프레임 - 시스템관리에서는 제거됨 */}
+      {false && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
           <div className="bg-white rounded-lg shadow-xl max-w-7xl w-full mx-4 max-h-[90vh] overflow-hidden">
             {/* 프레임 헤더 */}
@@ -4341,11 +4677,11 @@ export default function SystemAdminPage() {
                   ]
 
                   // 페이지네이션 로직
-                  const itemsPerPage = 6
-                  const totalPages = Math.ceil(faqs.length / itemsPerPage)
+                  const faqItemsPerPage = 6
+                  const totalPages = Math.ceil(faqs.length / faqItemsPerPage)
                   const currentFAQs = faqs.slice(
-                    (faqCurrentPage - 1) * itemsPerPage,
-                    faqCurrentPage * itemsPerPage
+                    (faqCurrentPage - 1) * faqItemsPerPage,
+                    faqCurrentPage * faqItemsPerPage
                   )
 
                   return (
@@ -4373,7 +4709,7 @@ export default function SystemAdminPage() {
                             <span className="text-sm px-4 rounded-full bg-blue-100 text-blue-800 font-medium" style={{paddingTop: '0px', paddingBottom: '0px'}}>
                               {faq.category}
                             </span>
-                            <div className="flex space-x-2">
+                                <div className="flex space-x-2">
                               <button 
                                 onClick={(e) => {
                                   e.stopPropagation(); // 이벤트 버블링 방지
@@ -4397,14 +4733,14 @@ export default function SystemAdminPage() {
                               >
                                 삭제
                               </button>
-                            </div>
+                                </div>
                           </div>
                         </div>
-                      ))}
+                          ))}
                     </>
                   )
                 })()}
-              </div>
+                    </div>
 
               {/* 페이지네이션 */}
               {(() => {
@@ -4412,8 +4748,8 @@ export default function SystemAdminPage() {
                   { id: '1' }, { id: '2' }, { id: '3' }, { id: '4' }, { id: '5' }, { id: '6' },
                   { id: '7' }, { id: '8' }, { id: '9' }, { id: '10' }, { id: '11' }, { id: '12' }
                 ]
-                const itemsPerPage = 6
-                const totalPages = Math.ceil(faqs.length / itemsPerPage)
+                const faqItemsPerPage = 6
+                const totalPages = Math.ceil(faqs.length / faqItemsPerPage)
                 
                 return totalPages > 1 && (
                   <div className="flex justify-center items-center space-x-4 mt-8">
@@ -4456,8 +4792,8 @@ export default function SystemAdminPage() {
                     { id: '1' }, { id: '2' }, { id: '3' }, { id: '4' }, { id: '5' }, { id: '6' },
                     { id: '7' }, { id: '8' }, { id: '9' }, { id: '10' }, { id: '11' }, { id: '12' }
                   ]
-                  const itemsPerPage = 6
-                  const totalPages = Math.ceil(faqs.length / itemsPerPage)
+                  const faqItemsPerPage = 6
+                  const totalPages = Math.ceil(faqs.length / faqItemsPerPage)
                   return (
                     <span className="text-sm text-gray-500">{faqCurrentPage} / {totalPages} 페이지</span>
                   )
@@ -4471,11 +4807,11 @@ export default function SystemAdminPage() {
               </div>
             </div>
           </div>
-        </div>
-      )}
+              </div>
+            )}
 
-      {/* FAQ 수정 모달 */}
-      {showFAQEditModal && (
+      {/* FAQ 수정 모달 - 시스템관리에서는 제거됨 */}
+      {false && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden">
             {/* 모달 헤더 */}
@@ -4487,8 +4823,8 @@ export default function SystemAdminPage() {
               >
                 <Icon name="close" size={24} />
               </button>
-            </div>
-
+                  </div>
+                  
             {/* 모달 내용 */}
             <div className="p-6 overflow-y-auto" style={{maxHeight: 'calc(90vh - 120px)'}}>
               {/* 아이콘 섹션 */}
@@ -4578,8 +4914,8 @@ export default function SystemAdminPage() {
         </div>
       )}
 
-      {/* FAQ 추가 모달 */}
-      {showFAQAddModal && (
+      {/* FAQ 추가 모달 - 시스템관리에서는 제거됨 */}
+      {false && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden">
             {/* 모달 헤더 */}
@@ -4678,8 +5014,8 @@ export default function SystemAdminPage() {
         </div>
       )}
 
-      {/* FAQ 완료 모달 */}
-      {showFAQCompleteModal && (
+      {/* FAQ 완료 모달 - 시스템관리에서는 제거됨 */}
+      {false && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
             {/* 모달 헤더 */}
@@ -4798,8 +5134,8 @@ export default function SystemAdminPage() {
                       <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">답변일시</th>
                       <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">답변자</th>
                       <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">관리</th>
-                    </tr>
-                  </thead>
+                        </tr>
+                      </thead>
                   <tbody className="divide-y divide-gray-200">
                     {(() => {
                       // 일반문의 데이터 (페이지네이션 테스트를 위해 더 많은 데이터 추가)
@@ -4937,10 +5273,10 @@ export default function SystemAdminPage() {
                       });
 
                       // 페이지네이션
-                      const itemsPerPage = 10;
-                      const totalPages = Math.ceil(filteredInquiries.length / itemsPerPage);
-                      const startIndex = (generalInquiryCurrentPage - 1) * itemsPerPage;
-                      const endIndex = startIndex + itemsPerPage;
+                      const inquiryItemsPerPage = 10;
+                      const totalPages = Math.ceil(filteredInquiries.length / inquiryItemsPerPage);
+                      const startIndex = (generalInquiryCurrentPage - 1) * inquiryItemsPerPage;
+                      const endIndex = startIndex + inquiryItemsPerPage;
                       const currentInquiries = filteredInquiries.slice(startIndex, endIndex);
 
                       return (
@@ -4956,7 +5292,7 @@ export default function SystemAdminPage() {
                                   {inquiry.answerer && <Icon name="lock" size={16} className="text-gray-400 mr-1" />}
                                   {inquiry.answerer || '-'}
                                 </div>
-                              </td>
+                            </td>
                               <td className="px-2 py-2 text-center">
                                 <div className="flex justify-center space-x-2">
                                   {inquiry.answerDate ? (
@@ -4994,16 +5330,16 @@ export default function SystemAdminPage() {
                                       답변하기
                                     </button>
                                   )}
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
                         </>
                       );
                     })()}
-                  </tbody>
-                </table>
-              </div>
+                      </tbody>
+                    </table>
+                  </div>
 
               {/* 페이지네이션 */}
               {(() => {
@@ -5058,7 +5394,7 @@ export default function SystemAdminPage() {
                       >
                         다음
                       </button>
-                    </div>
+                </div>
                   </div>
                 ) : null;
               })()}
@@ -5083,8 +5419,8 @@ export default function SystemAdminPage() {
               >
                 <Icon name="close" size={24} />
               </button>
-            </div>
-
+                  </div>
+                  
             {/* 모달 내용 */}
             <div className="py-6 px-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -5093,18 +5429,18 @@ export default function SystemAdminPage() {
                   <div className="flex items-center space-x-2 mb-4">
                     <Icon name="user" size={20} className="text-gray-600" />
                     <h3 className="text-lg font-semibold text-gray-800">문의 정보</h3>
-                  </div>
+                    </div>
                   
                   <div className="space-y-0">
                     <div>
                       <span className="text-sm font-medium text-gray-600">문의 일시: </span>
                       <span className="text-sm">{selectedInquiry.inquiryDate}</span>
-                    </div>
+                  </div>
                     
                     <div>
                       <span className="text-sm font-medium text-gray-600">문의자: </span>
                       <span className="text-sm">{selectedInquiry.inquirer}</span>
-                    </div>
+                </div>
                     
                     <div>
                       <span className="text-sm font-medium text-gray-600">문의 내용: </span>
@@ -5122,26 +5458,26 @@ export default function SystemAdminPage() {
                     <h3 className="text-lg font-semibold text-gray-800">답변 하기</h3>
                   </div>
                   
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
                         답변 내용
-                      </label>
+                        </label>
                       <textarea
                         rows={8}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                         placeholder="답변 내용을 입력하세요"
                         defaultValue="네트워크 케이블이 정확히 꼽혀 있는지 확인 해 주세요!"
                       />
-                    </div>
+                          </div>
                     
                     <div>
                       <span className="text-sm font-medium text-gray-600">답변자: </span>
                       <span className="text-sm">이배정 (관리팀)</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                          </div>
+                          </div>
+                        </div>
+                      </div>
             </div>
 
             {/* 모달 하단 버튼 */}
@@ -5196,10 +5532,10 @@ export default function SystemAdminPage() {
                   </div>
                   
                   <div className="space-y-0">
-                    <div>
+                      <div>
                       <span className="text-sm font-medium text-gray-600">문의 일시: </span>
                       <span className="text-sm">{selectedInquiry.inquiryDate}</span>
-                    </div>
+                      </div>
                     
                     <div>
                       <span className="text-sm font-medium text-gray-600">문의자: </span>
@@ -5223,17 +5559,17 @@ export default function SystemAdminPage() {
                   </div>
                   
                   <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
                         답변 내용
-                      </label>
+                        </label>
                       <textarea
                         rows={8}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                         placeholder="답변 내용을 입력하세요"
                         defaultValue={selectedInquiry.answerContent || "모니터 전원 케이블를 한번 더 꼽아 주세요! 모니터 전원 버튼을 켜 주십시요 이상과 같이 조치가 되지 않을 따는 서비스 신청 해 주세요!"}
                       />
-                    </div>
+                      </div>
                     
                     <div>
                       <span className="text-sm font-medium text-gray-600">답변자: </span>
@@ -5264,8 +5600,8 @@ export default function SystemAdminPage() {
               </button>
             </div>
           </div>
-        </div>
-      )}
+              </div>
+            )}
 
       {/* 답변삭제하기 프레임 */}
       {showGeneralInquiryDeleteModal && selectedInquiry && (
@@ -5289,24 +5625,24 @@ export default function SystemAdminPage() {
             <div className="py-6 px-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 {/* 문의 정보 */}
-                <div className="space-y-4">
+                    <div className="space-y-4">
                   <div className="flex items-center space-x-2 mb-4">
                     <Icon name="user" size={20} className="text-gray-600" />
                     <h3 className="text-lg font-semibold text-gray-800">문의 정보</h3>
                   </div>
                   
                   <div className="space-y-0">
-                    <div>
+                      <div>
                       <span className="text-sm font-medium text-gray-600">문의 일시: </span>
                       <span className="text-sm">{selectedInquiry.inquiryDate}</span>
-                    </div>
+                      </div>
                     
-                    <div>
+                      <div>
                       <span className="text-sm font-medium text-gray-600">문의자: </span>
                       <span className="text-sm">{selectedInquiry.inquirer}</span>
-                    </div>
+                      </div>
                     
-                    <div>
+                      <div>
                       <span className="text-sm font-medium text-gray-600">문의 내용: </span>
                       <div className="text-sm mt-1 p-3 bg-gray-50 rounded text-gray-700 min-h-24 max-h-48 overflow-y-auto whitespace-pre-wrap">
                         {selectedInquiry.content}
@@ -5323,23 +5659,23 @@ export default function SystemAdminPage() {
                   </div>
                   
                   <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
                         답변 내용
-                      </label>
+                        </label>
                       <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 min-h-32 max-h-48 overflow-y-auto whitespace-pre-wrap">
                         {selectedInquiry.answerContent || "모니터 전원 케이블를 한번 더 꼽아 주세요! 모니터 전원 버튼을 켜 주십시요 이상과 같이 조치가 되지 않을 따는 서비스 신청 해 주세요!"}
-                      </div>
-                    </div>
+                          </div>
+                          </div>
                     
                     <div>
                       <span className="text-sm font-medium text-gray-600">답변자: </span>
                       <span className="text-sm">이배정 (관리팀)</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
-            </div>
 
             {/* 모달 하단 버튼 */}
             <div className="flex gap-3 py-4 px-6 border-t border-gray-200">
@@ -5361,9 +5697,9 @@ export default function SystemAdminPage() {
               </button>
             </div>
           </div>
-        </div>
-      )}
-      
+              </div>
+            )}
+
       {/* 애니메이션 스타일 */}
       <style jsx>{`
         @keyframes slideInLeft {
@@ -5399,6 +5735,6 @@ export default function SystemAdminPage() {
           }
         }
       `}</style>
-    </div>
+          </div>
   )
 }
