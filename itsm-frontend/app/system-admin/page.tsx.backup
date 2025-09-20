@@ -51,7 +51,7 @@ interface PendingWork {
   longTermPending: number
 }
 
-export default function ServiceManagerPage() {
+export default function SystemAdminPage() {
   const router = useRouter()
   const [currentDate, setCurrentDate] = useState('')
   const [currentTime, setCurrentTime] = useState('')
@@ -89,14 +89,33 @@ export default function ServiceManagerPage() {
   
   // 서비스작업 List 관리 관련 상태
   const [showServiceWorkList, setShowServiceWorkList] = useState(false)
-  const [showFAQManagement, setShowFAQManagement] = useState(false)
+  const [showServiceReport, setShowServiceReport] = useState(false)
+  const [showUserManagement, setShowUserManagement] = useState(false)
   
-  // 자주하는 질문 관리 관련 상태
-  const [faqCurrentPage, setFaqCurrentPage] = useState(1)
-  const [showFAQEditModal, setShowFAQEditModal] = useState(false)
-  const [showFAQAddModal, setShowFAQAddModal] = useState(false)
-  const [showFAQCompleteModal, setShowFAQCompleteModal] = useState(false)
-  const [selectedFAQ, setSelectedFAQ] = useState<any>(null)
+  // 서비스현황리포트 관련 상태
+  const [serviceReportCurrentPage, setServiceReportCurrentPage] = useState(1)
+  const [serviceReportSearchStartDate, setServiceReportSearchStartDate] = useState(() => {
+    const oneWeekAgo = new Date()
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+    return oneWeekAgo.toISOString().split('T')[0]
+  })
+  const [serviceReportSearchEndDate, setServiceReportSearchEndDate] = useState(new Date().toISOString().split('T')[0])
+  const [serviceReportStatusFilter, setServiceReportStatusFilter] = useState('전체')
+  const [serviceReportDepartmentFilter, setServiceReportDepartmentFilter] = useState('전체')
+  const [serviceReportStageFilter, setServiceReportStageFilter] = useState('전체')
+  
+  // 사용자관리 관련 상태
+  const [userManagementCurrentPage, setUserManagementCurrentPage] = useState(1)
+  const [userManagementSearchDepartment, setUserManagementSearchDepartment] = useState('전체')
+  const [userManagementSearchStartDate, setUserManagementSearchStartDate] = useState(() => {
+    const oneWeekAgo = new Date()
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+    return oneWeekAgo.toISOString().split('T')[0]
+  })
+  const [userManagementSearchEndDate, setUserManagementSearchEndDate] = useState(new Date().toISOString().split('T')[0])
+  const [userManagementSearchName, setUserManagementSearchName] = useState('')
+  const [showUserEditModal, setShowUserEditModal] = useState(false)
+  const [selectedUser, setSelectedUser] = useState<any>(null)
   
   // 일반문의 List 관리 관련 상태
   const [showGeneralInquiryList, setShowGeneralInquiryList] = useState(false)
@@ -134,11 +153,11 @@ export default function ServiceManagerPage() {
   const [showServiceWorkCompleteModal, setShowServiceWorkCompleteModal] = useState(false)
   const [showServiceWorkDeleteCompleteModal, setShowServiceWorkDeleteCompleteModal] = useState(false)
   
-  // 관리매니저 정보 상태
+  // 시스템관리자 정보 상태
   const [managerInfo, setManagerInfo] = useState({
-    name: '황매니저',
+    name: '김시스템',
     email: 'service@itsm.com',
-    fullName: '황매니저',
+    fullName: '황기술',
     position: '대리',
     department: 'IT팀',
     phone: '010-1234-5678',
@@ -770,8 +789,8 @@ export default function ServiceManagerPage() {
       completionDate: ''
     },
     {
-      id: '28',
-      requestNumber: 'SR-20250831-028',
+      id: '25',
+      requestNumber: 'SR-20250831-025',
       title: '테스트용 완료 단계 작업',
       status: '진행중',
       currentStatus: '정상작동',
@@ -800,8 +819,8 @@ export default function ServiceManagerPage() {
       currentWorkStage: '완료'
     },
     {
-      id: '29',
-      requestNumber: 'SR-20250831-029',
+      id: '26',
+      requestNumber: 'SR-20250831-026',
       title: '테스트용 미결 단계 작업',
       status: '진행중',
       currentStatus: '부분불능',
@@ -848,13 +867,8 @@ export default function ServiceManagerPage() {
       return request.stage !== '완료'
     }
     
-    // 관리매니저 권한 필터링 로직
-    // 1. 접수/재배정 단계: 조치담당자 미확정 상태 - 모든 데이터 표시 (관리매니저 권한)
-    if (request.stage === '접수' || request.stage === '재배정') {
-      return true
-    }
-    
-    // 2. 기타 단계: 조치소속 기준 필터링
+    // 시스템관리 전체 권한 필터링 로직
+    // 1. 모든 단계: 전체 권한으로 모든 데이터 표시
     if (serviceWorkSelectedDepartment !== '전체') {
       return request.assigneeDepartment === serviceWorkSelectedDepartment
     }
@@ -1227,7 +1241,7 @@ export default function ServiceManagerPage() {
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: "url('/image/배경_관리매니저_페이지.jpg')",
+          backgroundImage: "url('/image/배경_시스템관리_페이지.jpg')",
           opacity: 1.0
         }}
       />
@@ -1262,7 +1276,7 @@ export default function ServiceManagerPage() {
         <div className="max-w-7xl mx-auto px-6 py-6 w-full">
           <div className="flex items-center justify-between mb-12">
             <div className="px-20 py-0 rounded-full -ml-72 smooth-hover animate-fade-in shadow-lg" style={{backgroundColor: '#D4B8F9', marginLeft: '-310px'}}>
-              <span className="text-purple-800 font-medium" style={{fontSize: '14px'}}>관리매니저 ({managerInfo.name})</span>
+              <span className="text-purple-800 font-medium" style={{fontSize: '14px'}}>시스템관리 ({managerInfo.name})</span>
             </div>
           </div>
         </div>
@@ -1486,17 +1500,17 @@ export default function ServiceManagerPage() {
                     }}
                   >
                     <div className="text-left">
-                      <Icon name="laptop-white" className="text-white mb-4" />
+                      <Icon name="laptop" size={48} className="text-white mb-4" />
                       <h4 className="text-white font-bold text-lg">서비스 작업 List 관리</h4>
                     </div>
                   </div>
 
-                  {/* 자주하는 질문 관리 - 아래쪽에서 날아오는 애니메이션 */}
+                  {/* 서비스 현황 리포트 - 아래쪽에서 날아오는 애니메이션 */}
                   <div 
-                    onClick={() => setShowFAQManagement(true)}
+                    onClick={() => setShowServiceReport(true)}
                     className="bg-gray-800 rounded-lg p-6 cursor-pointer hover:bg-gray-700 hover:scale-105 transition-all duration-300 ease-in-out flex flex-col items-start justify-start animate-slide-in-bottom"
                     style={{
-                      backgroundImage: `url('/image/선택_자주하는질문관리.jpg')`,
+                      backgroundImage: `url('/image/선택_서비스현황리포트.jpg')`,
                       backgroundSize: '750px',
                       backgroundPosition: 'center',
                       width: '300px',
@@ -1509,8 +1523,31 @@ export default function ServiceManagerPage() {
                     }}
                   >
                     <div className="text-left">
-                      <Icon name="help-circle" size={48} className="text-white mb-4" />
-                      <h4 className="text-white font-bold text-lg">자주하는 질문 관리</h4>
+                      <Icon name="bar-chart" size={48} className="text-white mb-4" />
+                      <h4 className="text-white font-bold text-lg">서비스 현황 리포트</h4>
+                    </div>
+                  </div>
+                  
+                  {/* 사용자 관리 - 아래쪽에서 날아오는 애니메이션 */}
+                  <div 
+                    onClick={() => setShowUserManagement(true)}
+                    className="bg-gray-800 rounded-lg p-6 cursor-pointer hover:bg-gray-700 hover:scale-105 transition-all duration-300 ease-in-out flex flex-col items-start justify-start animate-slide-in-bottom"
+                    style={{
+                      backgroundImage: `url('/image/슬라이드_선택_사용자관리.jpg')`,
+                      backgroundSize: '750px',
+                      backgroundPosition: 'center',
+                      width: '300px',
+                      height: '400px',
+                      boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5), 0 10px 20px rgba(0, 0, 0, 0.3), 0 0 0 3px rgba(255, 255, 255, 0.3)',
+                      border: '2px solid rgba(255, 255, 255, 0.2)',
+                      animation: 'slideInBottom 0.8s ease-out 0.4s forwards',
+                      opacity: 0,
+                      transform: 'translateY(100px)'
+                    }}
+                  >
+                    <div className="text-left">
+                      <Icon name="user" size={48} className="text-white mb-4" />
+                      <h4 className="text-white font-bold text-lg">사용자 관리</h4>
                     </div>
                   </div>
 
@@ -1592,14 +1629,14 @@ export default function ServiceManagerPage() {
                         onChange={(e) => setServiceWorkSelectedDepartment(e.target.value)}
                         className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
                       >
-                        <option value="전체">전체</option>
                         <option value="IT팀">IT팀</option>
                         <option value="운영팀">운영팀</option>
                         <option value="개발팀">개발팀</option>
                         <option value="보안팀">보안팀</option>
                         <option value="인사팀">인사팀</option>
                         <option value="재무팀">재무팀</option>
-                        </select>
+                        <option value="전체">전체</option>
+                      </select>
                     </div>
                     
                     {/* 미결완료조회 토글 - 우측 끝 배치 */}
@@ -1704,10 +1741,9 @@ export default function ServiceManagerPage() {
                                   </button>
                                 )}
 
-                                {/* 배정/확인/예정/작업/완료/미결 단계: 조치담당자 확정 - 수정/삭제 버튼 (관리매니저 소속만) */}
+                                {/* 배정/확인/예정/작업/완료/미결 단계: 조치담당자 확정 - 수정/삭제 버튼 (시스템관리 전체 권한) */}
                                 {(request.stage === '배정' || request.stage === '확인' || request.stage === '예정' || 
-                                  request.stage === '작업' || request.stage === '완료' || request.stage === '미결') && 
-                                  request.assigneeDepartment === 'IT팀' && (
+                                  request.stage === '작업' || request.stage === '완료' || request.stage === '미결') && (
                                   <>
                                     <button
                                       onClick={() => {
@@ -2679,8 +2715,8 @@ export default function ServiceManagerPage() {
                 onClick={() => { 
                   setShowInfoModal(false); 
                   setShowInfoSuccessModal(true);
-                  // 관리매니저 이름 업데이트
-                  setManagerInfo({...managerInfo, name: managerInfo.fullName});
+                  // 관리매니저 이름 업데이트 (성명에서 추출)
+                  setManagerInfo({...managerInfo, name: managerInfo.fullName.replace('기술', '매니저')});
                 }}
                 className="bg-gray-800 hover:bg-gray-900 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200 button-smooth"
               >
@@ -4174,8 +4210,8 @@ export default function ServiceManagerPage() {
         </div>
       )}
 
-      {/* 자주하는 질문 관리 프레임 */}
-      {showFAQManagement && (
+      {/* 서비스 현황 리포트 프레임 */}
+      {showServiceReport && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
           <div className="bg-white rounded-lg shadow-xl max-w-7xl w-full mx-4 max-h-[90vh] overflow-hidden">
             {/* 프레임 헤더 */}
