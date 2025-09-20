@@ -31,7 +31,7 @@ export interface ServiceRequest {
   requester_department: string;
   priority: 'low' | 'medium' | 'high' | 'urgent';
   status: 'pending' | 'assigned' | 'in_progress' | 'completed' | 'cancelled';
-  stage: '신청' | '배정' | '확인' | '예정' | '작업' | '완료' | '미결';
+  stage: '접수' | '배정' | '재배정' | '확인' | '예정' | '작업' | '완료' | '미결';
   service_type: string;
   request_date: Date;
   assignment_date?: Date;

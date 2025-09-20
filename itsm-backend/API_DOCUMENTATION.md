@@ -213,7 +213,7 @@ Authorization: Bearer <token>
 - `page`, `limit`: 페이지네이션
 - `search`: 검색어 (제목, 설명, 요청번호)
 - `status`: 상태 (pending, assigned, in_progress, completed, cancelled)
-- `stage`: 단계 (신청, 배정, 확인, 예정, 작업, 완료, 미결)
+- `stage`: 단계 (접수, 배정, 재배정, 확인, 예정, 작업, 완료, 미결)
 - `department`: 부서
 - `priority`: 우선순위 (low, medium, high, urgent)
 - `startDate`, `endDate`: 요청일 범위

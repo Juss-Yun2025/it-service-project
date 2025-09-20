@@ -45,7 +45,7 @@ CREATE TABLE service_requests (
     requester_department VARCHAR(100) NOT NULL,
     priority VARCHAR(20) DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
     status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'assigned', 'in_progress', 'completed', 'cancelled')),
-    stage VARCHAR(20) DEFAULT '신청' CHECK (stage IN ('신청', '배정', '확인', '예정', '작업', '완료', '미결')),
+    stage VARCHAR(20) DEFAULT '접수' CHECK (stage IN ('접수', '배정', '재배정', '확인', '예정', '작업', '완료', '미결')),
     service_type VARCHAR(50) NOT NULL,
     request_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     assignment_date TIMESTAMP,

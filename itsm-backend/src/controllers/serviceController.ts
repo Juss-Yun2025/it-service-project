@@ -312,11 +312,11 @@ export const updateServiceRequest = async (req: Request, res: Response) => {
     } else if (userRole === 'service_manager') {
       canUpdate = true;
     } else if (userRole === 'assignment_manager') {
-      canUpdate = ['신청', '배정', '확인', '예정'].includes(stage || request.stage);
+      canUpdate = ['접수', '배정', '재배정', '확인', '예정'].includes(stage || request.stage);
     } else if (userRole === 'technician') {
       canUpdate = request.technician_id === userId && ['작업', '완료'].includes(stage || request.stage);
     } else if (userRole === 'user') {
-      canUpdate = request.requester_id === userId && ['신청'].includes(stage || request.stage);
+      canUpdate = request.requester_id === userId && ['접수'].includes(stage || request.stage);
     }
 
     if (!canUpdate) {
