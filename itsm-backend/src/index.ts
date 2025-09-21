@@ -12,6 +12,10 @@ import serviceRoutes from './routes/services';
 import inquiryRoutes from './routes/inquiries';
 import faqRoutes from './routes/faqs';
 import reportRoutes from './routes/reports';
+import departmentRoutes from './routes/departments';
+import serviceRequestRoutes from './routes/serviceRequests';
+import currentStatusRoutes from './routes/currentStatuses';
+import stageRoutes from './routes/stages';
 
 // Load environment variables
 dotenv.config();
@@ -46,6 +50,10 @@ app.use('/api/services', serviceRoutes);
 app.use('/api/inquiries', inquiryRoutes);
 app.use('/api/faqs', faqRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/departments', departmentRoutes);
+app.use('/api/service-requests', serviceRequestRoutes);
+app.use('/api/current-statuses', currentStatusRoutes);
+app.use('/api/stages', stageRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

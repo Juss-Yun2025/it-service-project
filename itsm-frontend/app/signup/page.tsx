@@ -39,15 +39,19 @@ export default function SignupPage() {
   ]
 
   const departmentOptions = [
-    { value: '개발팀', label: '개발팀' },
-    { value: '기획팀', label: '기획팀' },
-    { value: '마케팅팀', label: '마케팅팀' },
-    { value: '영업팀', label: '영업팀' },
-    { value: '인사팀', label: '인사팀' },
-    { value: '재무팀', label: '재무팀' },
-    { value: '총무팀', label: '총무팀' },
     { value: 'IT팀', label: 'IT팀' },
-    { value: '고객지원팀', label: '고객지원팀' }
+    { value: '운영팀', label: '운영팀' },
+    { value: '개발팀', label: '개발팀' },
+    { value: '관리부', label: '관리부' },
+    { value: '생산부', label: '생산부' },
+    { value: '구매팀', label: '구매팀' },
+    { value: '재무팀', label: '재무팀' },
+    { value: '영업팀', label: '영업팀' },
+    { value: '마케팅팀', label: '마케팅팀' },
+    { value: '인사팀', label: '인사팀' },
+    { value: '보안팀', label: '보안팀' },
+    { value: '법무팀', label: '법무팀' },
+    { value: '연구개발팀', label: '연구개발팀' }
   ]
 
   const roleOptions = [

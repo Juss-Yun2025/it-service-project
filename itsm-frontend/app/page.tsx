@@ -99,6 +99,10 @@ export default function Home() {
   const [signupContact, setSignupContact] = useState<string>("");
   const [signupError, setSignupError] = useState<string>("");
   
+  // 로딩 상태
+  const [isLoginLoading, setIsLoginLoading] = useState<boolean>(false);
+  const [isSignupLoading, setIsSignupLoading] = useState<boolean>(false);
+  
   const router = useRouter();
 
   // 화면 너비 감지 및 동적 위치 계산
@@ -150,6 +154,18 @@ export default function Home() {
   // 로그인 처리 (API 연동)
   const handleLogin = async () => {
     setLoginError("");
+    setIsLoginLoading(true);
+    
+    // isTechLogin 상태를 로컬 변수로 저장 (React 상태 업데이트 지연 방지)
+    const currentIsTechLogin = isTechLogin;
+
+    // 입력값 검증
+    if (!email || !password) {
+      setLoginError("이메일과 비밀번호를 입력해주세요.");
+      setIsLoginLoading(false);
+      setIsTechLogin(false);
+      return;
+    }
 
     try {
       const loginData: LoginRequest = {
@@ -167,6 +183,7 @@ export default function Home() {
         setShowLoginModal(false);
         setEmail("");
         setPassword("");
+        setIsTechLogin(false);
         
         // 권한별 페이지 라우팅
         switch (user.role) {
@@ -183,7 +200,7 @@ export default function Home() {
             router.push('/assignment-manager');
             break;
           case '일반사용자':
-            if (isTechLogin) {
+            if (currentIsTechLogin) {
               // Tech Login으로 로그인한 일반사용자는 요청진행사항 페이지로
               router.push('/progress');
             } else {
@@ -202,14 +219,19 @@ export default function Home() {
             break;
           default:
             setLoginError("알 수 없는 권한입니다.");
+            setIsTechLogin(false);
             return;
         }
       } else {
         setLoginError(response.error || "로그인에 실패했습니다.");
+        setIsTechLogin(false);
       }
     } catch (error) {
       console.error('Login error:', error);
       setLoginError("로그인 중 오류가 발생했습니다.");
+      setIsTechLogin(false);
+    } finally {
+      setIsLoginLoading(false);
     }
   };
 
@@ -269,16 +291,19 @@ export default function Home() {
   // 회원가입 처리 (API 연동)
   const handleSignup = async () => {
     setSignupError("");
+    setIsSignupLoading(true);
 
     // 필수 항목 검증
     if (!signupEmail || !signupPassword || !signupConfirmPassword || !signupName || !signupPosition || !signupDepartment || !signupContact) {
       setSignupError("모든 필수 항목을 입력해주세요.");
+      setIsSignupLoading(false);
       return;
     }
 
     // 비밀번호 확인
     if (signupPassword !== signupConfirmPassword) {
       setSignupError("비밀번호가 일치하지 않습니다.");
+      setIsSignupLoading(false);
       return;
     }
 
@@ -286,6 +311,7 @@ export default function Home() {
     const passwordRegex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*])[a-zA-Z\d!@#$%^&*]{8,16}$/;
     if (!passwordRegex.test(signupPassword)) {
       setSignupError("비밀번호는 영문, 숫자, 특수문자 조합 8~16자여야 합니다.");
+      setIsSignupLoading(false);
       return;
     }
 
@@ -293,6 +319,7 @@ export default function Home() {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(signupEmail)) {
       setSignupError("올바른 이메일 형식을 입력해주세요.");
+      setIsSignupLoading(false);
       return;
     }
 
@@ -300,6 +327,7 @@ export default function Home() {
     const contactRegex = /^010-\d{4}-\d{4}$/;
     if (!contactRegex.test(signupContact)) {
       setSignupError("연락처는 010-1234-5678 형식으로 입력해주세요.");
+      setIsSignupLoading(false);
       return;
     }
 
@@ -325,6 +353,8 @@ export default function Home() {
     } catch (error) {
       console.error('Signup error:', error);
       setSignupError("회원가입 중 오류가 발생했습니다.");
+    } finally {
+      setIsSignupLoading(false);
     }
   };
 
@@ -565,7 +595,10 @@ export default function Home() {
                 </p>
               </div>
 
-              <form onSubmit={(e) => { e.preventDefault(); handleLogin(); }} className="space-y-3 sm:space-y-4">
+              <form onSubmit={(e) => { 
+                e.preventDefault(); 
+                setLoginError("로그인 버튼을 눌러주세요.");
+              }} className="space-y-3 sm:space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                     이메일
@@ -574,6 +607,12 @@ export default function Home() {
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        setLoginError("로그인 버튼을 눌러주세요.");
+                      }
+                    }}
                     className="w-full px-3 py-2 sm:px-4 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-sm sm:text-base"
                     placeholder="이메일을 입력하세요"
                     autoComplete="email"
@@ -589,6 +628,12 @@ export default function Home() {
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        setLoginError("로그인 버튼을 눌러주세요.");
+                      }
+                    }}
                     className="w-full px-3 py-2 sm:px-4 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-sm sm:text-base"
                     placeholder="비밀번호를 입력하세요"
                     autoComplete="current-password"
@@ -630,10 +675,16 @@ export default function Home() {
                     취소
                   </FigmaButton>
                   <button
-                    type="submit"
-                    className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base font-medium"
+                    type="button"
+                    onClick={handleLogin}
+                    disabled={isLoginLoading}
+                    className={`flex-1 px-4 py-2 rounded-lg transition-colors text-sm sm:text-base font-medium ${
+                      isLoginLoading 
+                        ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}
                   >
-                    로그인
+                    {isLoginLoading ? '로그인 중...' : '로그인'}
                   </button>
                 </div>
               </form>
@@ -687,7 +738,15 @@ export default function Home() {
                 </button>
               </div>
 
-              <form onSubmit={(e) => { e.preventDefault(); handleSignup(); }} className="space-y-4">
+              <form onSubmit={async (e) => { 
+                e.preventDefault(); 
+                try {
+                  await handleSignup(); 
+                } catch (error) {
+                  console.error('Signup form error:', error);
+                  setSignupError('회원가입 중 오류가 발생했습니다.');
+                }
+              }} className="space-y-4">
                 {/* 이메일 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -800,14 +859,27 @@ export default function Home() {
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                       <img src="/icons/briefcase.svg" alt="소속" className="w-5 h-5 text-gray-400" />
                     </div>
-                    <input
-                      type="text"
+                    <select
                       value={signupDepartment}
                       onChange={(e) => setSignupDepartment(e.target.value)}
                       className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                      placeholder="예) 관리부"
                       required
-                    />
+                    >
+                      <option value="">부서를 선택하세요</option>
+                      <option value="IT팀">IT팀</option>
+                      <option value="운영팀">운영팀</option>
+                      <option value="개발팀">개발팀</option>
+                      <option value="관리부">관리부</option>
+                      <option value="생산부">생산부</option>
+                      <option value="구매팀">구매팀</option>
+                      <option value="재무팀">재무팀</option>
+                      <option value="영업팀">영업팀</option>
+                      <option value="마케팅팀">마케팅팀</option>
+                      <option value="인사팀">인사팀</option>
+                      <option value="보안팀">보안팀</option>
+                      <option value="법무팀">법무팀</option>
+                      <option value="연구개발팀">연구개발팀</option>
+                    </select>
                   </div>
                 </div>
 
@@ -845,9 +917,14 @@ export default function Home() {
 
                 <button
                   type="submit"
-                  className="w-full bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors text-base font-medium mt-4"
+                  disabled={isSignupLoading}
+                  className={`w-full px-4 py-3 rounded-lg transition-colors text-base font-medium mt-4 ${
+                    isSignupLoading 
+                      ? 'bg-gray-400 text-gray-200 cursor-not-allowed' 
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
                 >
-                  회원가입
+                  {isSignupLoading ? '회원가입 중...' : '회원가입'}
                 </button>
               </form>
             </div>

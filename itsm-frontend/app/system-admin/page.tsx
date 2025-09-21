@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Icon from '@/components/ui/Icon'
-import { apiClient, User, UserUpdateRequest } from '@/lib/api'
+import { apiClient, User, UserUpdateRequest, Department } from '@/lib/api'
 import PermissionGuard from '@/components/PermissionGuard'
 
 // 데이터 타입 정의
@@ -55,6 +55,29 @@ interface PendingWork {
 
 function SystemAdminPageContent() {
   const router = useRouter()
+  
+  // 부서 목록 가져오기
+  const fetchDepartments = async () => {
+    setDepartmentsLoading(true)
+    try {
+      const response = await apiClient.getDepartments()
+      if (response.success && response.data) {
+        setDepartments(response.data)
+      } else {
+        console.error('Failed to fetch departments:', response.error)
+      }
+    } catch (error) {
+      console.error('Error fetching departments:', error)
+    } finally {
+      setDepartmentsLoading(false)
+    }
+  }
+
+  // 컴포넌트 마운트 시 부서 목록 가져오기
+  useEffect(() => {
+    fetchDepartments()
+  }, [])
+  
   const [currentDate, setCurrentDate] = useState('')
   const [currentTime, setCurrentTime] = useState('')
   const [isWorking, setIsWorking] = useState(true)
@@ -126,6 +149,10 @@ function SystemAdminPageContent() {
   const [userLoading, setUserLoading] = useState(false)
   const [userError, setUserError] = useState('')
   
+  // 부서 목록 관리
+  const [departments, setDepartments] = useState<Department[]>([])
+  const [departmentsLoading, setDepartmentsLoading] = useState(false)
+  
   // 드래그 관련 상태
   const [isDragging, setIsDragging] = useState(false)
   const [startX, setStartX] = useState(0)
@@ -183,8 +210,16 @@ function SystemAdminPageContent() {
   const [showServiceWorkInfoModal, setShowServiceWorkInfoModal] = useState(false)
   const [showServiceWorkDeleteModal, setShowServiceWorkDeleteModal] = useState(false)
   const [selectedWorkRequest, setSelectedWorkRequest] = useState<ServiceRequest | null>(null)
-  const [serviceWorkSearchStartDate, setServiceWorkSearchStartDate] = useState('')
-  const [serviceWorkSearchEndDate, setServiceWorkSearchEndDate] = useState('')
+  const [serviceWorkSearchStartDate, setServiceWorkSearchStartDate] = useState(() => {
+    // 현재일 기준 1주일 전 (실제 운영 시에는 이 값 사용)
+    const oneWeekAgo = new Date()
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+    return oneWeekAgo.toISOString().split('T')[0]
+  })
+  const [serviceWorkSearchEndDate, setServiceWorkSearchEndDate] = useState(() => {
+    // 현재일 (실제 운영 시에는 이 값 사용)
+    return new Date().toISOString().split('T')[0]
+  })
   const [showServiceIncompleteOnly, setShowServiceIncompleteOnly] = useState(false)
   const [serviceWorkSelectedDepartment, setServiceWorkSelectedDepartment] = useState('전체')
   const [serviceWorkCurrentPage, setServiceWorkCurrentPage] = useState(1)
@@ -292,620 +327,86 @@ function SystemAdminPageContent() {
   }, [userManagementSearchDepartment, userManagementSearchRole, userManagementSearchStartDate, userManagementSearchEndDate, userManagementSearchName])
 
   // 서비스 요청 데이터
-  const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([
-    {
-      id: '1',
-      requestNumber: 'SR-20250831-007',
-      title: '모니터 전원 불량',
-      status: '진행중',
-      currentStatus: '오류발생',
-      requestDate: '2025.08.31',
-      requestTime: '09:30',
-      requester: '김영자',
-      department: '운영팀',
-      stage: '확인',
-      assignTime: '11:40',
-      assignDate: '2025.08.31 11:10',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '모니터에 전원이 들어 오지 않습니다.',
-      contact: '010-6543-9874',
-      location: '본사 2층 운영팀',
-      serviceType: '자산',
-      completionDate: '',
-      assignmentOpinion: '업무에 적합하여 배정',
-      actualRequester: '',
-      actualContact: ''
-    },
-    {
-      id: '2',
-      requestNumber: 'SR-20250830-006',
-      title: '이메일 첨부파일 다운로드 오류',
-      status: '진행중',
-      currentStatus: '정상작동',
-      requestDate: '2025.08.30',
-      requestTime: '14:15',
-      requester: '김철수',
-      department: '관리부',
-      stage: '확인',
-      assignTime: '10:40',
-      assignDate: '2025.08.30',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '이메일 첨부파일을 다운로드할 수 없습니다.',
-      contact: '010-2345-6789',
-      location: '2층 사무실',
-      serviceType: '문제',
-      completionDate: '2025.01.15 11:30'
-    },
-    {
-      id: '3',
-      requestNumber: 'SR-20250829-005',
-      title: 'VPN 접속 불가',
-      status: '진행중',
-      currentStatus: '점검요청',
-      requestDate: '2025.08.29',
-      requester: '이영희',
-      department: '생산부',
-      stage: '예정',
-      assignTime: '10:10',
-      assignDate: '2025.08.29',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: 'VPN에 접속이 되지 않습니다.',
-      contact: '010-3456-7890',
-      location: '1층 사무실',
-      serviceType: '요청',
-      completionDate: ''
-    },
-    {
-      id: '4',
-      requestNumber: 'SR-20250828-004',
-      title: '모니터 이상',
-      status: '진행중',
-      currentStatus: '전체불능',
-      requestDate: '2025.08.28',
-      requester: '강감찬',
-      department: '구매팀',
-      stage: '작업',
-      assignTime: '09:50',
-      assignDate: '2025.08.28',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '모니터 화면이 깨져서 보입니다.',
-      contact: '010-4567-8901',
-      location: '4층 사무실',
-      serviceType: '적용',
-      completionDate: ''
-    },
-    {
-      id: '5',
-      requestNumber: 'SR-20250827-003',
-      title: '프린터 인쇄 안됨',
-      status: '진행중',
-      currentStatus: '메시지창',
-      requestDate: '2025.08.27',
-      requester: '이율곡',
-      department: '관리부',
-      stage: '완료',
-      assignTime: '09:20',
-      assignDate: '2025.08.27',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '프린터에서 인쇄가 되지 않습니다.',
-      contact: '010-5678-9012',
-      location: '2층 사무실',
-      serviceType: '자산',
-      completionDate: '2025.01.12 10:10'
-    },
-    {
-      id: '6',
-      requestNumber: 'SR-20250826-002',
-      title: '마우스 오류',
-      status: '진행중',
-      currentStatus: '부분불능',
-      requestDate: '2025.08.26',
-      requester: '이목이',
-      department: '재무팀',
-      stage: '미결',
-      assignTime: '09:00',
-      assignDate: '2025.08.26',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '마우스가 제대로 작동하지 않습니다.',
-      contact: '010-6789-0123',
-      location: '3층 사무실',
-      serviceType: '자산',
-      completionDate: ''
-    },
-    {
-      id: '7',
-      requestNumber: 'SR-20250825-001',
-      title: '키보드 입력 오류',
-      status: '진행중',
-      currentStatus: '정상작동',
-      requestDate: '2025.08.25',
-      requester: '박민수',
-      department: '영업팀',
-      stage: '예정',
-      assignTime: '08:30',
-      assignDate: '2025.08.25',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '키보드에서 일부 키가 입력되지 않습니다.',
-      contact: '010-7890-1234',
-      location: '5층 사무실',
-      serviceType: '자산',
-      completionDate: ''
-    },
-    {
-      id: '8',
-      requestNumber: 'SR-20250824-008',
-      title: '네트워크 속도 저하',
-      status: '진행중',
-      currentStatus: '부분불능',
-      requestDate: '2025.08.24',
-      requester: '최수진',
-      department: '마케팅팀',
-      stage: '확인',
-      assignTime: '13:45',
-      assignDate: '2025.08.24',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '인터넷 속도가 매우 느려졌습니다.',
-      contact: '010-8901-2345',
-      location: '6층 사무실',
-      serviceType: '문제',
-      completionDate: ''
-    },
-    {
-      id: '9',
-      requestNumber: 'SR-20250823-009',
-      title: '스캐너 연결 오류',
-      status: '진행중',
-      currentStatus: '전체불능',
-      requestDate: '2025.08.23',
-      requester: '한지영',
-      department: '인사팀',
-      stage: '작업',
-      assignTime: '12:30',
-      assignDate: '2025.08.23',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '스캐너가 컴퓨터에 인식되지 않습니다.',
-      contact: '010-9012-3456',
-      location: '7층 사무실',
-      serviceType: '자산',
-      completionDate: ''
-    },
-    {
-      id: '10',
-      requestNumber: 'SR-20250822-010',
-      title: '웹캠 작동 불량',
-      status: '진행중',
-      currentStatus: '점검요청',
-      requestDate: '2025.08.22',
-      requester: '송민호',
-      department: '영업팀',
-      stage: '예정',
-      assignTime: '11:15',
-      assignDate: '2025.08.22',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '웹캠이 제대로 작동하지 않습니다.',
-      contact: '010-0123-4567',
-      location: '8층 사무실',
-      serviceType: '자산',
-      completionDate: ''
-    },
-    {
-      id: '11',
-      requestNumber: 'SR-20250821-011',
-      title: '소프트웨어 설치 오류',
-      status: '진행중',
-      currentStatus: '메시지창',
-      requestDate: '2025.08.21',
-      requester: '윤서연',
-      department: '재무팀',
-      stage: '완료',
-      assignTime: '10:50',
-      assignDate: '2025.08.21',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '새로운 소프트웨어 설치 중 오류가 발생했습니다.',
-      contact: '010-1234-5678',
-      location: '9층 사무실',
-      serviceType: '적용',
-      completionDate: '2025.01.06 11:20'
-    },
-    {
-      id: '12',
-      requestNumber: 'SR-20250820-012',
-      title: '데이터베이스 연결 실패',
-      status: '진행중',
-      currentStatus: '기타상태',
-      requestDate: '2025.08.20',
-      requester: '김태현',
-      department: '개발팀',
-      stage: '작업',
-      assignTime: '15:10',
-      assignDate: '2025.08.20',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '데이터베이스에 연결할 수 없습니다.',
-      contact: '010-2345-6789',
-      location: '10층 사무실',
-      serviceType: '문제',
-      completionDate: ''
-    },
-    {
-      id: '13',
-      requestNumber: 'SR-20250831-013',
-      title: '백업 시스템 오류',
-      status: '진행중',
-      currentStatus: '부분불능',
-      requestDate: '2025.08.31',
-      requester: '이수정',
-      department: '운영팀',
-      stage: '확인',
-      assignTime: '14:35',
-      assignDate: '2025.08.31',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '자동 백업이 실행되지 않습니다.',
-      contact: '010-3456-7890',
-      location: '서버실',
-      serviceType: '자산',
-      completionDate: ''
-    },
-    {
-      id: '14',
-      requestNumber: 'SR-20250830-014',
-      title: '보안 프로그램 업데이트',
-      status: '진행중',
-      currentStatus: '정상작동',
-      requestDate: '2025.08.30',
-      requester: '박준호',
-      department: '보안팀',
-      stage: '작업',
-      assignTime: '13:20',
-      assignDate: '2025.08.30',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '보안 프로그램을 최신 버전으로 업데이트해야 합니다.',
-      contact: '010-4567-8901',
-      location: '보안실',
-      serviceType: '적용',
-      completionDate: ''
-    },
-    {
-      id: '15',
-      requestNumber: 'SR-20250829-015',
-      title: '서버 성능 모니터링',
-      status: '진행중',
-      currentStatus: '전체불능',
-      requestDate: '2025.08.29',
-      requester: '최영수',
-      department: '운영팀',
-      stage: '예정',
-      assignTime: '12:45',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '서버 성능이 저하되어 모니터링이 필요합니다.',
-      contact: '010-5678-9012',
-      location: '서버실',
-      serviceType: '문제',
-      completionDate: ''
-    },
-    {
-      id: '16',
-      requestNumber: 'SR-20250831-016',
-      title: '오늘 신청된 긴급 작업',
-      status: '진행중',
-      currentStatus: '메시지창',
-      requestDate: '2025.08.31',
-      requester: '오늘신청',
-      department: '긴급팀',
-      stage: '미결',
-      assignTime: '14:30',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '오늘 신청된 긴급 작업입니다.',
-      contact: '010-9999-9999',
-      location: '긴급실',
-      serviceType: '긴급',
-      completionDate: ''
-    },
-    {
-      id: '17',
-      requestNumber: 'SR-20250831-017',
-      title: '오늘 완료된 작업',
-      status: '완료',
-      currentStatus: '정상작동',
-      requestDate: '2025.08.31',
-      requester: '완료자',
-      department: '완료팀',
-      stage: '완료',
-      assignTime: '09:00',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '오늘 완료된 작업입니다.',
-      contact: '010-8888-8888',
-      location: '완료실',
-      serviceType: '완료',
-      completionDate: '2025.08.31 15:30'
-    },
-    {
-      id: '18',
-      requestNumber: 'SR-20250831-018',
-      title: '운영팀 서버 점검',
-      status: '진행중',
-      currentStatus: '정상작동',
-      requestDate: '2025.08.31',
-      requestTime: '14:00',
-      requester: '김운영',
-      department: '운영팀',
-      stage: '작업',
-      assignTime: '14:30',
-      assignDate: '2025.08.31 14:15',
-      assignee: '박운영',
-      assigneeDepartment: '운영팀',
-      content: '운영팀 서버 정기 점검 작업입니다.',
-      contact: '010-1111-2222',
-      location: '운영팀 사무실',
-      serviceType: '서버',
-      completionDate: ''
-    },
-    {
-      id: '19',
-      requestNumber: 'SR-20250830-019',
-      title: '개발팀 코드 리뷰',
-      status: '완료',
-      currentStatus: '정상작동',
-      requestDate: '2025.08.30',
-      requestTime: '13:30',
-      requester: '이개발',
-      department: '개발팀',
-      stage: '완료',
-      assignTime: '13:45',
-      assignDate: '2025.08.30 13:40',
-      assignee: '최개발',
-      assigneeDepartment: '개발팀',
-      content: '새로운 기능 개발 코드 리뷰 요청입니다.',
-      contact: '010-3333-4444',
-      location: '개발팀 사무실',
-      serviceType: '개발',
-      completionDate: '2025.08.30 16:00'
-    },
-    {
-      id: '20',
-      requestNumber: 'SR-20250829-020',
-      title: '보안팀 보안 점검',
-      status: '진행중',
-      currentStatus: '점검요청',
-      requestDate: '2025.08.29',
-      requestTime: '12:00',
-      requester: '정보안',
-      department: '보안팀',
-      stage: '작업',
-      assignTime: '12:15',
-      assignDate: '2025.08.29 12:10',
-      assignee: '한보안',
-      assigneeDepartment: '보안팀',
-      content: '시스템 보안 점검 및 취약점 분석 작업입니다.',
-      contact: '010-5555-6666',
-      location: '보안팀 사무실',
-      serviceType: '보안',
-      completionDate: ''
-    },
-    {
-      id: '21',
-      requestNumber: 'SR-20250828-021',
-      title: '인사팀 시스템 업데이트',
-      status: '완료',
-      currentStatus: '정상작동',
-      requestDate: '2025.08.28',
-      requestTime: '11:00',
-      requester: '김인사',
-      department: '인사팀',
-      stage: '완료',
-      assignTime: '11:30',
-      assignDate: '2025.08.28 11:20',
-      assignee: '박인사',
-      assigneeDepartment: '인사팀',
-      content: '인사 관리 시스템 업데이트 작업입니다.',
-      contact: '010-7777-8888',
-      location: '인사팀 사무실',
-      serviceType: '시스템',
-      completionDate: '2025.08.28 15:00'
-    },
-    {
-      id: '22',
-      requestNumber: 'SR-20250827-022',
-      title: '재무팀 데이터 백업',
-      status: '진행중',
-      currentStatus: '정상작동',
-      requestDate: '2025.08.27',
-      requestTime: '10:30',
-      requester: '이재무',
-      department: '재무팀',
-      stage: '작업',
-      assignTime: '10:45',
-      assignDate: '2025.08.27 10:40',
-      assignee: '최재무',
-      assigneeDepartment: '재무팀',
-      content: '재무 데이터 정기 백업 작업입니다.',
-      contact: '010-9999-0000',
-      location: '재무팀 사무실',
-      serviceType: '데이터',
-      completionDate: ''
-    },
-    {
-      id: '23',
-      requestNumber: 'SR-20250826-023',
-      title: '시스템 장애 신고',
-      status: '접수',
-      currentStatus: '전체불능',
-      requestDate: '2025.08.26',
-      requestTime: '09:15',
-      requester: '김신고',
-      department: '영업팀',
-      stage: '접수',
-      assignTime: '',
-      assignDate: '',
-      assignee: '',
-      assigneeDepartment: '',
-      content: '영업팀 시스템이 완전히 작동하지 않습니다. 긴급 조치가 필요합니다.',
-      contact: '010-1234-5678',
-      location: '영업팀 사무실',
-      serviceType: '긴급',
-      completionDate: ''
-    },
-    {
-      id: '24',
-      requestNumber: 'SR-20250825-024',
-      title: '네트워크 연결 불안정',
-      status: '접수',
-      currentStatus: '부분불능',
-      requestDate: '2025.08.25',
-      requestTime: '14:30',
-      requester: '박네트워크',
-      department: '마케팅팀',
-      stage: '접수',
-      assignTime: '',
-      assignDate: '',
-      assignee: '',
-      assigneeDepartment: '',
-      content: '마케팅팀 네트워크 연결이 불안정하여 업무에 지장이 있습니다.',
-      contact: '010-2345-6789',
-      location: '마케팅팀 사무실',
-      serviceType: '네트워크',
-      completionDate: ''
-    },
-    {
-      id: '27',
-      requestNumber: 'SR-20250824-027',
-      title: '프린터 오류 재발',
-      status: '재배정',
-      currentStatus: '부분불능',
-      requestDate: '2025.08.24',
-      requestTime: '11:20',
-      requester: '이프린터',
-      department: '구매팀',
-      stage: '재배정',
-      assignTime: '',
-      assignDate: '',
-      assignee: '',
-      assigneeDepartment: '',
-      content: '이전에 수리했던 프린터에서 동일한 오류가 재발했습니다. 다른 담당자 배정이 필요합니다.',
-      contact: '010-3456-7890',
-      location: '구매팀 사무실',
-      serviceType: '하드웨어',
-      completionDate: ''
-    },
-    {
-      id: '28',
-      requestNumber: 'SR-20250823-028',
-      title: '소프트웨어 라이선스 갱신',
-      status: '접수',
-      currentStatus: '정상작동',
-      requestDate: '2025.08.23',
-      requestTime: '16:45',
-      requester: '최라이선스',
-      department: '법무팀',
-      stage: '접수',
-      assignTime: '',
-      assignDate: '',
-      assignee: '',
-      assigneeDepartment: '',
-      content: '법무팀에서 사용하는 소프트웨어 라이선스 갱신이 필요합니다.',
-      contact: '010-4567-8901',
-      location: '법무팀 사무실',
-      serviceType: '소프트웨어',
-      completionDate: ''
-    },
-    {
-      id: '31',
-      requestNumber: 'SR-20250822-031',
-      title: '데이터베이스 성능 저하',
-      status: '재배정',
-      currentStatus: '기타상태',
-      requestDate: '2025.08.22',
-      requestTime: '13:10',
-      requester: '한데이터',
-      department: '연구개발팀',
-      stage: '재배정',
-      assignTime: '',
-      assignDate: '',
-      assignee: '',
-      assigneeDepartment: '',
-      content: '연구개발팀 데이터베이스 성능이 저하되어 쿼리 실행이 매우 느립니다. 전문가 배정이 필요합니다.',
-      contact: '010-5678-9012',
-      location: '연구개발팀 사무실',
-      serviceType: '데이터베이스',
-      completionDate: ''
-    },
-    {
-      id: '29',
-      requestNumber: 'SR-20250831-029',
-      title: '테스트용 완료 단계 작업',
-      status: '진행중',
-      currentStatus: '정상작동',
-      requestDate: '2025.08.31',
-      requestTime: '10:00',
-      requester: '테스트사용자',
-      department: 'IT팀',
-      stage: '완료',
-      assignTime: '10:30',
-      assignDate: '2025.08.31 10:30',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '테스트를 위한 완료 단계 작업입니다. 작업정보등록 모달에서 완료 단계 테스트를 진행할 수 있습니다.',
-      contact: '010-1234-5678',
-      location: 'IT팀 사무실',
-      serviceType: '문제',
-      completionDate: '',
-      assignmentOpinion: '테스트용 배정 의견입니다.',
-      // 작업정보등록 관련 테스트 데이터
-      scheduledDate: '2025-08-31T10:30',
-      workStartDate: '2025-08-31T11:00',
-      workContent: '테스트용 작업내역입니다. 모니터 전원 문제를 해결하기 위해 전원 공급 장치를 점검하고 교체했습니다.',
-      workCompleteDate: '2025-08-31T12:00',
-      problemIssue: '',
-      isUnresolved: false,
-      currentWorkStage: '완료'
-    },
-    {
-      id: '30',
-      requestNumber: 'SR-20250831-030',
-      title: '테스트용 미결 단계 작업',
-      status: '진행중',
-      currentStatus: '부분불능',
-      requestDate: '2025.08.31',
-      requestTime: '14:00',
-      requester: '테스트사용자2',
-      department: '운영팀',
-      stage: '미결',
-      assignTime: '14:30',
-      assignDate: '2025.08.31 14:30',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '테스트를 위한 미결 단계 작업입니다. 작업정보등록 모달에서 미결 단계 테스트를 진행할 수 있습니다.',
-      contact: '010-9876-5432',
-      location: '운영팀 사무실',
-      serviceType: '자산',
-      completionDate: '',
-      assignmentOpinion: '테스트용 미결 배정 의견입니다.',
-      // 작업정보등록 관련 테스트 데이터
-      scheduledDate: '2025-08-31T14:30',
-      workStartDate: '2025-08-31T15:00',
-      workContent: '테스트용 작업내역입니다. 네트워크 장비 점검을 진행했습니다.',
-      workCompleteDate: '2025-08-31T16:00',
-      problemIssue: '테스트용 문제사항입니다. 일부 네트워크 포트에서 연결 불안정 현상이 발견되었습니다.',
-      isUnresolved: true,
-      currentWorkStage: '미결'
+  const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([]);
+  const [serviceRequestsLoading, setServiceRequestsLoading] = useState(false);
+  const [serviceRequestsPagination, setServiceRequestsPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0
+  });
+
+  // 서비스 요청 데이터 가져오기
+  const fetchServiceRequests = async () => {
+    setServiceRequestsLoading(true);
+    try {
+      const params = {
+        startDate: serviceWorkSearchStartDate,
+        endDate: serviceWorkSearchEndDate,
+        department: serviceWorkSelectedDepartment !== '전체' ? serviceWorkSelectedDepartment : undefined,
+        showIncompleteOnly: showServiceIncompleteOnly,
+        page: serviceRequestsPagination.page,
+        limit: serviceRequestsPagination.limit
+      };
+      
+      const response = await apiClient.getServiceRequests(params);
+      if (response.success && response.data) {
+        // API 응답 데이터를 프론트엔드 형식으로 변환
+        const transformedData = response.data.map((item: any) => ({
+          id: item.id.toString(),
+          requestNumber: item.request_number,
+          title: item.title,
+          status: item.status,
+          currentStatus: item.current_status,
+          requestDate: new Date(item.request_date).toISOString().split('T')[0], // YYYY-MM-DD 형식으로 변환
+          requestTime: item.request_time,
+          requester: item.requester_name,
+          department: item.requester_department,
+          stage: item.stage,
+          assignTime: item.assign_time,
+          assignDate: item.assign_date ? new Date(item.assign_date).toLocaleString('ko-KR') : '',
+          assignee: item.assignee_name || '',
+          assigneeDepartment: item.assignee_department || '',
+          content: item.content,
+          contact: item.contact || '',
+          location: item.location || '',
+          serviceType: item.service_type,
+          completionDate: item.completion_date ? new Date(item.completion_date).toLocaleString('ko-KR') : '',
+          assignmentOpinion: item.assignment_opinion || '',
+          workContent: item.work_content || '',
+          currentWorkStage: item.current_work_stage || '',
+          actualContact: item.actual_contact || '',
+          problemIssue: item.problem_issue || '',
+          isUnresolved: item.is_unresolved || false
+        }));
+        
+        setServiceRequests(transformedData);
+        
+        if (response.pagination) {
+          setServiceRequestsPagination({
+            page: response.pagination.page,
+            limit: response.pagination.limit,
+            total: response.pagination.total,
+            totalPages: response.pagination.totalPages
+          });
+        }
+      } else {
+        console.error('Failed to fetch service requests:', response.error);
+      }
+    } catch (error) {
+      console.error('Error fetching service requests:', error);
+    } finally {
+      setServiceRequestsLoading(false);
     }
-  ])
+  };
+
+  // 서비스 요청 데이터 가져오기 (검색 조건 변경 시마다)
+  useEffect(() => {
+    fetchServiceRequests();
+  }, [serviceWorkSearchStartDate, serviceWorkSearchEndDate, serviceWorkSelectedDepartment, showServiceIncompleteOnly, serviceRequestsPagination.page]);
+
+  // 더미 데이터 제거됨 - API 기반으로 교체
+  // 더미 데이터 제거됨 - serviceRequests는 API에서 가져옴
 
   // 서비스현황 리포트 데이터 생성 (서비스 요청 데이터를 기반으로)
   const serviceReportData = serviceRequests.map(request => {
@@ -1062,12 +563,9 @@ function SystemAdminPageContent() {
         params.endDate = userManagementSearchEndDate
       }
       
-      console.log('사용자 데이터 로드 시도:', params)
       const response = await apiClient.getUsers(params)
-      console.log('API 응답:', response)
       
       if (response.success && response.data) {
-        console.log('사용자 데이터 설정:', response.data.users)
         setUsers(response.data.users)
         setUserTotalPages(response.data.totalPages)
       } else {
@@ -1084,13 +582,11 @@ function SystemAdminPageContent() {
 
   // 컴포넌트 마운트 시 사용자 데이터 로드
   useEffect(() => {
-    console.log('useEffect triggered - loading users')
     loadUsers()
   }, [userManagementCurrentPage, userManagementSearchDepartment, userManagementSearchRole, userManagementSearchName, userManagementSearchStartDate, userManagementSearchEndDate])
 
   // 컴포넌트 마운트 시 한 번만 사용자 데이터 로드
   useEffect(() => {
-    console.log('Initial load - loading users')
     loadUsers()
   }, [])
 
@@ -1125,51 +621,41 @@ function SystemAdminPageContent() {
   const userManagementTotalPages = userTotalPages; // API에서 받은 총 페이지 수 사용
   const paginatedUsers = filteredUsers; // API에서 이미 페이지네이션된 데이터 사용
 
-  // 서비스 작업 목록 필터링 및 페이지네이션
+  // 서비스 요청 데이터 필터링 (클라이언트 사이드)
   const filteredServiceRequests = serviceRequests.filter(request => {
-    console.log('필터링 체크:', request)
-    
-    // 날짜 필터 (현재시점 기준 1주일)
+    // 날짜 필터링 (requestDate 기준 - 접수일)
     if (serviceWorkSearchStartDate && serviceWorkSearchEndDate) {
-      const requestDate = new Date(request.requestDate.replace(/\./g, '-'))
-      const startDate = new Date(serviceWorkSearchStartDate)
-      const endDate = new Date(serviceWorkSearchEndDate)
-      if (requestDate < startDate || requestDate > endDate) return false
+      // requestDate는 "2025-08-20" 형식
+      // 검색 기간을 00:00:00 ~ 23:59:59 범위로 비교
+      const requestDate = new Date(request.requestDate + 'T00:00:00');
+      const startDate = new Date(serviceWorkSearchStartDate + 'T00:00:00');
+      const endDate = new Date(serviceWorkSearchEndDate + 'T23:59:59');
+      
+      if (requestDate < startDate || requestDate > endDate) {
+        return false;
+      }
     }
     
-    // 미결 완료 조회 필터
-    if (showServiceIncompleteOnly) {
-      return request.stage !== '완료'
+    // 부서 필터링
+    if (serviceWorkSelectedDepartment !== '전체' && request.department !== serviceWorkSelectedDepartment) {
+      return false;
     }
     
-    // 시스템 관리자 권한 필터링 로직
-    // 시스템 관리자는 모든 데이터에 접근 가능 (전체 권한)
-    if (serviceWorkSelectedDepartment !== '전체') {
-      return request.assigneeDepartment === serviceWorkSelectedDepartment
+    // 미완료 조회 필터링
+    if (showServiceIncompleteOnly && request.stage === '완료') {
+      return false;
     }
     
-    // 전체 선택 시 모든 데이터 표시
-    return true
-  })
+    return true;
+  });
+
+  // API 기반 페이지네이션
+  const serviceWorkTotalPages = serviceRequestsPagination.totalPages;
+  const paginatedServiceRequests = serviceRequests; // API에서 이미 페이지네이션된 데이터
   
-  // 페이지네이션 계산
-  const serviceWorkItemsPerPage = 10
-  const serviceWorkTotalPages = Math.ceil(filteredServiceRequests.length / serviceWorkItemsPerPage)
-  const serviceWorkStartIndex = (serviceWorkCurrentPage - 1) * serviceWorkItemsPerPage
-  const serviceWorkEndIndex = serviceWorkStartIndex + serviceWorkItemsPerPage
-  const paginatedServiceRequests = filteredServiceRequests.slice(serviceWorkStartIndex, serviceWorkEndIndex)
   
-  // 디버깅용 로그
-  console.log('전체 서비스 요청 수:', serviceRequests.length)
-  console.log('필터링된 요청 수:', filteredServiceRequests.length)
-  console.log('페이지네이션된 요청 수:', paginatedServiceRequests.length)
-  console.log('현재 페이지:', serviceWorkCurrentPage, '/', serviceWorkTotalPages)
-  console.log('필터 조건들:', {
-    serviceWorkSearchStartDate,
-    serviceWorkSearchEndDate,
-    showServiceIncompleteOnly,
-    serviceWorkSelectedDepartment
-  })
+  // 디버깅용 로그 제거됨
+  // 필터 조건 로그 제거됨
 
   // 미결 현황 데이터
   const [pendingWorks, setPendingWorks] = useState<PendingWork[]>([
@@ -1194,17 +680,7 @@ function SystemAdminPageContent() {
       const dateToCheck = request.assignDate || request.requestDate
       const formattedDate = dateToCheck.replace(/\./g, '-')
       
-      // 디버깅용 로그
-      console.log('필터링 체크:', {
-        requestNumber: request.requestNumber,
-        assignDate: request.assignDate,
-        requestDate: request.requestDate,
-        dateToCheck,
-        formattedDate,
-        searchStartDate,
-        searchEndDate,
-        isInRange: formattedDate >= searchStartDate && formattedDate <= searchEndDate
-      })
+      // 디버깅용 로그 제거됨
       
       // 문자열 비교로 날짜 범위 체크
       if (formattedDate < searchStartDate || formattedDate > searchEndDate) {
@@ -1215,10 +691,9 @@ function SystemAdminPageContent() {
     return true
   })
 
-  // 페이지네이션 (이미 위에서 정의됨)
-  const totalPages = Math.ceil(filteredRequests.length / serviceWorkItemsPerPage)
-  const startIndex = (currentPage - 1) * serviceWorkItemsPerPage
-  const paginatedRequests = filteredRequests.slice(startIndex, startIndex + serviceWorkItemsPerPage)
+  // 페이지네이션 (API 기반)
+  const totalPages = serviceRequestsPagination.totalPages
+  const paginatedRequests = serviceRequests // API에서 받은 데이터를 그대로 사용
 
   const handleAssignmentConfirm = (request: ServiceRequest) => {
     setSelectedRequest(request)
@@ -1257,7 +732,7 @@ function SystemAdminPageContent() {
       const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000))
       const formattedNow = kstTime.toISOString().slice(0, 16)
       setWorkStartDate(formattedNow)
-      console.log('예정 단계 처리:', scheduledDate)
+      // 예정 단계 처리
       alert('예정조율일시가 등록되었습니다. 작업 단계로 진행합니다.')
     } else {
       alert('예정조율일시를 입력해주세요.')
@@ -1273,7 +748,7 @@ function SystemAdminPageContent() {
       const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000))
       const formattedNow = kstTime.toISOString().slice(0, 16)
       setWorkCompleteDate(formattedNow)
-      console.log('작업 시작:', workStartDate)
+      // 작업 시작
       alert('작업이 시작되었습니다. 완료 단계로 진행합니다.')
     } else {
       alert('작업시작일시를 입력해주세요.')
@@ -1283,7 +758,7 @@ function SystemAdminPageContent() {
   const handleWorkCompleteProcess = () => {
     if (workCompleteDate && workContent) {
       setCurrentStage('미결') // 완료 → 미결로 변경
-      console.log('작업 완료:', workCompleteDate, workContent)
+      // 작업 완료
       alert('작업이 완료되었습니다. 미결 처리 단계로 진행합니다.')
     } else {
       alert('작업내역과 작업완료일시를 모두 입력해주세요.')
@@ -1294,7 +769,7 @@ function SystemAdminPageContent() {
     if (problemIssue) {
       setCurrentStage('미결')
       // 데이터 업데이트만 수행
-      console.log('미결 처리:', problemIssue)
+      // 미결 처리
       alert('미결 처리가 완료되었습니다.')
     } else {
       alert('문제사항을 입력해주세요.')
@@ -1404,18 +879,14 @@ function SystemAdminPageContent() {
   // 데이터 새로고침 함수 (검색 조건 유지)
   const handleRefresh = () => {
     // 현재 검색 조건을 유지하면서 데이터만 새로고침
-    console.log('데이터 새로고침 - 검색 조건 유지:', {
-      searchStartDate,
-      searchEndDate,
-      showIncompleteOnly
-    })
+    // 데이터 새로고침 - 검색 조건 유지
     
     // 실제 환경에서는 여기서 API 호출을 수행
     // 예: fetchServiceRequests(searchStartDate, searchEndDate, showIncompleteOnly)
     
     // 현재는 더미 데이터이므로 검색 조건에 따른 필터링만 수행
     // 실제로는 서버에서 새로운 데이터를 가져와야 함
-    console.log('검색 조건으로 데이터 필터링 중...')
+    // 검색 조건으로 데이터 필터링 중...
     
     // 차트 데이터도 업데이트
     updateChartData()
@@ -1608,12 +1079,14 @@ function SystemAdminPageContent() {
                           setCurrentDepartment(e.target.value || 'IT팀')
                         }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        disabled={departmentsLoading}
                       >
                         <option value="">전체 부서</option>
-                        <option value="IT팀">IT팀</option>
-                        <option value="운영팀">운영팀</option>
-                        <option value="개발팀">개발팀</option>
-                        <option value="인사팀">인사팀</option>
+                        {departments.map((dept) => (
+                          <option key={dept.id} value={dept.name}>
+                            {dept.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
 
@@ -1904,14 +1377,14 @@ function SystemAdminPageContent() {
                         value={serviceWorkSelectedDepartment}
                         onChange={(e) => setServiceWorkSelectedDepartment(e.target.value)}
                         className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
+                        disabled={departmentsLoading}
                       >
                         <option value="전체">전체</option>
-                        <option value="IT팀">IT팀</option>
-                        <option value="운영팀">운영팀</option>
-                        <option value="개발팀">개발팀</option>
-                        <option value="보안팀">보안팀</option>
-                        <option value="인사팀">인사팀</option>
-                        <option value="재무팀">재무팀</option>
+                        {departments.map((dept) => (
+                          <option key={dept.id} value={dept.name}>
+                            {dept.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     
@@ -1952,7 +1425,14 @@ function SystemAdminPageContent() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {paginatedServiceRequests.map((request) => (
+                        {paginatedServiceRequests.length === 0 ? (
+                          <tr>
+                            <td colSpan={10} className="px-2 py-8 text-center text-gray-500">
+                              데이터가 없습니다.
+                            </td>
+                          </tr>
+                        ) : (
+                          paginatedServiceRequests.map((request) => (
                           <tr key={request.id} className="hover:bg-gray-50">
                             <td className="px-2 py-2 text-gray-900 text-center">{request.requestNumber}</td>
                             <td className="px-2 py-2 text-gray-900 text-center">{request.requestTime || '13:00'}</td>
@@ -2070,18 +1550,23 @@ function SystemAdminPageContent() {
                               </div>
                             </td>
                           </tr>
-                        ))}
+                          ))
+                        )}
                       </tbody>
                     </table>
                   </div>
                 </div>
 
                 {/* 페이지네이션 */}
-                {serviceWorkTotalPages > 1 && (
+                {(serviceWorkTotalPages > 1 || serviceRequests.length > 0) && (
                   <div className="flex justify-center mt-4 pt-4 pb-4 border-t border-gray-200">
                     <div className="flex items-center space-x-2">
                       <button 
-                        onClick={() => setServiceWorkCurrentPage(Math.max(1, serviceWorkCurrentPage - 1))}
+                        onClick={() => {
+                          const newPage = Math.max(1, serviceWorkCurrentPage - 1);
+                          setServiceWorkCurrentPage(newPage);
+                          setServiceRequestsPagination(prev => ({ ...prev, page: newPage }));
+                        }}
                         disabled={serviceWorkCurrentPage === 1}
                         className="px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                       >
@@ -2091,7 +1576,11 @@ function SystemAdminPageContent() {
                         {serviceWorkCurrentPage}/{serviceWorkTotalPages}
                       </span>
                       <button 
-                        onClick={() => setServiceWorkCurrentPage(Math.min(serviceWorkTotalPages, serviceWorkCurrentPage + 1))}
+                        onClick={() => {
+                          const newPage = Math.min(serviceWorkTotalPages, serviceWorkCurrentPage + 1);
+                          setServiceWorkCurrentPage(newPage);
+                          setServiceRequestsPagination(prev => ({ ...prev, page: newPage }));
+                        }}
                         disabled={serviceWorkCurrentPage >= serviceWorkTotalPages}
                         className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                       >
@@ -2178,18 +1667,14 @@ function SystemAdminPageContent() {
                         value={serviceReportDepartmentFilter}
                         onChange={(e) => setServiceReportDepartmentFilter(e.target.value)}
                         className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
+                        disabled={departmentsLoading}
                       >
                         <option value="전체">전체</option>
-                        <option value="IT팀">IT팀</option>
-                        <option value="운영팀">운영팀</option>
-                        <option value="관리부">관리부</option>
-                        <option value="생산부">생산부</option>
-                        <option value="구매팀">구매팀</option>
-                        <option value="마케팅팀">마케팅팀</option>
-                        <option value="재무팀">재무팀</option>
-                        <option value="인사팀">인사팀</option>
-                        <option value="법무팀">법무팀</option>
-                        <option value="연구개발팀">연구개발팀</option>
+                        {departments.map((dept) => (
+                          <option key={dept.id} value={dept.name}>
+                            {dept.name}
+                          </option>
+                        ))}
                       </select>
                       
                       {/* 단계 선택 */}
@@ -2349,17 +1834,14 @@ function SystemAdminPageContent() {
                         value={userManagementSearchDepartment}
                         onChange={(e) => setUserManagementSearchDepartment(e.target.value)}
                         className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
+                        disabled={departmentsLoading}
                       >
                         <option value="전체">전체</option>
-                        <option value="IT팀">IT팀</option>
-                        <option value="운영팀">운영팀</option>
-                        <option value="관리팀">관리팀</option>
-                        <option value="생산팀">생산팀</option>
-                        <option value="총무팀">총무팀</option>
-                        <option value="운송부">운송부</option>
-                        <option value="관리부">관리부</option>
-                        <option value="구매팀">구매팀</option>
-                        <option value="마케팅팀">마케팅팀</option>
+                        {departments.map((dept) => (
+                          <option key={dept.id} value={dept.name}>
+                            {dept.name}
+                          </option>
+                        ))}
                       </select>
                       
                       {/* 권한 선택 */}
@@ -2594,12 +2076,14 @@ function SystemAdminPageContent() {
                           setInquiryCurrentDepartment(e.target.value || '전체 부서')
                         }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        disabled={departmentsLoading}
                       >
                         <option value="">전체 부서</option>
-                        <option value="IT팀">IT팀</option>
-                        <option value="운영팀">운영팀</option>
-                        <option value="개발팀">개발팀</option>
-                        <option value="인사팀">인사팀</option>
+                        {departments.map((dept) => (
+                          <option key={dept.id} value={dept.name}>
+                            {dept.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
 
@@ -2706,8 +2190,9 @@ function SystemAdminPageContent() {
                     <input
                       type="email"
                       defaultValue={selectedUser.email}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 bg-gray-100 text-gray-600 border-0 rounded-lg cursor-not-allowed"
                       readOnly
+                      disabled
                     />
                   </div>
                   <div>
@@ -2725,17 +2210,18 @@ function SystemAdminPageContent() {
                       value={editUserData.department || ''}
                       onChange={(e) => setEditUserData({...editUserData, department: e.target.value})}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={departmentsLoading}
                     >
-                      <option value="IT팀">IT팀</option>
-                      <option value="운영팀">운영팀</option>
-                      <option value="관리팀">관리팀</option>
-                      <option value="생산팀">생산팀</option>
-                      <option value="총무팀">총무팀</option>
-                      <option value="운송부">운송부</option>
-                      <option value="관리부">관리부</option>
-                      <option value="구매팀">구매팀</option>
-                      <option value="마케팅팀">마케팅팀</option>
+                      <option value="">부서를 선택하세요</option>
+                      {departments.map((dept) => (
+                        <option key={dept.id} value={dept.name}>
+                          {dept.name}
+                        </option>
+                      ))}
                     </select>
+                    {departmentsLoading && (
+                      <p className="text-xs text-gray-500 mt-1">부서 목록을 불러오는 중...</p>
+                    )}
                   </div>
                 </div>
 

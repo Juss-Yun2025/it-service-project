@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Icon from '@/components/ui/Icon'
+import { getProgressByStage, getProgressByStages } from '@/lib/stageProgressMapping'
 
 // 서비스 요청 데이터 타입 정의
 interface ServiceRequest {
@@ -11,6 +12,7 @@ interface ServiceRequest {
   title: string
   status: string
   currentStatus: string  // 장비의 현재 상태
+  stage: string  // 단계 (접수, 배정, 재배정, 확인, 예정, 작업, 완료, 미결)
   requestDate: string
   assignee?: string
   completionDate?: string
@@ -38,6 +40,7 @@ export default function ProgressPage() {
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [stageProgressMapping, setStageProgressMapping] = useState<Map<string, string>>(new Map())
   const router = useRouter()
 
   // 컴포넌트 마운트 시 한 달 전부터 오늘까지로 초기화
@@ -53,24 +56,25 @@ export default function ProgressPage() {
     setEndDate(todayString)
   }, [])
 
+  // 단계-진행 매칭 초기화
+  useEffect(() => {
+    const initializeStageProgressMapping = async () => {
+      const stages = ['접수', '배정', '재배정', '확인', '예정', '작업', '완료', '미결']
+      const mapping = await getProgressByStages(stages)
+      setStageProgressMapping(mapping)
+    }
+    
+    initializeStageProgressMapping()
+  }, [])
+
   // 검색 조건이 변경될 때 페이지를 1로 리셋
   useEffect(() => {
     setCurrentPage(1)
   }, [startDate, endDate])
 
-  // 진행 상태 매칭 함수
-  const getProgressStatus = (dbStatus: string) => {
-    const statusMap: { [key: string]: string } = {
-      '접수': '정상접수',
-      '배정': '담당배정',
-      '재배정': '담당배정',
-      '확인': '담당배정',
-      '예정': '시간조율',
-      '작업': '작업진행',
-      '완료': '처리완료',
-      '미결': '미결처리'
-    }
-    return statusMap[dbStatus] || dbStatus
+  // 진행 상태 매칭 함수 (동적 매핑 사용)
+  const getProgressStatus = (stage: string) => {
+    return stageProgressMapping.get(stage) || stage
   }
 
   // 진행 상태별 색상
@@ -93,6 +97,7 @@ export default function ProgressPage() {
       requestNumber: 'SR-20250831-009',
       title: '네트워크 연결 문제',
       status: '접수',
+      stage: '접수',
       currentStatus: '부분불능',
       requestDate: '2025.08.31 13:00',
       content: '사무실에서 인터넷 연결이 자주 끊어지는 문제가 발생하고 있습니다.',
@@ -105,6 +110,7 @@ export default function ProgressPage() {
       requestNumber: 'SR-20250831-005',
       title: 'VPN 접속 불가',
       status: '작업',
+      stage: '작업',
       currentStatus: '정상작동',
       requestDate: '2025.08.31 10:00',
       assignee: '김기술',
@@ -118,6 +124,7 @@ export default function ProgressPage() {
       requestNumber: 'SR-20250831-003',
       title: '프린터 드라이버 업데이트',
       status: '예정',
+      stage: '예정',
       currentStatus: '점검요청',
       requestDate: '2025.08.31 09:30',
       assignee: '박기술',
@@ -131,6 +138,7 @@ export default function ProgressPage() {
       requestNumber: 'SR-20250830-010',
       title: '마우스 불량',
       status: '배정',
+      stage: '배정',
       currentStatus: '오류발생',
       requestDate: '2025.08.30 13:00',
       assignee: '홍기술',
@@ -144,6 +152,7 @@ export default function ProgressPage() {
       requestNumber: 'SR-20250829-010',
       title: '모니터 전원 불량',
       status: '완료',
+      stage: '완료',
       currentStatus: '정상작동',
       requestDate: '2025.08.09 13:00',
       assignee: '박기술',
@@ -158,6 +167,7 @@ export default function ProgressPage() {
       requestNumber: 'SR-20250828-008',
       title: '키보드 일부 키 불량',
       status: '접수',
+      stage: '접수',
       currentStatus: '정상작동',
       requestDate: '2025.08.28 14:30',
       content: '키보드의 일부 키가 작동하지 않습니다.',
@@ -170,6 +180,7 @@ export default function ProgressPage() {
       requestNumber: 'SR-20250827-007',
       title: '소프트웨어 설치 요청',
       status: '작업',
+      stage: '작업',
       currentStatus: '점검요청',
       requestDate: '2025.08.27 11:00',
       assignee: '최기술',
@@ -183,6 +194,7 @@ export default function ProgressPage() {
       requestNumber: 'SR-20250826-006',
       title: '시스템 백업 요청',
       status: '예정',
+      stage: '예정',
       currentStatus: '정상작동',
       requestDate: '2025.08.26 16:00',
       assignee: '이기술',
@@ -196,6 +208,7 @@ export default function ProgressPage() {
       requestNumber: 'SR-20250825-005',
       title: '이메일 계정 문제',
       status: '배정',
+      stage: '배정',
       currentStatus: '오류발생',
       requestDate: '2025.08.25 09:00',
       assignee: '정기술',
@@ -209,6 +222,7 @@ export default function ProgressPage() {
       requestNumber: 'SR-20250824-004',
       title: '컴퓨터 속도 저하',
       status: '완료',
+      stage: '완료',
       currentStatus: '정상작동',
       requestDate: '2025.08.24 13:30',
       assignee: '한기술',
@@ -223,6 +237,7 @@ export default function ProgressPage() {
       requestNumber: 'SR-20250823-003',
       title: '파일 복구 요청',
       status: '미결',
+      stage: '미결',
       currentStatus: '기타상태',
       requestDate: '2025.08.23 15:00',
       assignee: '조기술',
@@ -236,6 +251,7 @@ export default function ProgressPage() {
       requestNumber: 'SR-20250822-002',
       title: '네트워크 프린터 설정',
       status: '접수',
+      stage: '접수',
       currentStatus: '메시지창',
       requestDate: '2025.08.22 10:00',
       content: '네트워크 프린터 설정이 필요합니다.',
@@ -248,6 +264,7 @@ export default function ProgressPage() {
       requestNumber: 'SR-20250821-001',
       title: '보안 프로그램 업데이트',
       status: '작업',
+      stage: '작업',
       currentStatus: '전체불능',
       requestDate: '2025.08.21 14:00',
       assignee: '강기술',
@@ -261,6 +278,7 @@ export default function ProgressPage() {
       requestNumber: 'SR-20250820-015',
       title: '데이터베이스 접속 오류',
       status: '예정',
+      stage: '예정',
       currentStatus: '오류발생',
       requestDate: '2025.08.20 11:30',
       assignee: '윤기술',
@@ -274,6 +292,7 @@ export default function ProgressPage() {
       requestNumber: 'SR-20250819-014',
       title: '웹사이트 접속 불가',
       status: '완료',
+      stage: '완료',
       currentStatus: '정상작동',
       requestDate: '2025.08.19 09:00',
       assignee: '서기술',
@@ -496,8 +515,8 @@ export default function ProgressPage() {
                         {request.title}
                       </td>
                       <td className="border-b border-gray-100 px-6 py-1 text-sm">
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(getProgressStatus(request.status))}`}>
-                          {getProgressStatus(request.status)}
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(getProgressStatus(request.stage))}`}>
+                          {getProgressStatus(request.stage)}
                         </span>
                       </td>
                       <td className="border-b border-gray-100 px-6 py-1 text-sm text-gray-600">
@@ -511,7 +530,7 @@ export default function ProgressPage() {
                       </td>
                       <td className="border-b border-gray-100 px-6 py-1 text-sm">
                         <div className="flex justify-center space-x-2">
-                          {getProgressStatus(request.status) === '정상접수' ? (
+                          {getProgressStatus(request.stage) === '정상접수' ? (
                             <>
                               <button 
                                 onClick={() => handleEditRequest(request)}
