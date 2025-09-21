@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 import { getPermissionLevelName, getRolePermissionLevel } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import Icon from '@/components/ui/Icon'
+import { apiClient, LoginRequest } from '@/lib/api'
 import { 
   MessageSquare, 
   BarChart3, 
@@ -146,53 +147,62 @@ export default function Home() {
     return () => clearTimeout(timer);
   }, [dynamicPositionPx]);
 
-  // 로그인 처리
-  const handleLogin = () => {
+  // 로그인 처리 (API 연동)
+  const handleLogin = async () => {
     setLoginError("");
 
-    const user = users.find(u => u.email === email && u.password === password);
-    
-    if (user) {
-      setCurrentUser(user);
-      setIsLoggedIn(true);
-      setShowLoginModal(false);
-      setEmail("");
-      setPassword("");
+    try {
+      const loginData: LoginRequest = {
+        email,
+        password
+      };
+
+      const response = await apiClient.login(loginData);
       
-      // 사용자 역할을 localStorage에 저장
-      localStorage.setItem('userRole', user.role);
-      
-      // 권한별 페이지 라우팅
-      if (isTechLogin) {
-        // 기술자/관리자 로그인
-        switch (user.role) {
-          case 'system_admin':
-            router.push('/system-admin');
-            break;
-          case 'service_manager':
-            router.push('/service-manager');
-            break;
-          case 'technician':
-            router.push('/technician');
-            break;
-          case 'assignment_manager':
-            router.push('/assignment-manager');
-            break;
-          default:
-            setLoginError("권한이 없습니다.");
-            return;
-        }
-      } else {
-        // 일반 사용자 로그인
-        if (selectedMenuItem) {
-          const menuItem = mainMenuItems.find(item => item.id === selectedMenuItem);
-          if (menuItem) {
-            router.push(menuItem.path);
+      if (response.success && response.data) {
+        const { user, token } = response.data;
+        
+        setCurrentUser(user);
+        setIsLoggedIn(true);
+        setShowLoginModal(false);
+        setEmail("");
+        setPassword("");
+        
+        // 권한별 페이지 라우팅
+        if (isTechLogin) {
+          // 기술자/관리자 로그인
+          switch (user.role) {
+            case 'system_admin':
+              router.push('/system-admin');
+              break;
+            case 'service_manager':
+              router.push('/service-manager');
+              break;
+            case 'technician':
+              router.push('/technician');
+              break;
+            case 'assignment_manager':
+              router.push('/assignment-manager');
+              break;
+            default:
+              setLoginError("권한이 없습니다.");
+              return;
+          }
+        } else {
+          // 일반 사용자 로그인
+          if (selectedMenuItem) {
+            const menuItem = mainMenuItems.find(item => item.id === selectedMenuItem);
+            if (menuItem) {
+              router.push(menuItem.path);
+            }
           }
         }
+      } else {
+        setLoginError(response.error || "로그인에 실패했습니다.");
       }
-    } else {
-      setLoginError("이메일 또는 비밀번호가 올바르지 않습니다.");
+    } catch (error) {
+      console.error('Login error:', error);
+      setLoginError("로그인 중 오류가 발생했습니다.");
     }
   };
 
@@ -210,8 +220,9 @@ export default function Home() {
     setIsTechLogin(true);
   };
 
-  // 로그아웃 처리
-  const handleLogout = () => {
+  // 로그아웃 처리 (API 연동)
+  const handleLogout = async () => {
+    await apiClient.logout();
     setIsLoggedIn(false);
     setCurrentUser(null);
     setSelectedMenuItem("");
@@ -246,8 +257,8 @@ export default function Home() {
     setSignupContact("");
   };
 
-  // 회원가입 처리
-  const handleSignup = () => {
+  // 회원가입 처리 (API 연동)
+  const handleSignup = async () => {
     setSignupError("");
 
     // 필수 항목 검증
@@ -283,23 +294,29 @@ export default function Home() {
       return;
     }
 
-    // 회원가입 성공 (실제로는 서버에 전송)
-    const newUser = {
-      email: signupEmail,
-      password: signupPassword,
-      name: signupName,
-      role: "user", // 기본 권한: 일반사용자
-      position: signupPosition,
-      department: signupDepartment,
-      contact: signupContact,
-      createdAt: new Date().toISOString(),
-    };
+    try {
+      const signupData = {
+        email: signupEmail,
+        password: signupPassword,
+        name: signupName,
+        position: signupPosition,
+        department: signupDepartment,
+        contact: signupContact,
+        role: "user" // 기본 권한: 일반사용자
+      };
 
-    // 사용자 목록에 추가 (실제로는 서버에 저장)
-    users.push(newUser);
-    
-    alert("회원가입이 완료되었습니다!");
-    handleCloseSignupModal();
+      const response = await apiClient.register(signupData);
+      
+      if (response.success) {
+        alert("회원가입이 완료되었습니다!");
+        handleCloseSignupModal();
+      } else {
+        setSignupError(response.error || "회원가입에 실패했습니다.");
+      }
+    } catch (error) {
+      console.error('Signup error:', error);
+      setSignupError("회원가입 중 오류가 발생했습니다.");
+    }
   };
 
   return (

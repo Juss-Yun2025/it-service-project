@@ -4,9 +4,11 @@ import { generateToken } from '../utils/jwt';
 import { hashPassword, comparePassword } from '../utils/password';
 import { User, LoginRequest, RegisterRequest, ApiResponse } from '../types';
 
-export const login = async (req: Request, res: Response) => {
+export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password }: LoginRequest = req.body;
+    
+    console.log('Login attempt:', { email, passwordLength: password?.length });
 
     // Find user by email
     const result = await db.query<User>(
@@ -14,22 +16,47 @@ export const login = async (req: Request, res: Response) => {
       [email, 'active']
     );
 
+    console.log('Database query result:', { 
+      email, 
+      rowsFound: result.rows.length,
+      userEmail: result.rows[0]?.email,
+      userStatus: result.rows[0]?.status
+    });
+
     if (result.rows.length === 0) {
-      return res.status(401).json({
+      console.log('No user found or inactive status');
+      res.status(401).json({
         success: false,
         message: 'Invalid email or password'
       } as ApiResponse);
+      return;
     }
 
     const user = result.rows[0];
+    console.log('User found:', { 
+      id: user.id, 
+      email: user.email, 
+      name: user.name,
+      role: user.role,
+      status: user.status,
+      hashPreview: user.password_hash?.substring(0, 20)
+    });
 
     // Verify password
     const isPasswordValid = await comparePassword(password, user.password_hash);
+    console.log('Password verification:', { 
+      isPasswordValid, 
+      providedPassword: password,
+      storedHash: user.password_hash?.substring(0, 20)
+    });
+    
     if (!isPasswordValid) {
-      return res.status(401).json({
+      console.log('Password verification failed');
+      res.status(401).json({
         success: false,
         message: 'Invalid email or password'
       } as ApiResponse);
+      return;
     }
 
     // Update last login
@@ -63,10 +90,12 @@ export const login = async (req: Request, res: Response) => {
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };
 
-export const register = async (req: Request, res: Response) => {
+export const register = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password, name, department, position, role, phone }: RegisterRequest = req.body;
 
@@ -77,10 +106,11 @@ export const register = async (req: Request, res: Response) => {
     );
 
     if (existingUser.rows.length > 0) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: 'User with this email already exists'
       } as ApiResponse);
+      return;
     }
 
     // Hash password
@@ -102,25 +132,32 @@ export const register = async (req: Request, res: Response) => {
       message: 'User registered successfully'
     } as ApiResponse);
 
-  } catch (error) {
+  
+
+
+    return;} catch (error) {
     console.error('Registration error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };
 
-export const getProfile = async (req: Request, res: Response) => {
+export const getProfile = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
 
     if (!userId) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'User not authenticated'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     const result = await db.query<User>(
       'SELECT id, email, name, department, position, role, phone, status, created_at, updated_at, last_login FROM users WHERE id = $1',
@@ -128,11 +165,13 @@ export const getProfile = async (req: Request, res: Response) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'User not found'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     const user = result.rows[0];
 
@@ -148,20 +187,24 @@ export const getProfile = async (req: Request, res: Response) => {
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };
 
-export const updateProfile = async (req: Request, res: Response) => {
+export const updateProfile = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
     const { name, department, position, phone } = req.body;
 
     if (!userId) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'User not authenticated'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     // Update user profile
     const result = await db.query<User>(
@@ -173,11 +216,13 @@ export const updateProfile = async (req: Request, res: Response) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'User not found'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     const updatedUser = result.rows[0];
 
@@ -193,5 +238,7 @@ export const updateProfile = async (req: Request, res: Response) => {
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };

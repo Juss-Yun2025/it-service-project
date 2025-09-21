@@ -3,17 +3,19 @@ import { db } from '../config/database';
 import { generateRequestNumber, calculateAssignmentHours, calculateWorkHours } from '../utils/generators';
 import { ServiceRequest, ServiceRequestCreate, ApiResponse, SearchParams } from '../types';
 
-export const createServiceRequest = async (req: Request, res: Response) => {
+export const createServiceRequest = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
     const { title, description, category_id, priority, service_type }: ServiceRequestCreate = req.body;
 
     if (!userId) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'User not authenticated'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     // Get user info
     const userResult = await db.query(
@@ -22,11 +24,13 @@ export const createServiceRequest = async (req: Request, res: Response) => {
     );
 
     if (userResult.rows.length === 0) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'User not found'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     const user = userResult.rows[0];
     const requestNumber = generateRequestNumber();
@@ -46,16 +50,21 @@ export const createServiceRequest = async (req: Request, res: Response) => {
       message: 'Service request created successfully'
     } as ApiResponse);
 
-  } catch (error) {
+  
+
+
+    return;} catch (error) {
     console.error('Create service request error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };
 
-export const getServiceRequests = async (req: Request, res: Response) => {
+export const getServiceRequests = async (req: Request, res: Response): Promise<void> => {
   try {
     const {
       page = 1,
@@ -69,7 +78,7 @@ export const getServiceRequests = async (req: Request, res: Response) => {
       endDate,
       sortBy = 'request_date',
       sortOrder = 'DESC'
-    }: SearchParams = req.query;
+    } = req.query as any;
 
     const userId = req.user?.id;
     const userRole = req.user?.role;
@@ -196,10 +205,12 @@ export const getServiceRequests = async (req: Request, res: Response) => {
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };
 
-export const getServiceRequestById = async (req: Request, res: Response) => {
+export const getServiceRequestById = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const userId = req.user?.id;
@@ -211,17 +222,17 @@ export const getServiceRequestById = async (req: Request, res: Response) => {
     // Role-based access control
     if (userRole === 'user') {
       whereClause += ' AND sr.requester_id = $2';
-      queryParams.push(userId);
+      queryParams.push(userId!);
     } else if (userRole === 'technician') {
       whereClause += ' AND (sr.requester_id = $2 OR sr.technician_id = $2)';
-      queryParams.push(userId);
+      queryParams.push(userId!);
     } else if (userRole === 'assignment_manager') {
       whereClause += ' AND (sr.requester_id = $2 OR sr.technician_id = $2 OR sr.assignment_manager_id = $2)';
-      queryParams.push(userId);
+      queryParams.push(userId!);
     } else if (userRole === 'service_manager') {
       const userResult = await db.query(
         'SELECT department FROM users WHERE id = $2',
-        [userId]
+        [userId!]
       );
       if (userResult.rows.length > 0) {
         whereClause += ' AND sr.requester_department = $3';
@@ -245,11 +256,13 @@ export const getServiceRequestById = async (req: Request, res: Response) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'Service request not found'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     const request = result.rows[0];
 
@@ -280,10 +293,12 @@ export const getServiceRequestById = async (req: Request, res: Response) => {
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };
 
-export const updateServiceRequest = async (req: Request, res: Response) => {
+export const updateServiceRequest = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const { title, description, priority, status, stage, estimated_completion_date, work_start_date, work_completion_date, technician_id, resolution_notes } = req.body;
@@ -297,11 +312,13 @@ export const updateServiceRequest = async (req: Request, res: Response) => {
     );
 
     if (existingRequest.rows.length === 0) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'Service request not found'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     const request = existingRequest.rows[0];
 
@@ -320,11 +337,13 @@ export const updateServiceRequest = async (req: Request, res: Response) => {
     }
 
     if (!canUpdate) {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: 'Insufficient permissions to update this request'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     // Build update query dynamically
     const updateFields = [];
@@ -399,11 +418,13 @@ export const updateServiceRequest = async (req: Request, res: Response) => {
     }
 
     if (updateFields.length === 0) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: 'No fields to update'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
     updateParams.push(id);
@@ -424,10 +445,12 @@ export const updateServiceRequest = async (req: Request, res: Response) => {
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };
 
-export const assignServiceRequest = async (req: Request, res: Response) => {
+export const assignServiceRequest = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const { technician_id, estimated_completion_date } = req.body;
@@ -435,12 +458,14 @@ export const assignServiceRequest = async (req: Request, res: Response) => {
     const userRole = req.user?.role;
 
     // Only assignment managers and above can assign requests
-    if (!['assignment_manager', 'service_manager', 'system_admin'].includes(userRole)) {
-      return res.status(403).json({
+    if (!['assignment_manager', 'service_manager', 'system_admin'].includes(userRole!)) {
+      res.status(403).json({
         success: false,
         message: 'Insufficient permissions to assign requests'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     // Get technician info
     const technicianResult = await db.query(
@@ -449,11 +474,13 @@ export const assignServiceRequest = async (req: Request, res: Response) => {
     );
 
     if (technicianResult.rows.length === 0) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'Technician not found'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     const technician = technicianResult.rows[0];
 
@@ -474,11 +501,13 @@ export const assignServiceRequest = async (req: Request, res: Response) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'Service request not found'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     res.json({
       success: true,
@@ -492,10 +521,12 @@ export const assignServiceRequest = async (req: Request, res: Response) => {
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };
 
-export const getServiceCategories = async (req: Request, res: Response) => {
+export const getServiceCategories = async (req: Request, res: Response): Promise<void> => {
   try {
     const result = await db.query(
       'SELECT * FROM service_categories ORDER BY name'
@@ -513,5 +544,7 @@ export const getServiceCategories = async (req: Request, res: Response) => {
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };

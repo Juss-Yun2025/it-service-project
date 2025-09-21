@@ -3,6 +3,14 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// Debug environment variables
+console.log('Environment variables:');
+console.log('DB_HOST:', process.env.DB_HOST);
+console.log('DB_PORT:', process.env.DB_PORT);
+console.log('DB_NAME:', process.env.DB_NAME);
+console.log('DB_USER:', process.env.DB_USER);
+console.log('DB_PASSWORD:', process.env.DB_PASSWORD ? '***SET***' : 'NOT SET');
+
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '5432'),
@@ -44,7 +52,10 @@ class Database {
       const result = await this.pool.query(text, params);
       const duration = Date.now() - start;
       console.log('Executed query', { text, duration, rows: result.rowCount });
-      return result;
+      return {
+        rows: result.rows,
+        rowCount: result.rowCount || 0
+      };
     } catch (error) {
       console.error('Query error:', { text, error });
       throw error;

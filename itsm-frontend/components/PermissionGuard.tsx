@@ -1,28 +1,58 @@
 "use client"
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { canAccessScreen } from '@/lib/auth'
+import { apiClient } from '@/lib/api'
 
 interface PermissionGuardProps {
   children: React.ReactNode
-  userRole: string
   requiredPath: string
+  fallbackComponent?: React.ReactNode
 }
 
 const PermissionGuard: React.FC<PermissionGuardProps> = ({ 
   children, 
-  userRole, 
-  requiredPath 
+  requiredPath,
+  fallbackComponent 
 }) => {
   const router = useRouter()
+  const [userRole, setUserRole] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    // localStorage에서 사용자 정보 확인
+    const user = apiClient.getCurrentUser()
+    
+    if (user && user.role) {
+      setUserRole(user.role)
+    } else {
+      // 토큰이 없거나 사용자 정보가 없으면 메인 페이지로 리다이렉트
+      router.push('/')
+      return
+    }
+    
+    setIsLoading(false)
+  }, [router])
+
+  // 로딩 중일 때
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">권한을 확인하는 중...</p>
+        </div>
+      </div>
+    )
+  }
 
   // 권한 확인
-  if (!canAccessScreen(userRole, requiredPath)) {
-    // 권한이 없으면 메인 페이지로 리다이렉트
-    React.useEffect(() => {
-      router.push('/')
-    }, [router])
+  if (!userRole || !canAccessScreen(userRole, requiredPath)) {
+    // 커스텀 fallback 컴포넌트가 있으면 사용
+    if (fallbackComponent) {
+      return <>{fallbackComponent}</>
+    }
 
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -34,7 +64,8 @@ const PermissionGuard: React.FC<PermissionGuardProps> = ({
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">접근 권한이 없습니다</h1>
           <p className="text-gray-600 mb-4">
-            이 페이지에 접근할 권한이 없습니다.
+            이 페이지에 접근할 권한이 없습니다.<br />
+            현재 권한: {userRole || '없음'}
           </p>
           <button
             onClick={() => router.push('/')}

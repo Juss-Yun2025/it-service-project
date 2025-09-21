@@ -11,15 +11,16 @@ declare global {
   }
 }
 
-export const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
+export const authenticateToken = (req: Request, res: Response, next: NextFunction): void => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
 
   if (!token) {
-    return res.status(401).json({ 
+    res.status(401).json({ 
       success: false, 
       message: 'Access token required' 
     });
+    return;
   }
 
   try {
@@ -37,27 +38,30 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
     
     next();
   } catch (error) {
-    return res.status(403).json({ 
+    res.status(403).json({ 
       success: false, 
       message: 'Invalid or expired token' 
     });
+    return;
   }
 };
 
 export const requireRole = (roles: string[]) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
-      return res.status(401).json({ 
+      res.status(401).json({ 
         success: false, 
         message: 'Authentication required' 
       });
+      return;
     }
 
     if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ 
+      res.status(403).json({ 
         success: false, 
         message: 'Insufficient permissions' 
       });
+      return;
     }
 
     next();

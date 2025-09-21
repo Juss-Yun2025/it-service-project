@@ -3,17 +3,19 @@ import { db } from '../config/database';
 import { generateInquiryNumber } from '../utils/generators';
 import { GeneralInquiry, GeneralInquiryCreate, ApiResponse, SearchParams } from '../types';
 
-export const createGeneralInquiry = async (req: Request, res: Response) => {
+export const createGeneralInquiry = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
     const { title, content }: GeneralInquiryCreate = req.body;
 
     if (!userId) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'User not authenticated'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     // Get user info
     const userResult = await db.query(
@@ -22,11 +24,13 @@ export const createGeneralInquiry = async (req: Request, res: Response) => {
     );
 
     if (userResult.rows.length === 0) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'User not found'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     const user = userResult.rows[0];
     const inquiryNumber = generateInquiryNumber();
@@ -46,16 +50,21 @@ export const createGeneralInquiry = async (req: Request, res: Response) => {
       message: 'General inquiry created successfully'
     } as ApiResponse);
 
-  } catch (error) {
+  
+
+
+    return;} catch (error) {
     console.error('Create general inquiry error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };
 
-export const getGeneralInquiries = async (req: Request, res: Response) => {
+export const getGeneralInquiries = async (req: Request, res: Response): Promise<void> => {
   try {
     const {
       page = 1,
@@ -68,7 +77,7 @@ export const getGeneralInquiries = async (req: Request, res: Response) => {
       sortBy = 'inquiry_date',
       sortOrder = 'DESC',
       unansweredOnly = false
-    }: SearchParams & { unansweredOnly?: boolean } = req.query;
+    } = req.query as any;
 
     const userId = req.user?.id;
     const userRole = req.user?.role;
@@ -106,7 +115,7 @@ export const getGeneralInquiries = async (req: Request, res: Response) => {
     // System admin can see all inquiries (no additional filtering)
 
     // Unanswered only filter
-    if (unansweredOnly === 'true') {
+    if (unansweredOnly === true || unansweredOnly === 'true') {
       whereConditions.push(`status = $${paramIndex}`);
       queryParams.push('pending');
       paramIndex++;
@@ -186,10 +195,12 @@ export const getGeneralInquiries = async (req: Request, res: Response) => {
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };
 
-export const getGeneralInquiryById = async (req: Request, res: Response) => {
+export const getGeneralInquiryById = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const userId = req.user?.id;
@@ -201,17 +212,17 @@ export const getGeneralInquiryById = async (req: Request, res: Response) => {
     // Role-based access control
     if (userRole === 'user') {
       whereClause += ' AND gi.requester_id = $2';
-      queryParams.push(userId);
+      queryParams.push(userId!);
     } else if (userRole === 'technician') {
       whereClause += ' AND (gi.requester_id = $2 OR gi.answerer_id = $2)';
-      queryParams.push(userId);
+      queryParams.push(userId!);
     } else if (userRole === 'assignment_manager') {
       whereClause += ' AND (gi.requester_id = $2 OR gi.answerer_id = $2)';
-      queryParams.push(userId);
+      queryParams.push(userId!);
     } else if (userRole === 'service_manager') {
       const userResult = await db.query(
         'SELECT department FROM users WHERE id = $2',
-        [userId]
+        [userId!]
       );
       if (userResult.rows.length > 0) {
         whereClause += ' AND gi.requester_department = $3';
@@ -231,11 +242,13 @@ export const getGeneralInquiryById = async (req: Request, res: Response) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'General inquiry not found'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     res.json({
       success: true,
@@ -249,10 +262,12 @@ export const getGeneralInquiryById = async (req: Request, res: Response) => {
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };
 
-export const updateGeneralInquiry = async (req: Request, res: Response) => {
+export const updateGeneralInquiry = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const { title, content } = req.body;
@@ -266,29 +281,35 @@ export const updateGeneralInquiry = async (req: Request, res: Response) => {
     );
 
     if (existingInquiry.rows.length === 0) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'General inquiry not found'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     const inquiry = existingInquiry.rows[0];
 
     // Only the original requester can update their inquiry (if not answered)
     if (userRole === 'user' && inquiry.requester_id !== userId) {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: 'You can only update your own inquiries'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     // Can't update if already answered
     if (inquiry.status === 'answered' && userRole === 'user') {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: 'Cannot update answered inquiries'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     // Build update query
     const updateFields = [];
@@ -308,11 +329,13 @@ export const updateGeneralInquiry = async (req: Request, res: Response) => {
     }
 
     if (updateFields.length === 0) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: 'No fields to update'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
     updateParams.push(id);
@@ -333,10 +356,12 @@ export const updateGeneralInquiry = async (req: Request, res: Response) => {
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };
 
-export const answerGeneralInquiry = async (req: Request, res: Response) => {
+export const answerGeneralInquiry = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const { answer_content } = req.body;
@@ -344,12 +369,14 @@ export const answerGeneralInquiry = async (req: Request, res: Response) => {
     const userRole = req.user?.role;
 
     // Only technicians and above can answer inquiries
-    if (!['technician', 'assignment_manager', 'service_manager', 'system_admin'].includes(userRole)) {
-      return res.status(403).json({
+    if (!['technician', 'assignment_manager', 'service_manager', 'system_admin'].includes(userRole!)) {
+      res.status(403).json({
         success: false,
         message: 'Insufficient permissions to answer inquiries'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     // Check if inquiry exists
     const existingInquiry = await db.query<GeneralInquiry>(
@@ -358,20 +385,24 @@ export const answerGeneralInquiry = async (req: Request, res: Response) => {
     );
 
     if (existingInquiry.rows.length === 0) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'General inquiry not found'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     const inquiry = existingInquiry.rows[0];
 
     if (inquiry.status === 'answered') {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: 'This inquiry has already been answered'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     // Update inquiry with answer
     const result = await db.query<GeneralInquiry>(
@@ -398,10 +429,12 @@ export const answerGeneralInquiry = async (req: Request, res: Response) => {
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };
 
-export const deleteGeneralInquiry = async (req: Request, res: Response) => {
+export const deleteGeneralInquiry = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const userId = req.user?.id;
@@ -414,29 +447,35 @@ export const deleteGeneralInquiry = async (req: Request, res: Response) => {
     );
 
     if (existingInquiry.rows.length === 0) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'General inquiry not found'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     const inquiry = existingInquiry.rows[0];
 
     // Permission check
     if (userRole === 'user' && inquiry.requester_id !== userId) {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: 'You can only delete your own inquiries'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     // Can't delete if already answered (unless admin)
     if (inquiry.status === 'answered' && userRole === 'user') {
-      return res.status(403).json({
+      res.status(403).json({
         success: false,
         message: 'Cannot delete answered inquiries'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     // Delete inquiry
     await db.query(
@@ -455,5 +494,7 @@ export const deleteGeneralInquiry = async (req: Request, res: Response) => {
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };

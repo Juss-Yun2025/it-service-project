@@ -3,7 +3,7 @@ import { db } from '../config/database';
 import { calculateAssignmentHours, calculateWorkHours } from '../utils/generators';
 import { ApiResponse, SearchParams } from '../types';
 
-export const getServiceReport = async (req: Request, res: Response) => {
+export const getServiceReport = async (req: Request, res: Response): Promise<void> => {
   try {
     const {
       page = 1,
@@ -16,7 +16,7 @@ export const getServiceReport = async (req: Request, res: Response) => {
       endDate,
       sortBy = 'request_date',
       sortOrder = 'DESC'
-    }: SearchParams = req.query;
+    } = req.query as any;
 
     const userId = req.user?.id;
     const userRole = req.user?.role;
@@ -144,10 +144,12 @@ export const getServiceReport = async (req: Request, res: Response) => {
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };
 
-export const getServiceStatistics = async (req: Request, res: Response) => {
+export const getServiceStatistics = async (req: Request, res: Response): Promise<void> => {
   try {
     const { startDate, endDate, department } = req.query;
     const userId = req.user?.id;
@@ -263,10 +265,12 @@ export const getServiceStatistics = async (req: Request, res: Response) => {
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };
 
-export const getInquiryStatistics = async (req: Request, res: Response) => {
+export const getInquiryStatistics = async (req: Request, res: Response): Promise<void> => {
   try {
     const { startDate, endDate, department } = req.query;
     const userId = req.user?.id;
@@ -354,10 +358,12 @@ export const getInquiryStatistics = async (req: Request, res: Response) => {
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };
 
-export const getDashboardData = async (req: Request, res: Response) => {
+export const getDashboardData = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
     const userRole = req.user?.role;
@@ -416,7 +422,7 @@ export const getDashboardData = async (req: Request, res: Response) => {
 
     // Get inquiry statistics (if user can see inquiries)
     let inquiryStats = null;
-    if (['technician', 'assignment_manager', 'service_manager', 'system_admin'].includes(userRole)) {
+    if (['technician', 'assignment_manager', 'service_manager', 'system_admin'].includes(userRole!)) {
       const inquiryResult = await db.query(`
         SELECT 
           COUNT(*) as total_inquiries,
@@ -443,5 +449,7 @@ export const getDashboardData = async (req: Request, res: Response) => {
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };

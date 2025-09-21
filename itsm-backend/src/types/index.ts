@@ -148,8 +148,10 @@ export interface PaginationParams {
 export interface SearchParams extends PaginationParams {
   search?: string;
   status?: string;
+  stage?: string;
   department?: string;
   role?: string;
+  priority?: string;
   startDate?: string;
   endDate?: string;
 }

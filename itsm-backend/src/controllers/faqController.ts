@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { db } from '../config/database';
 import { FAQ, FAQCreate, ApiResponse, SearchParams } from '../types';
 
-export const getFAQs = async (req: Request, res: Response) => {
+export const getFAQs = async (req: Request, res: Response): Promise<void> => {
   try {
     const {
       page = 1,
@@ -12,7 +12,7 @@ export const getFAQs = async (req: Request, res: Response) => {
       is_active = true,
       sortBy = 'created_at',
       sortOrder = 'DESC'
-    }: SearchParams & { category?: string; is_active?: boolean } = req.query;
+    } = req.query as any;
 
     const offset = (Number(page) - 1) * Number(limit);
     let whereConditions = ['1=1'];
@@ -78,10 +78,12 @@ export const getFAQs = async (req: Request, res: Response) => {
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };
 
-export const getFAQById = async (req: Request, res: Response) => {
+export const getFAQById = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
 
@@ -94,11 +96,13 @@ export const getFAQById = async (req: Request, res: Response) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'FAQ not found'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     const faq = result.rows[0];
 
@@ -122,20 +126,24 @@ export const getFAQById = async (req: Request, res: Response) => {
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };
 
-export const createFAQ = async (req: Request, res: Response) => {
+export const createFAQ = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
     const { question, answer, category }: FAQCreate = req.body;
 
     if (!userId) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         message: 'User not authenticated'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     // Create FAQ
     const result = await db.query<FAQ>(
@@ -151,16 +159,21 @@ export const createFAQ = async (req: Request, res: Response) => {
       message: 'FAQ created successfully'
     } as ApiResponse);
 
-  } catch (error) {
+  
+
+
+    return;} catch (error) {
     console.error('Create FAQ error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };
 
-export const updateFAQ = async (req: Request, res: Response) => {
+export const updateFAQ = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const { question, answer, category, is_active } = req.body;
@@ -172,11 +185,13 @@ export const updateFAQ = async (req: Request, res: Response) => {
     );
 
     if (existingFAQ.rows.length === 0) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'FAQ not found'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     // Build update query
     const updateFields = [];
@@ -208,11 +223,13 @@ export const updateFAQ = async (req: Request, res: Response) => {
     }
 
     if (updateFields.length === 0) {
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         message: 'No fields to update'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
     updateParams.push(id);
@@ -233,10 +250,12 @@ export const updateFAQ = async (req: Request, res: Response) => {
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };
 
-export const deleteFAQ = async (req: Request, res: Response) => {
+export const deleteFAQ = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
 
@@ -247,11 +266,13 @@ export const deleteFAQ = async (req: Request, res: Response) => {
     );
 
     if (existingFAQ.rows.length === 0) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'FAQ not found'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     // Delete FAQ
     await db.query(
@@ -270,10 +291,12 @@ export const deleteFAQ = async (req: Request, res: Response) => {
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };
 
-export const getFAQCategories = async (req: Request, res: Response) => {
+export const getFAQCategories = async (req: Request, res: Response): Promise<void> => {
   try {
     const result = await db.query(
       'SELECT DISTINCT category FROM faqs WHERE category IS NOT NULL AND is_active = true ORDER BY category'
@@ -293,10 +316,12 @@ export const getFAQCategories = async (req: Request, res: Response) => {
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };
 
-export const getPopularFAQs = async (req: Request, res: Response) => {
+export const getPopularFAQs = async (req: Request, res: Response): Promise<void> => {
   try {
     const { limit = 5 } = req.query;
 
@@ -320,5 +345,7 @@ export const getPopularFAQs = async (req: Request, res: Response) => {
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };

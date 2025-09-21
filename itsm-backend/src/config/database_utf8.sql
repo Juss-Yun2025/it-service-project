@@ -1,4 +1,4 @@
--- ITSM Database Schema
+﻿-- ITSM Database Schema
 -- PostgreSQL Database Schema for ITSM System
 
 -- Create Database (run this separately)
@@ -10,7 +10,7 @@
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Users table (사용자 관리)
+-- Users table (?ъ슜??愿由?
 CREATE TABLE users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email VARCHAR(255) UNIQUE NOT NULL,
@@ -20,13 +20,13 @@ CREATE TABLE users (
     position VARCHAR(50) NOT NULL,
     role VARCHAR(50) NOT NULL CHECK (role IN ('user', 'technician', 'assignment_manager', 'service_manager', 'system_admin')),
     phone VARCHAR(20),
-    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'po')),
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'suspended')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     last_login TIMESTAMP
 );
 
--- Service Categories (서비스 카테고리)
+-- Service Categories (?쒕퉬??移댄뀒怨좊━)
 CREATE TABLE service_categories (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(100) NOT NULL,
@@ -34,7 +34,7 @@ CREATE TABLE service_categories (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Service Requests (서비스 요청)
+-- Service Requests (?쒕퉬???붿껌)
 CREATE TABLE service_requests (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     request_number VARCHAR(20) UNIQUE NOT NULL,
@@ -45,7 +45,7 @@ CREATE TABLE service_requests (
     requester_department VARCHAR(100) NOT NULL,
     priority VARCHAR(20) DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
     status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'assigned', 'in_progress', 'completed', 'cancelled')),
-    stage VARCHAR(20) DEFAULT '접수' CHECK (stage IN ('접수', '배정', '재배정', '확인', '예정', '작업', '완료', '미결')),
+    stage VARCHAR(20) DEFAULT '?묒닔' CHECK (stage IN ('?묒닔', '諛곗젙', '?щ같??, '?뺤씤', '?덉젙', '?묒뾽', '?꾨즺', '誘멸껐')),
     service_type VARCHAR(50) NOT NULL,
     request_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     assignment_date TIMESTAMP,
@@ -60,7 +60,7 @@ CREATE TABLE service_requests (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- General Inquiries (일반문의)
+-- General Inquiries (?쇰컲臾몄쓽)
 CREATE TABLE general_inquiries (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     inquiry_number VARCHAR(20) UNIQUE NOT NULL,
@@ -77,7 +77,7 @@ CREATE TABLE general_inquiries (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- FAQ (자주하는 질문)
+-- FAQ (?먯＜?섎뒗 吏덈Ц)
 CREATE TABLE faqs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     question TEXT NOT NULL,
@@ -90,7 +90,7 @@ CREATE TABLE faqs (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- System Logs (시스템 로그)
+-- System Logs (?쒖뒪??濡쒓렇)
 CREATE TABLE system_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID REFERENCES users(id),
@@ -104,7 +104,7 @@ CREATE TABLE system_logs (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Password Reset Tokens (비밀번호 재설정 토큰)
+-- Password Reset Tokens (鍮꾨?踰덊샇 ?ъ꽕???좏겙)
 CREATE TABLE password_reset_tokens (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID REFERENCES users(id),
@@ -155,23 +155,23 @@ CREATE TRIGGER update_faqs_updated_at BEFORE UPDATE ON faqs
 -- Insert initial data
 -- Service Categories
 INSERT INTO service_categories (name, description) VALUES
-('시스템 오류', '시스템 관련 오류 및 문제'),
-('소프트웨어 설치', '소프트웨어 설치 및 설정'),
-('하드웨어 문제', '하드웨어 관련 문제'),
-('네트워크 문제', '네트워크 연결 및 설정'),
-('계정 관리', '사용자 계정 관련 문제'),
-('기타', '기타 서비스 요청');
+('?쒖뒪???ㅻ쪟', '?쒖뒪??愿???ㅻ쪟 諛?臾몄젣'),
+('?뚰봽?몄썾???ㅼ튂', '?뚰봽?몄썾???ㅼ튂 諛??ㅼ젙'),
+('?섎뱶?⑥뼱 臾몄젣', '?섎뱶?⑥뼱 愿??臾몄젣'),
+('?ㅽ듃?뚰겕 臾몄젣', '?ㅽ듃?뚰겕 ?곌껐 諛??ㅼ젙'),
+('怨꾩젙 愿由?, '?ъ슜??怨꾩젙 愿??臾몄젣'),
+('湲고?', '湲고? ?쒕퉬???붿껌');
 
 -- Default admin user (password: admin123)
 INSERT INTO users (email, password_hash, name, department, position, role, phone) VALUES
-('admin@itsm.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '시스템관리자', 'IT팀', '대리', 'system_admin', '010-0000-0000'),
-('service@itsm.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '서비스매니저', 'IT팀', '대리', 'service_manager', '010-1111-1111'),
-('assignment@itsm.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '배정담당자', 'IT팀', '대리', 'assignment_manager', '010-2222-2222'),
-('tech@itsm.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '조치담당자', 'IT팀', '대리', 'technician', '010-3333-3333'),
-('user@itsm.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '일반사용자', '인사팀', '사원', 'user', '010-4444-4444');
+('admin@itsm.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '?쒖뒪?쒓?由ъ옄', 'IT?', '?由?, 'system_admin', '010-0000-0000'),
+('service@itsm.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '?쒕퉬?ㅻℓ?덉?', 'IT?', '?由?, 'service_manager', '010-1111-1111'),
+('assignment@itsm.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '諛곗젙?대떦??, 'IT?', '?由?, 'assignment_manager', '010-2222-2222'),
+('tech@itsm.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '議곗튂?대떦??, 'IT?', '?由?, 'technician', '010-3333-3333'),
+('user@itsm.com', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', '?쇰컲?ъ슜??, '?몄궗?', '?ъ썝', 'user', '010-4444-4444');
 
 -- Sample FAQ
 INSERT INTO faqs (question, answer, category, created_by) VALUES
-('비밀번호를 잊어버렸습니다. 어떻게 해야 하나요?', '로그인 페이지에서 "비밀번호 찾기"를 클릭하여 이메일로 재설정 링크를 받으실 수 있습니다.', '계정관리', (SELECT id FROM users WHERE email = 'admin@itsm.com')),
-('서비스 요청은 어떻게 하나요?', '로그인 후 "서비스 요청" 메뉴에서 필요한 서비스를 신청하실 수 있습니다.', '서비스요청', (SELECT id FROM users WHERE email = 'admin@itsm.com')),
-('작업 진행 상황은 어디서 확인하나요?', '로그인 후 "요청 진행사항" 메뉴에서 본인이 신청한 서비스의 진행 상황을 확인하실 수 있습니다.', '진행상황', (SELECT id FROM users WHERE email = 'admin@itsm.com'));
+('鍮꾨?踰덊샇瑜??딆뼱踰꾨졇?듬땲?? ?대뼸寃??댁빞 ?섎굹??', '濡쒓렇???섏씠吏?먯꽌 "鍮꾨?踰덊샇 李얘린"瑜??대┃?섏뿬 ?대찓?쇰줈 ?ъ꽕??留곹겕瑜?諛쏆쑝?????덉뒿?덈떎.', '怨꾩젙愿由?, (SELECT id FROM users WHERE email = 'admin@itsm.com')),
+('?쒕퉬???붿껌? ?대뼸寃??섎굹??', '濡쒓렇????"?쒕퉬???붿껌" 硫붾돱?먯꽌 ?꾩슂???쒕퉬?ㅻ? ?좎껌?섏떎 ???덉뒿?덈떎.', '?쒕퉬?ㅼ슂泥?, (SELECT id FROM users WHERE email = 'admin@itsm.com')),
+('?묒뾽 吏꾪뻾 ?곹솴? ?대뵒???뺤씤?섎굹??', '濡쒓렇????"?붿껌 吏꾪뻾?ы빆" 硫붾돱?먯꽌 蹂몄씤???좎껌???쒕퉬?ㅼ쓽 吏꾪뻾 ?곹솴???뺤씤?섏떎 ???덉뒿?덈떎.', '吏꾪뻾?곹솴', (SELECT id FROM users WHERE email = 'admin@itsm.com'));

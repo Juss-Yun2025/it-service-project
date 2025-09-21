@@ -1600,7 +1600,7 @@ export default function ServiceManagerPage() {
                         <option value="보안팀">보안팀</option>
                         <option value="인사팀">인사팀</option>
                         <option value="재무팀">재무팀</option>
-                        </select>
+                      </select>
                     </div>
                     
                     {/* 미결완료조회 토글 - 우측 끝 배치 */}

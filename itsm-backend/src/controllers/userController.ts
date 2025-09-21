@@ -4,7 +4,7 @@ import { hashPassword, generateRandomPassword } from '../utils/password';
 import { generatePasswordResetToken } from '../utils/generators';
 import { User, ApiResponse, SearchParams } from '../types';
 
-export const getAllUsers = async (req: Request, res: Response) => {
+export const getAllUsers = async (req: Request, res: Response): Promise<void> => {
   try {
     const {
       page = 1,
@@ -17,7 +17,7 @@ export const getAllUsers = async (req: Request, res: Response) => {
       endDate,
       sortBy = 'created_at',
       sortOrder = 'DESC'
-    }: SearchParams = req.query;
+    } = req.query as any;
 
     const offset = (Number(page) - 1) * Number(limit);
     let whereConditions = ['1=1'];
@@ -100,10 +100,12 @@ export const getAllUsers = async (req: Request, res: Response) => {
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };
 
-export const getUserById = async (req: Request, res: Response) => {
+export const getUserById = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
 
@@ -113,11 +115,13 @@ export const getUserById = async (req: Request, res: Response) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'User not found'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     res.json({
       success: true,
@@ -131,10 +135,12 @@ export const getUserById = async (req: Request, res: Response) => {
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };
 
-export const updateUser = async (req: Request, res: Response) => {
+export const updateUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
     const { name, department, position, role, phone, status } = req.body;
@@ -146,11 +152,13 @@ export const updateUser = async (req: Request, res: Response) => {
     );
 
     if (existingUser.rows.length === 0) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'User not found'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     // Update user
     const result = await db.query<User>(
@@ -173,10 +181,12 @@ export const updateUser = async (req: Request, res: Response) => {
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };
 
-export const deleteUser = async (req: Request, res: Response) => {
+export const deleteUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
 
@@ -187,11 +197,13 @@ export const deleteUser = async (req: Request, res: Response) => {
     );
 
     if (existingUser.rows.length === 0) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'User not found'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     // Soft delete by setting status to inactive
     await db.query(
@@ -210,10 +222,12 @@ export const deleteUser = async (req: Request, res: Response) => {
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };
 
-export const resetUserPassword = async (req: Request, res: Response) => {
+export const resetUserPassword = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
 
@@ -224,11 +238,13 @@ export const resetUserPassword = async (req: Request, res: Response) => {
     );
 
     if (existingUser.rows.length === 0) {
-      return res.status(404).json({
+      res.status(404).json({
         success: false,
         message: 'User not found'
       } as ApiResponse);
-    }
+    
+
+      return;}
 
     // Generate new temporary password
     const tempPassword = generateRandomPassword(12);
@@ -266,5 +282,7 @@ export const resetUserPassword = async (req: Request, res: Response) => {
       success: false,
       message: 'Internal server error'
     } as ApiResponse);
-  }
+  
+
+    return;}
 };

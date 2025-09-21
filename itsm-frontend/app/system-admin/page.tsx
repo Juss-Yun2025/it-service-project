@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Icon from '@/components/ui/Icon'
+import { apiClient, User, UserUpdateRequest } from '@/lib/api'
+import PermissionGuard from '@/components/PermissionGuard'
 
 // 데이터 타입 정의
 interface ServiceRequest {
@@ -51,7 +53,7 @@ interface PendingWork {
   longTermPending: number
 }
 
-export default function SystemAdminPage() {
+function SystemAdminPageContent() {
   const router = useRouter()
   const [currentDate, setCurrentDate] = useState('')
   const [currentTime, setCurrentTime] = useState('')
@@ -109,11 +111,17 @@ export default function SystemAdminPage() {
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
     return oneWeekAgo.toISOString().split('T')[0]
   })
-  const [userManagementSearchEndDate, setUserManagementSearchEndDate] = useState(new Date().toISOString().split('T')[0])
+  const [userManagementSearchEndDate, setUserManagementSearchEndDate] = useState(() => {
+    return new Date().toISOString().split('T')[0]
+  })
   const [userManagementSearchName, setUserManagementSearchName] = useState('')
   const [showUserEditModal, setShowUserEditModal] = useState(false)
   const [showUserResetModal, setShowUserResetModal] = useState(false)
-  const [selectedUser, setSelectedUser] = useState<any>(null)
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [users, setUsers] = useState<User[]>([])
+  const [userTotalPages, setUserTotalPages] = useState(1)
+  const [userLoading, setUserLoading] = useState(false)
+  const [userError, setUserError] = useState('')
   
   // 드래그 관련 상태
   const [isDragging, setIsDragging] = useState(false)
@@ -1023,132 +1031,68 @@ export default function SystemAdminPage() {
     XLSX.writeFile(wb, filename);
   };
 
-  // 사용자 데이터
-  const [users, setUsers] = useState([
-    {
-      id: '1',
-      email: 'admin@itsm.com',
-      name: '김시스템',
-      department: 'IT팀',
-      position: '부장',
-      role: '시스템관리',
-      createDate: '2025.08.01 13:00',
-      status: '정상'
-    },
-    {
-      id: '2',
-      email: 'manager@itsm.com',
-      name: '황매니저',
-      department: '운영팀',
-      position: '과장',
-      role: '관리매니저',
-      createDate: '2025.08.01 13:00',
-      status: '정상'
-    },
-    {
-      id: '3',
-      email: 'tech@itsm.com',
-      name: '김기술',
-      department: '운영팀',
-      position: '대리',
-      role: '조치담당자',
-      createDate: '2025.08.01 13:00',
-      status: '정상'
-    },
-    {
-      id: '4',
-      email: 'assign@itsm.com',
-      name: '이배정',
-      department: '관리팀',
-      position: '사원',
-      role: '배정담당자',
-      createDate: '2025.08.01 13:00',
-      status: '정상'
-    },
-    {
-      id: '5',
-      email: 'user@itsm.com',
-      name: '이영희',
-      department: '생산팀',
-      position: '사원',
-      role: '일반사용자',
-      createDate: '2025.08.01 13:00',
-      status: '정상'
-    },
-    {
-      id: '6',
-      email: 'user_del@itsm.com',
-      name: '이퇴사',
-      department: '총무팀',
-      position: '사원',
-      role: '일반사용자',
-      createDate: '2025.08.01 13:00',
-      status: '정지'
-    },
-    {
-      id: '7',
-      email: 'tech1@itsm.com',
-      name: '박기술',
-      department: '운영팀',
-      position: '사원',
-      role: '조치담당자',
-      createDate: '2025.08.01 13:00',
-      status: '정상'
-    },
-    {
-      id: '8',
-      email: 'tech2@itsm.com',
-      name: '홍기술',
-      department: 'IT팀',
-      position: '사원',
-      role: '조치담당자',
-      createDate: '2025.08.01 13:00',
-      status: '정상'
-    },
-    {
-      id: '9',
-      email: 'user1@itsm.com',
-      name: '박달자',
-      department: '운송부',
-      position: '촉탁',
-      role: '일반사용자',
-      createDate: '2025.08.01 13:00',
-      status: '정상'
-    },
-    {
-      id: '10',
-      email: 'user2@itsm.com',
-      name: '김철수',
-      department: '관리부',
-      position: '차장',
-      role: '일반사용자',
-      createDate: '2025.07.01 13:00',
-      status: '정상'
-    },
-    {
-      id: '11',
-      email: 'user3@itsm.com',
-      name: '최민수',
-      department: '구매팀',
-      position: '대리',
-      role: '일반사용자',
-      createDate: '2025.07.15 09:30',
-      status: '정상'
-    },
-    {
-      id: '12',
-      email: 'user4@itsm.com',
-      name: '정수진',
-      department: '마케팅팀',
-      position: '과장',
-      role: '일반사용자',
-      createDate: '2025.07.20 14:15',
-      status: '정상'
+  // 사용자 데이터 로드 함수
+  const loadUsers = async () => {
+    setUserLoading(true)
+    setUserError('')
+    
+    try {
+      const params: any = {
+        page: userManagementCurrentPage,
+        limit: 10
+      }
+      
+      if (userManagementSearchDepartment !== '전체') {
+        params.department = userManagementSearchDepartment
+      }
+      
+      if (userManagementSearchRole !== '전체') {
+        params.role = userManagementSearchRole
+      }
+      
+      if (userManagementSearchName) {
+        params.name = userManagementSearchName
+      }
+      
+      if (userManagementSearchStartDate && userManagementSearchEndDate) {
+        params.startDate = userManagementSearchStartDate
+        params.endDate = userManagementSearchEndDate
+      }
+      
+      console.log('사용자 데이터 로드 시도:', params)
+      const response = await apiClient.getUsers(params)
+      console.log('API 응답:', response)
+      
+      if (response.success && response.data) {
+        console.log('사용자 데이터 설정:', response.data.users)
+        setUsers(response.data.users)
+        setUserTotalPages(response.data.totalPages)
+      } else {
+        console.error('API 응답 실패:', response)
+        setUserError(response.error || '사용자 데이터를 불러오는데 실패했습니다.')
+      }
+    } catch (error) {
+      console.error('사용자 데이터 로드 오류:', error)
+      setUserError('사용자 데이터를 불러오는 중 오류가 발생했습니다.')
+    } finally {
+      setUserLoading(false)
     }
-  ]);
+  }
 
-  // 사용자관리 필터링
-  const filteredUsers = users.filter(user => {
+  // 컴포넌트 마운트 시 사용자 데이터 로드
+  useEffect(() => {
+    console.log('useEffect triggered - loading users')
+    loadUsers()
+  }, [userManagementCurrentPage, userManagementSearchDepartment, userManagementSearchRole, userManagementSearchName, userManagementSearchStartDate, userManagementSearchEndDate])
+
+  // 컴포넌트 마운트 시 한 번만 사용자 데이터 로드
+  useEffect(() => {
+    console.log('Initial load - loading users')
+    loadUsers()
+  }, [])
+
+  // 사용자관리 필터링 (API 데이터 사용)
+  const filteredUsers = (users || []).filter(user => {
     // 부서 필터
     if (userManagementSearchDepartment !== '전체' && user.department !== userManagementSearchDepartment) return false;
     
@@ -1160,9 +1104,8 @@ export default function SystemAdminPage() {
     
     // 기간 필터 (기간이 설정된 경우에만)
     if (userManagementSearchStartDate && userManagementSearchEndDate) {
-      // 사용자 데이터의 날짜 형식: "2025.08.01 13:00" -> "2025-08-01"
-      const userDateStr = user.createDate.split(' ')[0].replace(/\./g, '-');
-      const userDate = new Date(userDateStr);
+      // API 데이터의 날짜 형식: "2025-01-01T00:00:00.000Z" -> "2025-01-01"
+      const userDate = new Date(user.created_at);
       const startDate = new Date(userManagementSearchStartDate);
       const endDate = new Date(userManagementSearchEndDate);
       
@@ -1175,7 +1118,7 @@ export default function SystemAdminPage() {
 
   // 사용자관리 페이지네이션
   const userManagementItemsPerPage = 10;
-  const userManagementTotalPages = Math.ceil(filteredUsers.length / userManagementItemsPerPage);
+  const userManagementTotalPages = userTotalPages; // API에서 받은 총 페이지 수 사용
   const paginatedUsers = filteredUsers.slice(
     (userManagementCurrentPage - 1) * userManagementItemsPerPage,
     userManagementCurrentPage * userManagementItemsPerPage
@@ -1885,7 +1828,10 @@ export default function SystemAdminPage() {
 
                   {/* 사용자 관리 */}
                   <div 
-                    onClick={(e) => handleCardClick(e, () => setShowUserManagement(true))}
+                    onClick={(e) => handleCardClick(e, () => {
+                      setShowUserManagement(true)
+                      loadUsers() // 사용자 관리 프레임 열 때 데이터 로드
+                    })}
                     className="bg-gray-800 rounded-lg p-6 cursor-pointer hover:bg-gray-700 hover:scale-105 transition-all duration-300 ease-in-out flex flex-col items-start justify-start flex-shrink-0"
                     style={{
                       backgroundImage: `url('/image/슬라이드_선택_사용자관리.jpg')`,
@@ -2373,10 +2319,11 @@ export default function SystemAdminPage() {
                         setUserManagementSearchDepartment('전체');
                         setUserManagementSearchRole('전체');
                         setUserManagementSearchName('');
-                        const oneWeekAgo = new Date()
-                        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+                        const oneWeekAgo = new Date();
+                        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
                         setUserManagementSearchStartDate(oneWeekAgo.toISOString().split('T')[0]);
                         setUserManagementSearchEndDate(new Date().toISOString().split('T')[0]);
+                        loadUsers(); // 새로고침 시 데이터 로드
                       }}
                       className="w-6 h-6 text-gray-600 hover:text-gray-800 transition-colors"
                     >
@@ -2478,45 +2425,93 @@ export default function SystemAdminPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {paginatedUsers.map((user) => (
-                          <tr key={user.id} className="hover:bg-gray-50">
-                            <td className="px-2 py-2 text-gray-900 text-center">{user.email}</td>
-                            <td className="px-2 py-2 text-gray-900 text-center">{user.name}</td>
-                            <td className="px-2 py-2 text-gray-900 text-center">{user.department}</td>
-                            <td className="px-2 py-2 text-gray-900 text-center">{user.position}</td>
-                            <td className="px-2 py-2 text-gray-900 text-center">{user.role}</td>
-                            <td className="px-2 py-2 text-gray-900 text-center">{user.createDate}</td>
-                            <td className="px-2 py-2 text-center">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                user.status === '정상' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                              }`}>
-                                {user.status}
-                              </span>
+                        {userLoading ? (
+                          <tr>
+                            <td colSpan={8} className="px-2 py-8 text-center text-gray-500">
+                              <div className="flex items-center justify-center space-x-2">
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                                <span>사용자 데이터를 불러오는 중...</span>
+                              </div>
                             </td>
-                            <td className="px-2 py-2 text-center">
-                              <div className="flex justify-center space-x-2">
+                          </tr>
+                        ) : userError ? (
+                          <tr>
+                            <td colSpan={8} className="px-2 py-8 text-center text-red-500">
+                              <div className="flex items-center justify-center space-x-2">
+                                <span>❌</span>
+                                <span>{userError}</span>
                                 <button
-                                  onClick={() => {
-                                    setSelectedUser(user);
-                                    setShowUserEditModal(true);
-                                  }}
-                                  className="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
+                                  onClick={loadUsers}
+                                  className="ml-2 px-3 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
                                 >
-                                  수정
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    setSelectedUser(user);
-                                    setShowUserResetModal(true);
-                                  }}
-                                  className="px-2 py-1 bg-orange-500 text-white rounded text-xs hover:bg-orange-600 transition-colors"
-                                >
-                                  초기화
+                                  다시 시도
                                 </button>
                               </div>
                             </td>
                           </tr>
-                        ))}
+                        ) : paginatedUsers.length === 0 ? (
+                          <tr>
+                            <td colSpan={8} className="px-2 py-8 text-center text-gray-500">
+                              <div className="flex flex-col items-center justify-center space-y-2">
+                                <div className="flex items-center space-x-2">
+                                  <span>🔍</span>
+                                  <span className="font-medium">검색 결과가 없습니다</span>
+                                </div>
+                                <div className="text-sm text-gray-400">
+                                  검색 조건을 변경하거나 새로고침 버튼을 클릭해보세요
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : (
+                          paginatedUsers.map((user) => (
+                            <tr key={user.id} className="hover:bg-gray-50">
+                              <td className="px-2 py-2 text-gray-900 text-center">{user.email}</td>
+                              <td className="px-2 py-2 text-gray-900 text-center">{user.name}</td>
+                              <td className="px-2 py-2 text-gray-900 text-center">{user.department}</td>
+                              <td className="px-2 py-2 text-gray-900 text-center">{user.position}</td>
+                              <td className="px-2 py-2 text-gray-900 text-center">{user.role}</td>
+                              <td className="px-2 py-2 text-gray-900 text-center">
+                                {(() => {
+                                  const date = new Date(user.created_at);
+                                  const year = date.getFullYear();
+                                  const month = String(date.getMonth() + 1).padStart(2, '0');
+                                  const day = String(date.getDate()).padStart(2, '0');
+                                  return `${year}.${month}.${day}.`;
+                                })()}
+                              </td>
+                              <td className="px-2 py-2 text-center">
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                  user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                }`}>
+                                  {user.status === 'active' ? '정상' : user.status}
+                                </span>
+                              </td>
+                              <td className="px-2 py-2 text-center">
+                                <div className="flex justify-center space-x-2">
+                                  <button
+                                    onClick={() => {
+                                      setSelectedUser(user);
+                                      setShowUserEditModal(true);
+                                    }}
+                                    className="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
+                                  >
+                                    수정
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setSelectedUser(user);
+                                      setShowUserResetModal(true);
+                                    }}
+                                    className="px-2 py-1 bg-orange-500 text-white rounded text-xs hover:bg-orange-600 transition-colors"
+                                  >
+                                    초기화
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -2683,7 +2678,7 @@ export default function SystemAdminPage() {
                 <Icon name="user" size={24} className="mr-2" />
                 회원정보 수정
               </h2>
-              <button
+                <button
                 onClick={() => setShowUserEditModal(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
@@ -2778,9 +2773,32 @@ export default function SystemAdminPage() {
             {/* 모달 하단 버튼 */}
             <div className="flex justify-end py-4 px-6 border-t border-gray-200">
               <button
-                onClick={() => {
-                  setShowUserEditModal(false);
-                  alert('회원정보가 수정되었습니다.');
+                onClick={async () => {
+                  if (!selectedUser) return;
+                  
+                  try {
+                    const updateData: UserUpdateRequest = {
+                      email: selectedUser.email,
+                      name: selectedUser.name,
+                      department: selectedUser.department,
+                      position: selectedUser.position,
+                      role: selectedUser.role,
+                      status: selectedUser.status
+                    };
+                    
+                    const response = await apiClient.updateUser(selectedUser.id, updateData);
+                    
+                    if (response.success) {
+                      setShowUserEditModal(false);
+                      alert('회원정보가 수정되었습니다.');
+                      loadUsers(); // 사용자 목록 새로고침
+                    } else {
+                      alert(response.error || '회원정보 수정에 실패했습니다.');
+                    }
+                  } catch (error) {
+                    console.error('사용자 수정 오류:', error);
+                    alert('회원정보 수정 중 오류가 발생했습니다.');
+                  }
                 }}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200"
               >
@@ -2857,9 +2875,22 @@ export default function SystemAdminPage() {
                 취소
               </button>
               <button
-                onClick={() => {
-                  setShowUserResetModal(false);
-                  alert('비밀번호가 초기화되었습니다. 임시 비밀번호를 사용자에게 전달해 주세요.');
+                onClick={async () => {
+                  if (!selectedUser) return;
+                  
+                  try {
+                    const response = await apiClient.resetUserPassword(selectedUser.id);
+                    
+                    if (response.success && response.data) {
+                      setShowUserResetModal(false);
+                      alert(`비밀번호가 초기화되었습니다.\n임시 비밀번호: ${response.data.temporaryPassword}\n\n사용자에게 새 비밀번호를 안전하게 전달해 주세요.`);
+                    } else {
+                      alert(response.error || '비밀번호 초기화에 실패했습니다.');
+                    }
+                  } catch (error) {
+                    console.error('비밀번호 초기화 오류:', error);
+                    alert('비밀번호 초기화 중 오류가 발생했습니다.');
+                  }
                 }}
                 className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
               >
@@ -6298,5 +6329,13 @@ export default function SystemAdminPage() {
         }
       `}</style>
           </div>
+  )
+}
+
+export default function SystemAdminPage() {
+  return (
+    <PermissionGuard requiredPath="/system-admin">
+      <SystemAdminPageContent />
+    </PermissionGuard>
   )
 }
