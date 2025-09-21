@@ -619,12 +619,12 @@ export default function ProgressPage() {
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-600">신청 내용</label>
-                    <p className="text-gray-800">{selectedRequest.description}</p>
+                    <p className="text-gray-800">{selectedRequest.content}</p>
                   </div>
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-600">신청자</label>
-                    <p className="text-gray-800">{selectedRequest.requester} ({selectedRequest.department})</p>
+                    <p className="text-gray-800">{selectedRequest.requester}</p>
                   </div>
                   
                   <div>
@@ -757,7 +757,7 @@ export default function ProgressPage() {
               <div>
                 <label className="block text-sm font-bold text-blue-600 mb-1 underline">신청 내용</label>
                 <textarea
-                  defaultValue={selectedRequest.description}
+                  defaultValue={selectedRequest.content}
                   rows={4}
                   className="w-full px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -766,7 +766,7 @@ export default function ProgressPage() {
               {/* 신청자 (읽기 전용) */}
               <div>
                 <label className="block text-sm font-bold text-blue-600 mb-1 underline">신청자</label>
-                <p className="text-gray-800">{selectedRequest.requester} ({selectedRequest.department})</p>
+                <p className="text-gray-800">{selectedRequest.requester}</p>
               </div>
 
               {/* 신청 연락처 (읽기 전용) */}
@@ -868,13 +868,13 @@ export default function ProgressPage() {
               {/* 신청 내용 */}
               <div>
                 <label className="block text-sm font-bold text-blue-600 mb-1 underline">신청 내용</label>
-                <p className="text-gray-800">{selectedRequest.description}</p>
+                <p className="text-gray-800">{selectedRequest.content}</p>
               </div>
 
               {/* 신청자 */}
               <div>
                 <label className="block text-sm font-bold text-blue-600 mb-1 underline">신청자</label>
-                <p className="text-gray-800">{selectedRequest.requester} ({selectedRequest.department})</p>
+                <p className="text-gray-800">{selectedRequest.requester}</p>
               </div>
 
               {/* 신청 연락처 */}

@@ -68,7 +68,7 @@ export const requireRole = (roles: string[]) => {
   };
 };
 
-export const requireAdmin = requireRole(['system_admin']);
-export const requireManager = requireRole(['service_manager', 'system_admin']);
-export const requireTechnician = requireRole(['technician', 'assignment_manager', 'service_manager', 'system_admin']);
-export const requireUser = requireRole(['user', 'technician', 'assignment_manager', 'service_manager', 'system_admin']);
+export const requireAdmin = requireRole(['시스템관리']);
+export const requireManager = requireRole(['관리매니저', '시스템관리']);
+export const requireTechnician = requireRole(['조치담당자', '배정담당자', '관리매니저', '시스템관리']);
+export const requireUser = requireRole(['일반사용자', '조치담당자', '배정담당자', '관리매니저', '시스템관리']);

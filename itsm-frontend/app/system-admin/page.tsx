@@ -117,7 +117,10 @@ function SystemAdminPageContent() {
   const [userManagementSearchName, setUserManagementSearchName] = useState('')
   const [showUserEditModal, setShowUserEditModal] = useState(false)
   const [showUserResetModal, setShowUserResetModal] = useState(false)
+  const [showPasswordResetSuccessModal, setShowPasswordResetSuccessModal] = useState(false)
+  const [resetPasswordResult, setResetPasswordResult] = useState<{temporaryPassword: string} | null>(null)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [editUserData, setEditUserData] = useState<UserUpdateRequest>({})
   const [users, setUsers] = useState<User[]>([])
   const [userTotalPages, setUserTotalPages] = useState(1)
   const [userLoading, setUserLoading] = useState(false)
@@ -1039,7 +1042,7 @@ function SystemAdminPageContent() {
     try {
       const params: any = {
         page: userManagementCurrentPage,
-        limit: 10
+        limit: 10  // 페이지네이션을 위해 limit을 10으로 설정
       }
       
       if (userManagementSearchDepartment !== '전체') {
@@ -1107,7 +1110,9 @@ function SystemAdminPageContent() {
       // API 데이터의 날짜 형식: "2025-01-01T00:00:00.000Z" -> "2025-01-01"
       const userDate = new Date(user.created_at);
       const startDate = new Date(userManagementSearchStartDate);
+      // endDate에 23:59:59를 추가하여 해당 날짜의 끝까지 포함
       const endDate = new Date(userManagementSearchEndDate);
+      endDate.setHours(23, 59, 59, 999);
       
       // 날짜 범위 확인
       if (userDate < startDate || userDate > endDate) return false;
@@ -1116,13 +1121,9 @@ function SystemAdminPageContent() {
     return true;
   });
 
-  // 사용자관리 페이지네이션
-  const userManagementItemsPerPage = 10;
+  // 사용자관리 페이지네이션 (API 기반 페이지네이션 사용)
   const userManagementTotalPages = userTotalPages; // API에서 받은 총 페이지 수 사용
-  const paginatedUsers = filteredUsers.slice(
-    (userManagementCurrentPage - 1) * userManagementItemsPerPage,
-    userManagementCurrentPage * userManagementItemsPerPage
-  );
+  const paginatedUsers = filteredUsers; // API에서 이미 페이지네이션된 데이터 사용
 
   // 서비스 작업 목록 필터링 및 페이지네이션
   const filteredServiceRequests = serviceRequests.filter(request => {
@@ -2482,9 +2483,10 @@ function SystemAdminPageContent() {
                               </td>
                               <td className="px-2 py-2 text-center">
                                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                  user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                  user.status === 'active' ? 'bg-green-100 text-green-800' : 
+                                  user.status === 'inactive' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
                                 }`}>
-                                  {user.status === 'active' ? '정상' : user.status}
+                                  {user.status === 'active' ? '정상' : user.status === 'inactive' ? '정지' : user.status}
                                 </span>
                               </td>
                               <td className="px-2 py-2 text-center">
@@ -2492,6 +2494,14 @@ function SystemAdminPageContent() {
                                   <button
                                     onClick={() => {
                                       setSelectedUser(user);
+                                      setEditUserData({
+                                        email: user.email,
+                                        name: user.name,
+                                        department: user.department,
+                                        position: user.position,
+                                        role: user.role,
+                                        status: user.status
+                                      });
                                       setShowUserEditModal(true);
                                     }}
                                     className="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
@@ -2704,14 +2714,16 @@ function SystemAdminPageContent() {
                     <label className="block text-sm font-medium text-gray-600 mb-1">성명</label>
                     <input
                       type="text"
-                      defaultValue={selectedUser.name}
+                      value={editUserData.name || ''}
+                      onChange={(e) => setEditUserData({...editUserData, name: e.target.value})}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-600 mb-1">소속</label>
                     <select 
-                      defaultValue={selectedUser.department}
+                      value={editUserData.department || ''}
+                      onChange={(e) => setEditUserData({...editUserData, department: e.target.value})}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="IT팀">IT팀</option>
@@ -2732,7 +2744,8 @@ function SystemAdminPageContent() {
                   <div>
                     <label className="block text-sm font-medium text-gray-600 mb-1">직급</label>
                     <select 
-                      defaultValue={selectedUser.position}
+                      value={editUserData.position || ''}
+                      onChange={(e) => setEditUserData({...editUserData, position: e.target.value})}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="부장">부장</option>
@@ -2746,7 +2759,8 @@ function SystemAdminPageContent() {
                   <div>
                     <label className="block text-sm font-medium text-gray-600 mb-1">권한</label>
                     <select 
-                      defaultValue={selectedUser.role}
+                      value={editUserData.role || ''}
+                      onChange={(e) => setEditUserData({...editUserData, role: e.target.value})}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="시스템관리">시스템관리</option>
@@ -2759,11 +2773,12 @@ function SystemAdminPageContent() {
                   <div>
                     <label className="block text-sm font-medium text-gray-600 mb-1">상태</label>
                     <select 
-                      defaultValue={selectedUser.status}
+                      value={editUserData.status || ''}
+                      onChange={(e) => setEditUserData({...editUserData, status: e.target.value})}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      <option value="정상">정상</option>
-                      <option value="정지">정지</option>
+                      <option value="active">정상</option>
+                      <option value="inactive">정지</option>
                     </select>
                   </div>
                 </div>
@@ -2778,12 +2793,12 @@ function SystemAdminPageContent() {
                   
                   try {
                     const updateData: UserUpdateRequest = {
-                      email: selectedUser.email,
-                      name: selectedUser.name,
-                      department: selectedUser.department,
-                      position: selectedUser.position,
-                      role: selectedUser.role,
-                      status: selectedUser.status
+                      email: editUserData.email,
+                      name: editUserData.name,
+                      department: editUserData.department,
+                      position: editUserData.position,
+                      role: editUserData.role,
+                      status: editUserData.status
                     };
                     
                     const response = await apiClient.updateUser(selectedUser.id, updateData);
@@ -2809,7 +2824,93 @@ function SystemAdminPageContent() {
         </div>
       )}
 
-      {/* 비밀번호 초기화 모달 */}
+      {/* 비밀번호 초기화 성공 모달 */}
+      {showPasswordResetSuccessModal && resetPasswordResult && selectedUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            {/* 모달 헤더 */}
+            <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200">
+              <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                <Icon name="check-circle" size={24} className="mr-2 text-green-600" />
+                비밀번호 초기화 완료
+              </h2>
+              <button
+                onClick={() => {
+                  setShowPasswordResetSuccessModal(false);
+                  setResetPasswordResult(null);
+                  loadUsers(); // 사용자 목록 새로고침
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <Icon name="close" size={20} />
+              </button>
+            </div>
+
+            {/* 모달 내용 */}
+            <div className="py-6 px-6">
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Icon name="check-circle" size={32} className="text-green-600" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-800 mb-2">
+                  비밀번호가 성공적으로 초기화되었습니다
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  <strong>{selectedUser.name}</strong> ({selectedUser.email})<br/>
+                  사용자에게 새 임시 비밀번호를 안전하게 전달해 주세요.
+                </p>
+              </div>
+
+              {/* 임시 비밀번호 표시 */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-600 mb-2">
+                  임시 비밀번호
+                </label>
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    value={resetPasswordResult.temporaryPassword}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 font-mono text-lg font-bold"
+                    readOnly
+                  />
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(resetPasswordResult.temporaryPassword);
+                      alert('임시 비밀번호가 클립보드에 복사되었습니다.');
+                    }}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+                  >
+                    복사
+                  </button>
+                </div>
+              </div>
+
+              {/* 경고 메시지 */}
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-6">
+                <p className="text-sm text-yellow-800">
+                  ⚠️ 보안을 위해 임시 비밀번호를 안전하게 전달하고, 사용자가 로그인 후 새 비밀번호로 변경하도록 안내해 주세요.
+                </p>
+              </div>
+            </div>
+
+            {/* 모달 하단 버튼 */}
+            <div className="flex justify-end py-4 px-6 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  setShowPasswordResetSuccessModal(false);
+                  setResetPasswordResult(null);
+                  loadUsers(); // 사용자 목록 새로고침
+                }}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 비밀번호 초기화 확인 모달 */}
       {showUserResetModal && selectedUser && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
@@ -2844,26 +2945,7 @@ function SystemAdminPageContent() {
                 </p>
               </div>
 
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-600 mb-2">임시 비밀번호</label>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="text"
-                    value="TempPass123!"
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
-                    readOnly
-                  />
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText('TempPass123!');
-                      alert('임시 비밀번호가 클립보드에 복사되었습니다.');
-                    }}
-                    className="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
-                  >
-                    복사
-                  </button>
-                </div>
-              </div>
+              {/* 임시 비밀번호 필드 제거 - 초기화 실행 후에만 표시 */}
             </div>
 
             {/* 모달 하단 버튼 */}
@@ -2882,8 +2964,9 @@ function SystemAdminPageContent() {
                     const response = await apiClient.resetUserPassword(selectedUser.id);
                     
                     if (response.success && response.data) {
+                      setResetPasswordResult(response.data);
                       setShowUserResetModal(false);
-                      alert(`비밀번호가 초기화되었습니다.\n임시 비밀번호: ${response.data.temporaryPassword}\n\n사용자에게 새 비밀번호를 안전하게 전달해 주세요.`);
+                      setShowPasswordResetSuccessModal(true);
                     } else {
                       alert(response.error || '비밀번호 초기화에 실패했습니다.');
                     }

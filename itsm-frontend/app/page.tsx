@@ -162,40 +162,47 @@ export default function Home() {
       if (response.success && response.data) {
         const { user, token } = response.data;
         
-        setCurrentUser(user);
+        setCurrentUser({ ...user, password: '' });
         setIsLoggedIn(true);
         setShowLoginModal(false);
         setEmail("");
         setPassword("");
         
         // 권한별 페이지 라우팅
-        if (isTechLogin) {
-          // 기술자/관리자 로그인
-          switch (user.role) {
-            case 'system_admin':
-              router.push('/system-admin');
-              break;
-            case 'service_manager':
-              router.push('/service-manager');
-              break;
-            case 'technician':
-              router.push('/technician');
-              break;
-            case 'assignment_manager':
-              router.push('/assignment-manager');
-              break;
-            default:
-              setLoginError("권한이 없습니다.");
-              return;
-          }
-        } else {
-          // 일반 사용자 로그인
-          if (selectedMenuItem) {
-            const menuItem = mainMenuItems.find(item => item.id === selectedMenuItem);
-            if (menuItem) {
-              router.push(menuItem.path);
+        switch (user.role) {
+          case '시스템관리':
+            router.push('/system-admin');
+            break;
+          case '관리매니저':
+            router.push('/service-manager');
+            break;
+          case '조치담당자':
+            router.push('/technician');
+            break;
+          case '배정담당자':
+            router.push('/assignment-manager');
+            break;
+          case '일반사용자':
+            if (isTechLogin) {
+              // Tech Login으로 로그인한 일반사용자는 요청진행사항 페이지로
+              router.push('/progress');
+            } else {
+              // 메뉴에서 선택한 일반사용자는 선택한 메뉴로
+              if (selectedMenuItem) {
+                const menuItem = mainMenuItems.find(item => item.id === selectedMenuItem);
+                if (menuItem) {
+                  router.push(menuItem.path);
+                } else {
+                  router.push('/progress');
+                }
+              } else {
+                router.push('/progress');
+              }
             }
-          }
+            break;
+          default:
+            setLoginError("알 수 없는 권한입니다.");
+            return;
         }
       } else {
         setLoginError(response.error || "로그인에 실패했습니다.");
@@ -226,6 +233,7 @@ export default function Home() {
     setIsLoggedIn(false);
     setCurrentUser(null);
     setSelectedMenuItem("");
+    setIsTechLogin(false);
   };
 
   // 로그인 모달 닫기
@@ -235,6 +243,7 @@ export default function Home() {
     setEmail("");
     setPassword("");
     setSelectedMenuItem("");
+    setIsTechLogin(false);
     setKeepLoggedIn(false);
   };
 
@@ -301,7 +310,7 @@ export default function Home() {
         name: signupName,
         position: signupPosition,
         department: signupDepartment,
-        contact: signupContact,
+        phone: signupContact,
         role: "user" // 기본 권한: 일반사용자
       };
 
@@ -556,7 +565,7 @@ export default function Home() {
                 </p>
               </div>
 
-              <div className="space-y-3 sm:space-y-4">
+              <form onSubmit={(e) => { e.preventDefault(); handleLogin(); }} className="space-y-3 sm:space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">
                     이메일
@@ -567,6 +576,7 @@ export default function Home() {
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full px-3 py-2 sm:px-4 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-sm sm:text-base"
                     placeholder="이메일을 입력하세요"
+                    autoComplete="email"
                     required
                   />
                 </div>
@@ -581,6 +591,7 @@ export default function Home() {
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full px-3 py-2 sm:px-4 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors text-sm sm:text-base"
                     placeholder="비밀번호를 입력하세요"
+                    autoComplete="current-password"
                     required
                   />
                 </div>
@@ -618,38 +629,37 @@ export default function Home() {
                   >
                     취소
                   </FigmaButton>
-                  <FigmaButton
-                    variant="primary"
-                    onClick={handleLogin}
-                    className="flex-1 text-sm sm:text-base"
+                  <button
+                    type="submit"
+                    className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm sm:text-base font-medium"
                   >
                     로그인
-                  </FigmaButton>
-                </div>
-
-                {/* 회원가입 링크 */}
-                <div className="text-center mt-4">
-                  <span className="text-sm text-gray-600">계정이 없으신가요? </span>
-                  <button
-                    type="button"
-                    onClick={handleShowSignup}
-                    className="text-sm text-blue-600 hover:text-blue-800 hover:underline font-medium"
-                  >
-                    회원가입
                   </button>
                 </div>
-              </div>
+              </form>
 
-              {/* 테스트 계정 정보 - 반응형 */}
-              <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-gray-50 rounded-lg">
-                <h4 className="text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">테스트 계정:</h4>
-                <div className="text-xs text-gray-600 space-y-0.5 sm:space-y-1">
-                  <div className="break-all">• 시스템관리: system@itsm.com / system123</div>
-                  <div className="break-all">• 관리매니저: service@itsm.com / service123</div>
-                  <div className="break-all">• 조치담당자: tech@itsm.com / tech123</div>
-                  <div className="break-all">• 배정담당자: assign@itsm.com / assign123</div>
-                  <div className="break-all">• 일반사용자: user@itsm.com / user123</div>
-                </div>
+              {/* 회원가입 링크 */}
+              <div className="text-center mt-4">
+                <span className="text-sm text-gray-600">계정이 없으신가요? </span>
+                <button
+                  type="button"
+                  onClick={handleShowSignup}
+                  className="text-sm text-blue-600 hover:text-blue-800 hover:underline font-medium"
+                >
+                  회원가입
+                </button>
+              </div>
+            </div>
+
+            {/* 테스트 계정 정보 - 반응형 */}
+            <div className="mt-4 sm:mt-6 p-3 sm:p-4 bg-gray-50 rounded-lg">
+              <h4 className="text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-2">테스트 계정:</h4>
+              <div className="text-xs text-gray-600 space-y-0.5 sm:space-y-1">
+                <div className="break-all">• 시스템관리: system@itsm.com / system123</div>
+                <div className="break-all">• 관리매니저: service@itsm.com / service123</div>
+                <div className="break-all">• 조치담당자: tech@itsm.com / tech123</div>
+                <div className="break-all">• 배정담당자: assign@itsm.com / assign123</div>
+                <div className="break-all">• 일반사용자: user@itsm.com / user123</div>
               </div>
             </div>
           </FigmaCard>
@@ -677,7 +687,7 @@ export default function Home() {
                 </button>
               </div>
 
-              <div className="space-y-4">
+              <form onSubmit={(e) => { e.preventDefault(); handleSignup(); }} className="space-y-4">
                 {/* 이메일 */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -693,6 +703,7 @@ export default function Home() {
                       onChange={(e) => setSignupEmail(e.target.value)}
                       className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                       placeholder="이메일 주소를 입력해 주세요!"
+                      autoComplete="email"
                       required
                     />
                   </div>
@@ -713,6 +724,7 @@ export default function Home() {
                       onChange={(e) => setSignupPassword(e.target.value)}
                       className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                       placeholder="영문, 숫자, 특수문자 조합 8~16자"
+                      autoComplete="new-password"
                       required
                     />
                   </div>
@@ -733,6 +745,7 @@ export default function Home() {
                       onChange={(e) => setSignupConfirmPassword(e.target.value)}
                       className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                       placeholder="비밀번호를 다시 입력해주세요"
+                      autoComplete="new-password"
                       required
                     />
                   </div>
@@ -819,19 +832,24 @@ export default function Home() {
                 </div>
 
                 {signupError && (
-                  <div className="text-red-600 text-sm text-center bg-red-50 p-3 rounded-lg">
-                    {signupError}
+                  <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg text-center">
+                    <div className="flex items-center justify-center mb-2">
+                      <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                      <span className="font-medium">회원가입 오류</span>
+                    </div>
+                    <p className="text-sm">{signupError}</p>
                   </div>
                 )}
 
-                <FigmaButton
-                  variant="primary"
-                  onClick={handleSignup}
-                  className="w-full text-base py-3 mt-4"
+                <button
+                  type="submit"
+                  className="w-full bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 transition-colors text-base font-medium mt-4"
                 >
                   회원가입
-                </FigmaButton>
-              </div>
+                </button>
+              </form>
             </div>
           </FigmaCard>
         </div>

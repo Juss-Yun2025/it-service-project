@@ -1059,7 +1059,7 @@ export default function ServiceManagerPage() {
     }
     
     const selectedDept = selectedDepartment || ''
-    const data = departmentData[selectedDept] || departmentData['IT팀']
+    const data = (departmentData as Record<string, any>)[selectedDept] || departmentData['IT팀']
     
     // 날짜에 따른 가중치 적용 (예시)
     const daysDiff = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24))

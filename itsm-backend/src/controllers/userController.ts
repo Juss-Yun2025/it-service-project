@@ -8,7 +8,7 @@ export const getAllUsers = async (req: Request, res: Response): Promise<void> =>
   try {
     const {
       page = 1,
-      limit = 10,
+      limit = 10,  // 기본 limit을 10으로 설정 (페이지네이션)
       search,
       status,
       department,
@@ -50,13 +50,14 @@ export const getAllUsers = async (req: Request, res: Response): Promise<void> =>
     }
 
     if (startDate) {
-      whereConditions.push(`created_at >= $${paramIndex}`);
+      whereConditions.push(`created_at >= $${paramIndex}::date`);
       queryParams.push(startDate);
       paramIndex++;
     }
 
     if (endDate) {
-      whereConditions.push(`created_at <= $${paramIndex}`);
+      // endDate에 시간을 추가하여 해당 날짜의 끝까지 포함
+      whereConditions.push(`created_at < $${paramIndex}::date + interval '1 day'`);
       queryParams.push(endDate);
       paramIndex++;
     }

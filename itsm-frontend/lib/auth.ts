@@ -9,11 +9,11 @@ export const PermissionLevel = {
 
 // 사용자 역할별 권한 레벨 매핑 (ITSM 개발 설명서 반영)
 export const RolePermissionMap = {
-  'system_admin': PermissionLevel.SYSTEM_ADMIN,     // 시스템관리 - 모든 관리매니저의 업무 관리 권한
-  'service_manager': PermissionLevel.SERVICE_MANAGER, // 서비스관리 - 관리매니저
-  'technician': PermissionLevel.TECHNICIAN,         // 기술자 - 조치담당자
-  'assignment_manager': PermissionLevel.ASSIGNMENT_MANAGER, // 기술자 - 배정담당자
-  'user': PermissionLevel.USER                     // 일반사용자
+  '시스템관리': PermissionLevel.SYSTEM_ADMIN,     // 시스템관리 - 모든 관리매니저의 업무 관리 권한
+  '관리매니저': PermissionLevel.SERVICE_MANAGER, // 서비스관리 - 관리매니저
+  '조치담당자': PermissionLevel.TECHNICIAN,         // 기술자 - 조치담당자
+  '배정담당자': PermissionLevel.ASSIGNMENT_MANAGER, // 기술자 - 배정담당자
+  '일반사용자': PermissionLevel.USER                     // 일반사용자
 } as const
 
 // 화면별 접근 권한 정의

@@ -113,6 +113,17 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    // Map English role to Korean role for database constraint
+    const roleMapping: { [key: string]: string } = {
+      'user': '일반사용자',
+      'technician': '조치담당자',
+      'assignment_manager': '배정담당자',
+      'service_manager': '관리매니저',
+      'system_admin': '시스템관리'
+    };
+
+    const koreanRole = roleMapping[role] || '일반사용자';
+
     // Hash password
     const passwordHash = await hashPassword(password);
 
@@ -121,7 +132,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       `INSERT INTO users (email, password_hash, name, department, position, role, phone)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING id, email, name, department, position, role, phone, status, created_at, updated_at`,
-      [email, passwordHash, name, department, position, role, phone]
+      [email, passwordHash, name, department, position, koreanRole, phone]
     );
 
     const newUser = result.rows[0];

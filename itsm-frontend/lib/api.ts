@@ -78,18 +78,36 @@ class ApiClient {
 
     try {
       const response = await fetch(url, config);
-      const data = await response.json();
+      
+      // 응답이 JSON이 아닌 경우 처리
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        data = { message: `서버 오류 (${response.status})` };
+      }
 
       if (!response.ok) {
-        throw new Error(data.message || `HTTP error! status: ${response.status}`);
+        const errorMessage = data.message || data.error || `HTTP error! status: ${response.status}`;
+        console.error(`API Error [${response.status}]:`, errorMessage);
+        throw new Error(errorMessage);
       }
 
       return data;
     } catch (error) {
       console.error('API request failed:', error);
+      
+      // 네트워크 오류인지 서버 오류인지 구분
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        return {
+          success: false,
+          error: '서버에 연결할 수 없습니다. 백엔드 서버가 실행 중인지 확인해주세요.'
+        };
+      }
+      
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
+        error: error instanceof Error ? error.message : '알 수 없는 오류가 발생했습니다.'
       };
     }
   }
