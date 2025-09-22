@@ -8,6 +8,7 @@ import { getPermissionLevelName, getRolePermissionLevel } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import Icon from '@/components/ui/Icon'
 import { apiClient, LoginRequest } from '@/lib/api'
+import { PermissionGuard, RoleGuard, usePermissions, useRoles } from '@/components/PermissionGuard'
 import { 
   MessageSquare, 
   BarChart3, 
@@ -185,42 +186,50 @@ export default function Home() {
         setPassword("");
         setIsTechLogin(false);
         
-        // 권한별 페이지 라우팅
-        switch (user.role) {
-          case '시스템관리':
-            router.push('/system-admin');
-            break;
-          case '관리매니저':
-            router.push('/service-manager');
-            break;
-          case '조치담당자':
-            router.push('/technician');
-            break;
-          case '배정담당자':
-            router.push('/assignment-manager');
-            break;
-          case '일반사용자':
-            if (currentIsTechLogin) {
-              // Tech Login으로 로그인한 일반사용자는 요청진행사항 페이지로
-              router.push('/progress');
+        // 권한별 페이지 라우팅 (DB 기반 권한 확인)
+        // 로그인 성공 후 사용자 ID를 localStorage에 저장
+        localStorage.setItem('userId', user.id);
+        
+        // 권한에 따른 페이지 라우팅
+        try {
+          const permissionResponse = await apiClient.getUserRoles(user.id);
+          if (permissionResponse.success && permissionResponse.data) {
+            const userRoles = permissionResponse.data.map(role => role.name);
+            
+            if (userRoles.includes('시스템관리자')) {
+              router.push('/system-admin');
+            } else if (userRoles.includes('관리매니저')) {
+              router.push('/service-manager');
+            } else if (userRoles.includes('조치담당자')) {
+              router.push('/technician');
+            } else if (userRoles.includes('배정담당자')) {
+              router.push('/assignment-manager');
             } else {
-              // 메뉴에서 선택한 일반사용자는 선택한 메뉴로
-              if (selectedMenuItem) {
-                const menuItem = mainMenuItems.find(item => item.id === selectedMenuItem);
-                if (menuItem) {
-                  router.push(menuItem.path);
+              // 일반사용자 또는 권한이 없는 경우
+              if (currentIsTechLogin) {
+                // Tech Login으로 로그인한 일반사용자는 요청진행사항 페이지로
+                router.push('/progress');
+              } else {
+                // 메뉴에서 선택한 일반사용자는 선택한 메뉴로
+                if (selectedMenuItem) {
+                  const menuItem = mainMenuItems.find(item => item.id === selectedMenuItem);
+                  if (menuItem) {
+                    router.push(menuItem.path);
+                  } else {
+                    router.push('/progress');
+                  }
                 } else {
                   router.push('/progress');
                 }
-              } else {
-                router.push('/progress');
               }
             }
-            break;
-          default:
-            setLoginError("알 수 없는 권한입니다.");
-            setIsTechLogin(false);
-            return;
+          } else {
+            // 권한 조회 실패 시 기본 페이지로 이동
+            router.push('/progress');
+          }
+        } catch (error) {
+          console.error('권한 확인 오류:', error);
+          router.push('/progress');
         }
       } else {
         setLoginError(response.error || "로그인에 실패했습니다.");

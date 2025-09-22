@@ -242,6 +242,42 @@ export interface StageProgressMappingUpdateRequest {
   is_active?: boolean;
 }
 
+// 권한 관련 인터페이스
+export interface Permission {
+  name: string;
+  resource: string;
+  action: string;
+  description: string;
+}
+
+export interface Role {
+  id: number;
+  name: string;
+  description: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserRole {
+  id: number;
+  user_id: string;
+  role_id: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PermissionCheckRequest {
+  userId: string;
+  resource: string;
+  action: string;
+}
+
+export interface RoleAssignmentRequest {
+  userId: string;
+  roleId: number;
+}
+
 class ApiClient {
   private baseURL: string;
   private token: string | null = null;
@@ -624,6 +660,49 @@ class ApiClient {
   // 단계명으로 진행명 조회
   async getProgressByStageName(stageName: string): Promise<ApiResponse<string>> {
     return this.request<string>(`/api/stages/progress/${encodeURIComponent(stageName)}`);
+  }
+
+  // ===== 권한 관련 API =====
+  
+  // 사용자 권한 조회
+  async getUserPermissions(userId: string): Promise<ApiResponse<Permission[]>> {
+    return this.request<Permission[]>(`/api/permissions/user/${userId}`);
+  }
+
+  // 사용자 역할 조회
+  async getUserRoles(userId: string): Promise<ApiResponse<Role[]>> {
+    return this.request<Role[]>(`/api/permissions/user/${userId}/roles`);
+  }
+
+  // 특정 권한 확인
+  async checkPermission(userId: string, resource: string, action: string): Promise<ApiResponse<{ hasPermission: boolean }>> {
+    return this.request<{ hasPermission: boolean }>(`/api/permissions/check/${userId}/${resource}/${action}`);
+  }
+
+  // 사용자에게 역할 할당
+  async assignRole(data: RoleAssignmentRequest): Promise<ApiResponse<UserRole>> {
+    return this.request<UserRole>('/api/permissions/assign-role', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  // 사용자에서 역할 제거
+  async removeRole(data: RoleAssignmentRequest): Promise<ApiResponse<void>> {
+    return this.request<void>('/api/permissions/remove-role', {
+      method: 'DELETE',
+      body: JSON.stringify(data)
+    });
+  }
+
+  // 모든 역할 목록 조회
+  async getAllRoles(): Promise<ApiResponse<Role[]>> {
+    return this.request<Role[]>('/api/permissions/roles');
+  }
+
+  // 모든 권한 목록 조회
+  async getAllPermissions(): Promise<ApiResponse<Permission[]>> {
+    return this.request<Permission[]>('/api/permissions/permissions');
   }
 }
 

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Icon from '@/components/ui/Icon'
 import { apiClient, User, UserUpdateRequest, Department } from '@/lib/api'
-import PermissionGuard from '@/components/PermissionGuard'
+import { PermissionGuard, RoleGuard, usePermissions, useRoles } from '@/components/PermissionGuard'
 
 // 데이터 타입 정의
 interface ServiceRequest {
@@ -1794,6 +1794,21 @@ function SystemAdminPageContent() {
 
           {/* 사용자관리 프레임 */}
           {showUserManagement && (
+            <PermissionGuard resource="users" action="admin" fallback={
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6 text-center">
+                  <div className="text-6xl mb-4">🔒</div>
+                  <h2 className="text-xl font-bold text-gray-900 mb-2">권한이 없습니다</h2>
+                  <p className="text-gray-600 mb-4">사용자 관리 권한이 필요합니다.</p>
+                  <button 
+                    onClick={() => setShowUserManagement(false)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    닫기
+                  </button>
+                </div>
+              </div>
+            }>
             <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
               <div className="bg-white rounded-lg shadow-xl max-w-7xl w-full mx-4 max-h-[90vh] overflow-hidden">
                 {/* 모달 헤더 */}
@@ -5903,8 +5918,22 @@ function SystemAdminPageContent() {
 
 export default function SystemAdminPage() {
   return (
-    <PermissionGuard requiredPath="/system-admin">
+    <RoleGuard requiredRoles={['시스템관리자']} fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="text-6xl mb-4">🔒</div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">접근 권한이 없습니다</h1>
+          <p className="text-gray-600 mb-4">시스템관리자 권한이 필요합니다.</p>
+          <button 
+            onClick={() => window.history.back()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            이전 페이지로 돌아가기
+          </button>
+        </div>
+      </div>
+    }>
       <SystemAdminPageContent />
-    </PermissionGuard>
+    </RoleGuard>
   )
 }

@@ -1,84 +1,224 @@
-"use client"
+'use client';
 
-import React, { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { canAccessScreen } from '@/lib/auth'
-import { apiClient } from '@/lib/api'
+import React, { useState, useEffect, ReactNode } from 'react';
+import { apiClient, Permission } from '@/lib/api';
 
 interface PermissionGuardProps {
-  children: React.ReactNode
-  requiredPath: string
-  fallbackComponent?: React.ReactNode
+  children: ReactNode;
+  resource: string;
+  action: string;
+  fallback?: ReactNode;
+  userId?: string;
 }
 
-const PermissionGuard: React.FC<PermissionGuardProps> = ({ 
-  children, 
-  requiredPath,
-  fallbackComponent 
+export const PermissionGuard: React.FC<PermissionGuardProps> = ({
+  children,
+  resource,
+  action,
+  fallback = null,
+  userId
 }) => {
-  const router = useRouter()
-  const [userRole, setUserRole] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // localStorage에서 사용자 정보 확인
-    const user = apiClient.getCurrentUser()
-    
-    if (user && user.role) {
-      setUserRole(user.role)
-    } else {
-      // 토큰이 없거나 사용자 정보가 없으면 메인 페이지로 리다이렉트
-      router.push('/')
-      return
-    }
-    
-    setIsLoading(false)
-  }, [router])
+    const checkPermission = async () => {
+      try {
+        // userId가 제공되지 않으면 localStorage에서 가져오기
+        const currentUserId = userId || localStorage.getItem('userId');
+        
+        if (!currentUserId) {
+          setHasPermission(false);
+          setLoading(false);
+          return;
+        }
 
-  // 로딩 중일 때
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">권한을 확인하는 중...</p>
-        </div>
-      </div>
-    )
+        const response = await apiClient.checkPermission(currentUserId, resource, action);
+        
+        if (response.success) {
+          setHasPermission(response.data?.hasPermission || false);
+        } else {
+          setHasPermission(false);
+        }
+      } catch (error) {
+        console.error('권한 확인 오류:', error);
+        setHasPermission(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkPermission();
+  }, [resource, action, userId]);
+
+  if (loading) {
+    return <div className="flex justify-center items-center p-4">권한 확인 중...</div>;
   }
 
-  // 권한 확인
-  if (!userRole || !canAccessScreen(userRole, requiredPath)) {
-    // 커스텀 fallback 컴포넌트가 있으면 사용
-    if (fallbackComponent) {
-      return <>{fallbackComponent}</>
-    }
-
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-            </svg>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">접근 권한이 없습니다</h1>
-          <p className="text-gray-600 mb-4">
-            이 페이지에 접근할 권한이 없습니다.<br />
-            현재 권한: {userRole || '없음'}
-          </p>
-          <button
-            onClick={() => router.push('/')}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
-          >
-            메인 페이지로 돌아가기
-          </button>
-        </div>
-      </div>
-    )
+  if (!hasPermission) {
+    return <>{fallback}</>;
   }
 
-  return <>{children}</>
+  return <>{children}</>;
+};
+
+// 역할 기반 접근 제어 컴포넌트
+interface RoleGuardProps {
+  children: ReactNode;
+  requiredRoles: string[];
+  fallback?: ReactNode;
+  userId?: string;
 }
 
-export default PermissionGuard
+export const RoleGuard: React.FC<RoleGuardProps> = ({
+  children,
+  requiredRoles,
+  fallback = null,
+  userId
+}) => {
+  const [hasRole, setHasRole] = useState<boolean | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const checkRole = async () => {
+      try {
+        const currentUserId = userId || localStorage.getItem('userId');
+        
+        if (!currentUserId) {
+          setHasRole(false);
+          setLoading(false);
+          return;
+        }
+
+        const response = await apiClient.getUserRoles(currentUserId);
+        
+        if (response.success && response.data) {
+          const userRoles = response.data.map(role => role.name);
+          const hasRequiredRole = requiredRoles.some(role => userRoles.includes(role));
+          setHasRole(hasRequiredRole);
+        } else {
+          setHasRole(false);
+        }
+      } catch (error) {
+        console.error('역할 확인 오류:', error);
+        setHasRole(false);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkRole();
+  }, [requiredRoles, userId]);
+
+  if (loading) {
+    return <div className="flex justify-center items-center p-4">역할 확인 중...</div>;
+  }
+
+  if (!hasRole) {
+    return <>{fallback}</>;
+  }
+
+  return <>{children}</>;
+};
+
+// 권한 훅
+export const usePermissions = (userId?: string) => {
+  const [permissions, setPermissions] = useState<Permission[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPermissions = async () => {
+      try {
+        const currentUserId = userId || localStorage.getItem('userId');
+        
+        if (!currentUserId) {
+          setPermissions([]);
+          setLoading(false);
+          return;
+        }
+
+        const response = await apiClient.getUserPermissions(currentUserId);
+        
+        if (response.success && response.data) {
+          setPermissions(response.data);
+        } else {
+          setPermissions([]);
+        }
+      } catch (error) {
+        console.error('권한 조회 오류:', error);
+        setPermissions([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPermissions();
+  }, [userId]);
+
+  const hasPermission = (resource: string, action: string): boolean => {
+    return permissions.some(permission => 
+      permission.resource === resource && permission.action === action
+    );
+  };
+
+  const hasAnyPermission = (permissions: { resource: string; action: string }[]): boolean => {
+    return permissions.some(({ resource, action }) => hasPermission(resource, action));
+  };
+
+  return {
+    permissions,
+    loading,
+    hasPermission,
+    hasAnyPermission
+  };
+};
+
+// 역할 훅
+export const useRoles = (userId?: string) => {
+  const [roles, setRoles] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchRoles = async () => {
+      try {
+        const currentUserId = userId || localStorage.getItem('userId');
+        
+        if (!currentUserId) {
+          setRoles([]);
+          setLoading(false);
+          return;
+        }
+
+        const response = await apiClient.getUserRoles(currentUserId);
+        
+        if (response.success && response.data) {
+          setRoles(response.data.map(role => role.name));
+        } else {
+          setRoles([]);
+        }
+      } catch (error) {
+        console.error('역할 조회 오류:', error);
+        setRoles([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRoles();
+  }, [userId]);
+
+  const hasRole = (roleName: string): boolean => {
+    return roles.includes(roleName);
+  };
+
+  const hasAnyRole = (roleNames: string[]): boolean => {
+    return roleNames.some(roleName => hasRole(roleName));
+  };
+
+  return {
+    roles,
+    loading,
+    hasRole,
+    hasAnyRole
+  };
+};
