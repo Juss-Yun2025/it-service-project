@@ -1535,7 +1535,7 @@ function SystemAdminPageContent() {
                                       setSelectedWorkRequest(request);
                                       setShowServiceAssignmentModal(true);
                                     }}
-                                    className="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
+                                    className="px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600 transition-colors"
                                   >
                                     배정작업
                                   </button>
@@ -1640,7 +1640,7 @@ function SystemAdminPageContent() {
                                         
                                         setShowServiceWorkInfoModal(true);
                                       }}
-                                      className="px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600 transition-colors"
+                                      className="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
                                     >
                                       수정
                                     </button>
@@ -2801,7 +2801,7 @@ function SystemAdminPageContent() {
                       
                       <div>
                         <span className="text-sm font-medium text-gray-600">조치 담당자 : </span>
-                        <span className="text-sm">김기술</span>
+                        <span className="text-sm">{selectedRequest.assignee || '-'}</span>
                       </div>
                       
                       <div>
@@ -2981,7 +2981,7 @@ function SystemAdminPageContent() {
               <div className="space-y-2">
                           <div>
                             <span className="text-sm font-medium text-gray-600">배정일시 :</span>
-                            <span className="text-sm text-gray-800 ml-2">{selectedRequest.assignDate || '2025.08.31 10:40'}</span>
+                            <span className="text-sm text-gray-800 ml-2">{selectedRequest.assignDate} {selectedRequest.assignTime || ''}</span>
                 </div>
                           <div>
                             <span className="text-sm font-medium text-gray-600">배정 담당자 :</span>
@@ -2993,7 +2993,7 @@ function SystemAdminPageContent() {
                           </div>
                           <div>
                             <span className="text-sm font-medium text-gray-600">조치담당자 :</span>
-                            <span className="text-sm text-gray-800 ml-2">김기술</span>
+                            <span className="text-sm text-gray-800 ml-2">{selectedRequest.assignee || '-'}</span>
               </div>
             </div>
           </div>
@@ -3694,11 +3694,11 @@ function SystemAdminPageContent() {
                     <div className="mb-4 p-3 bg-gray-50 rounded">
                       <h4 className="text-sm font-medium text-gray-700 mb-2">배정정보</h4>
                       <div className="space-y-1 text-xs">
-                        <div><span className="font-medium">배정일시:</span> {selectedRequest.assignDate || '2025.08.31 11:10'}</div>
+                        <div><span className="font-medium">배정일시:</span> {selectedRequest.assignDate} {selectedRequest.assignTime || ''}</div>
                         <div><span className="font-medium">배정담당자:</span> {selectedRequest.assignee || '이배정'}</div>
                         <div><span className="font-medium">배정의견:</span> {selectedRequest.assignmentOpinion || '업무에 적합하여 배정'}</div>
                         <div><span className="font-medium">서비스유형:</span> {selectedRequest.serviceType}</div>
-                        <div><span className="font-medium">조치담당자:</span> 김기술</div>
+                        <div><span className="font-medium">조치담당자:</span> {selectedRequest.assignee || '-'}</div>
                       </div>
                     </div>
 
@@ -4315,84 +4315,83 @@ function SystemAdminPageContent() {
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2 mb-4">
                     <Icon name="user" size={20} className="text-gray-600" />
-                    <h3 className="text-lg font-semibold text-gray-800">서비스신청정보</h3>
+                    <h3 className="text-lg font-semibold text-gray-800">서비스 신청 정보</h3>
                   </div>
                   
-                  <div className="space-y-0">
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">신청번호: </span>
+                  <div className="space-y-1">
+                    <div className="py-1">
+                      <span className="text-sm font-medium text-gray-600">신청 번호 : </span>
                       <span className="text-sm font-bold text-red-600">{selectedWorkRequest.requestNumber}</span>
                     </div>
                     
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">신청제목: </span>
+                    <div className="py-1">
+                      <span className="text-sm font-medium text-gray-600">신청 제목 : </span>
                       <span className="text-sm">{selectedWorkRequest.title}</span>
                     </div>
                     
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">신청내용: </span>
+                    <div className="py-1">
+                      <span className="text-sm font-medium text-gray-600">신청 내용 </span>
                       <div className="text-sm mt-1 p-3 bg-gray-50 rounded text-gray-700 min-h-24 max-h-48 overflow-y-auto whitespace-pre-wrap">
                         {selectedWorkRequest.content}
                     </div>
                     </div>
                     
-                    <div>
+                    <div className="py-1">
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="user" size={14} className="mr-1" />
-                        신청자: 
+                        신청자 :  <span className="text-sm ml-1">{selectedWorkRequest.requester} ({selectedWorkRequest.department})</span>
                       </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.requester} ({selectedWorkRequest.department})</span>
                     </div>
                     
-                    <div>
+                    <div className="py-1">
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="mail" size={14} className="mr-1" />
-                        신청연락처: 
+                        신청 연락처 : <span className="text-sm ml-1">{selectedWorkRequest.contact}</span>
                       </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.contact}</span>
                     </div>
                     
-                    <div>
+                    <div className="py-1">
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="briefcase" size={14} className="mr-1" />
-                        신청위치: 
+                        신청 위치 
                       </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.location}</span>
+                      <div className="text-sm mt-1 p-3 bg-gray-50 rounded text-gray-700 min-h-16 max-h-32 overflow-y-auto whitespace-pre-wrap">
+                        {selectedWorkRequest.location}
+                      </div>
                     </div>
                     
-                    <div>
+                    <div className="py-1 mb-5">
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="calendar" size={14} className="mr-1" />
-                        신청일시: <span className="text-sm ml-1 text-black">{selectedWorkRequest.requestDate} {selectedWorkRequest.requestTime || ''}</span>
+                        신청 일시 : <span className="text-sm ml-1 text-black">{selectedWorkRequest.requestDate} {selectedWorkRequest.requestTime || ''}</span>
                       </span>
                     </div>
                     
-                    <div>
+                    <div className="py-1 mb-5">
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="message-square" size={14} className="mr-1" />
-                        현재상태: 
+                        현재 상태 : <span className="text-sm ml-1 text-red-600 font-semibold">{selectedWorkRequest.currentStatus}</span>
                       </span>
-                      <span className="text-sm ml-5 text-red-600 font-semibold">{selectedWorkRequest.currentStatus}</span>
                     </div>
                     
                     {selectedWorkRequest.actualRequester && (
-                      <div>
-                        <span className="text-sm font-medium text-gray-600">실제신청자: </span>
-                        <span className="text-sm ml-5">{selectedWorkRequest.actualRequester}</span>
+                      <div className="py-1">
+                        <span className="text-sm font-medium text-gray-600">실제 신청자 : </span>
+                        <span className="text-sm ml-1">{selectedWorkRequest.actualRequester}</span>
                       </div>
                     )}
                     
                     {selectedWorkRequest.actualContact && (
-                      <div>
-                        <span className="text-sm font-medium text-gray-600">실제연락처: </span>
-                        <span className="text-sm ml-5">{selectedWorkRequest.actualContact}</span>
+                      <div className="py-1">
+                        <span className="text-sm font-medium text-gray-600">실제 연락처 : </span>
+                        <span className="text-sm ml-1">{selectedWorkRequest.actualContact}</span>
                       </div>
                     )}
                     
                     {selectedWorkRequest.actualRequesterDepartment && (
-                      <div>
-                        <span className="text-sm font-medium text-gray-600">실제소속: </span>
-                        <span className="text-sm ml-5">{selectedWorkRequest.actualRequesterDepartment}</span>
+                      <div className="py-1">
+                        <span className="text-sm font-medium text-gray-600">실제 소속 : </span>
+                        <span className="text-sm ml-1">{selectedWorkRequest.actualRequesterDepartment}</span>
                       </div>
                     )}
                   </div>
@@ -4402,7 +4401,7 @@ function SystemAdminPageContent() {
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2 mb-4">
                     <Icon name="settings" size={20} className="text-gray-600" />
-                    <h3 className="text-lg font-semibold text-gray-800">작업정보등록</h3>
+                    <h3 className="text-lg font-semibold text-gray-800">작업 정보 등록</h3>
                     </div>
                   
                   <div className="space-y-0 py-0">
@@ -4410,21 +4409,21 @@ function SystemAdminPageContent() {
                     <div className="bg-gray-50 px-4 py-0 rounded-lg">
                       <div className="space-y-2">
                     <div>
-                          <span className="text-sm font-medium text-gray-600">배정일시 :</span>
-                          <span className="text-sm text-gray-800 ml-2">{selectedWorkRequest.assignDate || '2025.08.31 10:40'}</span>
+                          <span className="text-sm font-medium text-gray-600">배정 일시 :</span>
+                          <span className="text-sm text-gray-800 ml-2">{selectedWorkRequest.assignDate} {selectedWorkRequest.assignTime || ''}</span>
                     </div>
                     <div>
                           <span className="text-sm font-medium text-gray-600">배정 담당자 :</span>
                           <span className="text-sm text-gray-800 ml-2">{selectedWorkRequest.assignee || '이배정'}</span>
                     </div>
                     <div>
-                          <span className="text-sm font-medium text-gray-600">서비스 조치 정보 :</span>
+                          <span className="text-sm font-medium text-gray-600">서비스 조치 유형 → </span>
                           <span className="text-sm text-gray-800 ml-2">{selectedWorkRequest.serviceType || '문제'}</span>
                     </div>
-                    <div>
-                          <span className="text-sm font-medium text-gray-600">조치담당자 :</span>
-                          <span className="text-sm text-gray-800 ml-2">김기술</span>
-                    </div>
+                      <div>
+                           <span className="text-sm font-medium text-gray-600">조치 담당자 :</span>
+                           <span className="text-sm text-gray-800 ml-2">{selectedWorkRequest.assignee || '-'}</span>
+                      </div>
                       </div>
                     </div>
 
@@ -4731,22 +4730,22 @@ function SystemAdminPageContent() {
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2 mb-4">
                     <Icon name="user" size={20} className="text-gray-600" />
-                    <h3 className="text-lg font-semibold text-gray-800">서비스신청정보</h3>
+                    <h3 className="text-lg font-semibold text-gray-800">서비스 신청 정보</h3>
                   </div>
                   
                   <div className="space-y-0">
                     <div>
-                      <span className="text-sm font-medium text-gray-600">신청번호: </span>
+                      <span className="text-sm font-medium text-gray-600">신청 번호 : </span>
                       <span className="text-sm font-bold text-red-600">{selectedWorkRequest.requestNumber}</span>
                     </div>
                     
                     <div>
-                      <span className="text-sm font-medium text-gray-600">신청제목: </span>
+                      <span className="text-sm font-medium text-gray-600">신청 제목 : </span>
                       <span className="text-sm">{selectedWorkRequest.title}</span>
                     </div>
                     
                     <div>
-                      <span className="text-sm font-medium text-gray-600">신청내용: </span>
+                      <span className="text-sm font-medium text-gray-600">신청 내용 </span>
                       <div className="text-sm mt-1 p-3 bg-gray-50 rounded text-gray-700 min-h-24 max-h-48 overflow-y-auto whitespace-pre-wrap">
                         {selectedWorkRequest.content}
                     </div>
@@ -4755,60 +4754,57 @@ function SystemAdminPageContent() {
                     <div>
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="user" size={14} className="mr-1" />
-                        신청자: 
-                                </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.requester} ({selectedWorkRequest.department})</span>
+                        신청자 : <span className="text-sm ml-1">{selectedWorkRequest.requester} ({selectedWorkRequest.department})</span>
+                      </span>                      
                     </div>
                     
                     <div>
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="mail" size={14} className="mr-1" />
-                        신청연락처: 
+                        신청 연락처 : <span className="text-sm ml-1">{selectedWorkRequest.contact}</span>
                       </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.contact}</span>
                     </div>
                     
                     <div>
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="briefcase" size={14} className="mr-1" />
-                        신청위치: 
+                        신청 위치 
                       </span>
                       <span className="text-sm ml-5">{selectedWorkRequest.location}</span>
                     </div>
                     
                     <div>
-                      <span className="text-sm font-medium text-gray-600 flex items-center">
+                      <span className="text-sm font-medium text-gray-600 flex items-center mb-5">
                         <Icon name="calendar" size={14} className="mr-1" />
-                        신청일시: <span className="text-sm ml-1 text-black">{selectedWorkRequest.requestDate} {selectedWorkRequest.requestTime || ''}</span>
+                        신청 일시 : <span className="text-sm ml-1 text-black">{selectedWorkRequest.requestDate} {selectedWorkRequest.requestTime || ''}</span>
                       </span>
                     </div>
                     
                     <div>
-                      <span className="text-sm font-medium text-gray-600 flex items-center">
+                      <span className="text-sm font-medium text-gray-600 flex items-center mb-5">
                         <Icon name="message-square" size={14} className="mr-1" />
-                        현재상태: 
+                        현재 상태 : <span className="text-sm ml-1 text-red-600 font-semibold">{selectedWorkRequest.currentStatus}</span>
                       </span>
-                      <span className="text-sm ml-5 text-red-600 font-semibold">{selectedWorkRequest.currentStatus}</span>
                     </div>
                     
                     {selectedWorkRequest.actualRequester && (
                       <div>
-                        <span className="text-sm font-medium text-gray-600">실제신청자: </span>
-                        <span className="text-sm ml-5">{selectedWorkRequest.actualRequester}</span>
+                        <span className="text-sm font-medium text-gray-600">실제 신청자 : </span>
+                        <span className="text-sm ml-1">{selectedWorkRequest.actualRequester}</span>
                       </div>
                     )}
                     
                     {selectedWorkRequest.actualContact && (
                       <div>
-                        <span className="text-sm font-medium text-gray-600">실제연락처: </span>
-                        <span className="text-sm ml-5">{selectedWorkRequest.actualContact}</span>
+                        <span className="text-sm font-medium text-gray-600">실제 연락처 : </span>
+                        <span className="text-sm ml-1">{selectedWorkRequest.actualContact}</span>
                       </div>
                     )}
                     
                     {selectedWorkRequest.actualRequesterDepartment && (
                       <div>
-                        <span className="text-sm font-medium text-gray-600">실제소속: </span>
-                        <span className="text-sm ml-5">{selectedWorkRequest.actualRequesterDepartment}</span>
+                        <span className="text-sm font-medium text-gray-600">실제 소속 : </span>
+                        <span className="text-sm ml-1">{selectedWorkRequest.actualRequesterDepartment}</span>
                       </div>
                     )}
                   </div>
@@ -4818,7 +4814,7 @@ function SystemAdminPageContent() {
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2 mb-4">
                     <Icon name="settings" size={20} className="text-gray-600" />
-                    <h3 className="text-lg font-semibold text-gray-800">작업정보등록</h3>
+                    <h3 className="text-lg font-semibold text-gray-800">작업 정보 등록</h3>
                   </div>
                   
                   <div className="space-y-0 py-0">
@@ -4826,24 +4822,24 @@ function SystemAdminPageContent() {
                     <div className="bg-gray-50 px-4 py-0 rounded-lg">
                       <div className="space-y-2">
                     <div>
-                          <span className="text-sm font-medium text-gray-600">배정일시 :</span>
-                          <span className="text-sm ml-2">{selectedWorkRequest.assignDate || '2025.08.31 10:40'}</span>
+                          <span className="text-sm font-medium text-gray-600">배정 일시 :</span>
+                          <span className="text-sm ml-2">{selectedWorkRequest.assignDate} {selectedWorkRequest.assignTime || ''}</span>
                     </div>
                     <div>
-                          <span className="text-sm font-medium text-gray-600">배정담당자 :</span>
+                          <span className="text-sm font-medium text-gray-600">배정 담당자 :</span>
                           <span className="text-sm ml-2">{selectedWorkRequest.assignee || '이배정'}</span>
                     </div>
                     <div>
-                          <span className="text-sm font-medium text-gray-600">배정의견 :</span>
+                          <span className="text-sm font-medium text-gray-600">배정 의견 :</span>
                           <span className="text-sm ml-2">{selectedWorkRequest.assignmentOpinion || '업무에 적합하여 배정'}</span>
                     </div>
                     <div>
-                          <span className="text-sm font-medium text-gray-600">서비스유형 :</span>
+                          <span className="text-sm font-medium text-gray-600">서비스 조치 유형 →</span>
                           <span className="text-sm ml-2">{selectedWorkRequest.serviceType}</span>
                     </div>
                     <div>
-                          <span className="text-sm font-medium text-gray-600">조치담당자 :</span>
-                          <span className="text-sm ml-2">김기술</span>
+                          <span className="text-sm font-medium text-gray-600">조치 담당자 :</span>
+                          <span className="text-sm ml-2">{selectedWorkRequest.assignee || '-'}</span>
                     </div>
                       </div>
                     </div>
@@ -4852,7 +4848,7 @@ function SystemAdminPageContent() {
                     <div className="bg-gray-50 px-4 py-0 rounded-lg">
                       <div className="space-y-2">
                     <div>
-                          <span className="text-sm font-medium text-gray-600">예정조율일시 :</span>
+                          <span className="text-sm font-medium text-gray-600">예정 조율 일시 :</span>
                           <span className="text-sm ml-2">{selectedWorkRequest.scheduled_date || '2025.08.31 15:00'}</span>
                     </div>
                       </div>
@@ -4862,7 +4858,7 @@ function SystemAdminPageContent() {
                     <div className="bg-gray-50 px-4 py-0 rounded-lg">
                       <div className="space-y-2">
                     <div>
-                          <span className="text-sm font-medium text-gray-600">작업시작일시 :</span>
+                          <span className="text-sm font-medium text-gray-600">작업 시작 일시 :</span>
                           <span className="text-sm ml-2">{selectedWorkRequest.workStartDate || '2025.09.01 15:00'}</span>
                     </div>
                       </div>
@@ -4872,13 +4868,13 @@ function SystemAdminPageContent() {
                     <div className="bg-gray-50 px-4 py-0 rounded-lg">
                       <div className="space-y-2">
                     <div>
-                          <span className="text-sm font-medium text-gray-600">작업내역 :</span>
+                          <span className="text-sm font-medium text-gray-600">작업 내역</span>
                           <div className="text-sm mt-1 p-2 bg-white rounded border text-gray-700 min-h-16 max-h-32 overflow-y-auto whitespace-pre-wrap">
                             {selectedWorkRequest.workContent || '작업 내용 수정'}
                           </div>
                     </div>
                     <div>
-                          <span className="text-sm font-medium text-gray-600">작업완료일시 :</span>
+                          <span className="text-sm font-medium text-gray-600">작업 완료 일시 :</span>
                           <span className="text-sm ml-2">{selectedWorkRequest.workCompleteDate || '2025.08.31 15:00'}</span>
                     </div>
                       </div>
@@ -4888,7 +4884,7 @@ function SystemAdminPageContent() {
                     <div className="bg-gray-50 px-4 py-0 rounded-lg">
                       <div className="space-y-2">
                     <div>
-                          <span className="text-sm font-medium text-gray-600">문제사항 :</span>
+                          <span className="text-sm font-medium text-gray-600">문제 사항 </span>
                           <div className="text-sm mt-1 p-2 bg-white rounded border text-gray-700 min-h-16 max-h-32 overflow-y-auto whitespace-pre-wrap">
                             {selectedWorkRequest.problemIssue || '작업 중 발견된 문제점 수정'}
                           </div>

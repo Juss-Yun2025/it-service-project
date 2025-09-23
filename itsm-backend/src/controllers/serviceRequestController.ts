@@ -67,7 +67,7 @@ export const getAllServiceRequests = async (req: Request, res: Response): Promis
              sr.previous_assignment_opinion, TO_CHAR(sr.rejection_date, 'YYYY-MM-DD') as rejection_date, sr.rejection_opinion,
              TO_CHAR(sr.scheduled_date, 'YYYY-MM-DD"T"HH24:MI') as scheduled_date, TO_CHAR(sr.work_start_date, 'YYYY-MM-DD"T"HH24:MI') as work_start_date, sr.work_content,
              TO_CHAR(sr.work_complete_date, 'YYYY-MM-DD"T"HH24:MI') as work_complete_date, sr.problem_issue, sr.is_unresolved,
-             sr.current_work_stage, s.name as stage, sr.assign_time, TO_CHAR(sr.assign_date, 'YYYY-MM-DD') as assign_date,
+             sr.current_work_stage, s.name as stage, sr.assign_time, TO_CHAR(sr.assign_date, 'YYYY-MM-DD"T"HH24:MI') as assign_date,
              sr.created_at, sr.updated_at,
              sr.requester_name,
              sr.requester_department
@@ -190,7 +190,7 @@ export const getServiceRequestById = async (req: Request, res: Response): Promis
               sr.previous_assignment_opinion, TO_CHAR(sr.rejection_date, 'YYYY-MM-DD') as rejection_date, sr.rejection_opinion,
               TO_CHAR(sr.scheduled_date, 'YYYY-MM-DD"T"HH24:MI') as scheduled_date, TO_CHAR(sr.work_start_date, 'YYYY-MM-DD"T"HH24:MI') as work_start_date, sr.work_content,
               TO_CHAR(sr.work_complete_date, 'YYYY-MM-DD"T"HH24:MI') as work_complete_date, sr.problem_issue, sr.is_unresolved,
-              sr.current_work_stage, sr.stage_id, sr.assign_time, TO_CHAR(sr.assign_date, 'YYYY-MM-DD') as assign_date,
+              sr.current_work_stage, sr.stage_id, sr.assign_time, TO_CHAR(sr.assign_date, 'YYYY-MM-DD"T"HH24:MI') as assign_date,
               sr.created_at, sr.updated_at,
               u1.name as requester_name,
               u1.department as requester_department,
