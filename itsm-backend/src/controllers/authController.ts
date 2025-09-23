@@ -33,11 +33,22 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 
     const user = result.rows[0];
+    
+    // Get user roles from user_roles table
+    const roleResult = await db.query(
+      'SELECT r.name FROM roles r JOIN user_roles ur ON r.id = ur.role_id WHERE ur.user_id = $1',
+      [user.id]
+    );
+    
+    const userRoles = roleResult.rows.map(row => row.name);
+    const primaryRole = userRoles[0] || '일반사용자'; // 기본 역할
+    
     console.log('User found:', { 
       id: user.id, 
       email: user.email, 
       name: user.name,
-      role: user.role,
+      roles: userRoles,
+      primaryRole: primaryRole,
       status: user.status,
       hashPreview: user.password_hash?.substring(0, 20)
     });
@@ -69,7 +80,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const token = generateToken({
       userId: user.id,
       email: user.email,
-      role: user.role
+      role: primaryRole
     });
 
     // Remove password from response
@@ -79,7 +90,10 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       success: true,
       data: {
         token,
-        user: userWithoutPassword
+        user: {
+          ...userWithoutPassword,
+          role: primaryRole
+        }
       },
       message: 'Login successful'
     } as ApiResponse);

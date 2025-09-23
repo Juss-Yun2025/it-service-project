@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS user_roles (
 
 -- 기본 역할 데이터 삽입
 INSERT INTO roles (name, description) VALUES
-('시스템관리자', '시스템 전체 관리 권한'),
+('시스템관리', '시스템 전체 관리 권한'),
 ('관리매니저', '부서 및 사용자 관리 권한'),
 ('배정담당자', '서비스 요청 배정 및 관리 권한'),
 ('조치담당자', '서비스 요청 처리 권한'),
@@ -96,11 +96,11 @@ INSERT INTO permissions (name, description, resource, action) VALUES
 ON CONFLICT (name) DO NOTHING;
 
 -- 역할-권한 매핑 데이터 삽입
--- 시스템관리자: 모든 권한
+-- 시스템관리: 모든 권한
 INSERT INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id
 FROM roles r, permissions p
-WHERE r.name = '시스템관리자'
+WHERE r.name = '시스템관리'
 ON CONFLICT (role_id, permission_id) DO NOTHING;
 
 -- 관리매니저: 사용자, 서비스, 보고서 관리 권한
@@ -149,9 +149,9 @@ AND NOT EXISTS (
 )
 ON CONFLICT (user_id, role_id) DO NOTHING;
 
--- 관리자 계정에 시스템관리자 역할 할당
+-- 관리자 계정에 시스템관리 역할 할당
 INSERT INTO user_roles (user_id, role_id)
 SELECT u.id, r.id
 FROM users u, roles r
-WHERE u.username = 'admin' AND r.name = '시스템관리자'
+WHERE u.username = 'admin' AND r.name = '시스템관리'
 ON CONFLICT (user_id, role_id) DO NOTHING;

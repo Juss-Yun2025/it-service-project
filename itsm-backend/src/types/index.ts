@@ -6,7 +6,6 @@ export interface User {
   name: string;
   department: string;
   position: string;
-  role: 'user' | 'technician' | 'assignment_manager' | 'service_manager' | 'system_admin';
   phone?: string;
   status: 'active' | 'inactive' | 'suspended';
   created_at: Date;
@@ -26,20 +25,26 @@ export interface ServiceRequest {
   request_number: string;
   title: string;
   description: string;
-  category_id: string;
   requester_id: string;
   requester_department: string;
+  actual_requester_name?: string;
+  actual_requester_department?: string;
   priority: 'low' | 'medium' | 'high' | 'urgent';
   status: 'pending' | 'assigned' | 'in_progress' | 'completed' | 'cancelled';
   stage: '접수' | '배정' | '재배정' | '확인' | '예정' | '작업' | '완료' | '미결';
-  service_type: string;
+  service_type: string; // This will be populated from service_types table
+  service_type_id: number;
   request_date: Date;
   assignment_date?: Date;
   assignment_manager_id?: string;
+  assignee_id?: string;
+  assignee_name?: string;
+  assignee_department?: string;
   estimated_completion_date?: Date;
   work_start_date?: Date;
   work_completion_date?: Date;
   technician_id?: string;
+  technician_name?: string;
   technician_department?: string;
   resolution_notes?: string;
   created_at: Date;
@@ -122,9 +127,8 @@ export interface RegisterRequest {
 export interface ServiceRequestCreate {
   title: string;
   description: string;
-  category_id: string;
   priority: 'low' | 'medium' | 'high' | 'urgent';
-  service_type: string;
+  service_type_id: number;
 }
 
 export interface GeneralInquiryCreate {

@@ -343,7 +343,7 @@ ${workProgress.completionNotes ? `완료 메모: ${workProgress.completionNotes}
                       우선순위: {serviceRequest.priority}
                     </span>
                     <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                      {serviceRequest.status}
+                      {serviceRequest.currentStatus}
                     </span>
                     <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                       {serviceRequest.requestType}

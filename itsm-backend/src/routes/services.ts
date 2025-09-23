@@ -5,7 +5,6 @@ import {
   getServiceRequestById, 
   updateServiceRequest, 
   assignServiceRequest,
-  getServiceCategories 
 } from '../controllers/serviceController';
 import { authenticateToken, requireTechnician } from '../middleware/auth';
 import { validateRequired } from '../middleware/validation';
@@ -15,11 +14,9 @@ const router = express.Router();
 // All service routes require authentication
 router.use(authenticateToken);
 
-// Service categories (public for authenticated users)
-router.get('/categories', getServiceCategories);
 
 // Service requests
-router.post('/', validateRequired(['title', 'description', 'category_id', 'priority', 'service_type']), createServiceRequest);
+router.post('/', validateRequired(['title', 'description', 'priority', 'service_type_id']), createServiceRequest);
 router.get('/', getServiceRequests);
 router.get('/:id', getServiceRequestById);
 router.put('/:id', updateServiceRequest);

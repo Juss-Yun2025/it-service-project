@@ -48,11 +48,12 @@ export const getServiceReport = async (req: Request, res: Response): Promise<voi
       paramIndex++;
     }
 
-    if (status) {
-      whereConditions.push(`sr.status = $${paramIndex}`);
-      queryParams.push(status);
-      paramIndex++;
-    }
+    // status 필터 제거 (status 컬럼이 제거됨)
+    // if (status) {
+    //   whereConditions.push(`sr.status = $${paramIndex}`);
+    //   queryParams.push(status);
+    //   paramIndex++;
+    // }
 
     if (stage) {
       whereConditions.push(`sr.stage = $${paramIndex}`);
@@ -91,15 +92,15 @@ export const getServiceReport = async (req: Request, res: Response): Promise<voi
     const reportResult = await db.query(
       `SELECT sr.request_number,
               sr.title,
-              sr.status,
-              sr.stage,
+              cs.name as current_status,
+              s.name as stage,
               sr.requester_department,
-              sr.service_type,
-              sr.request_date,
-              sr.assignment_date,
-              sr.estimated_completion_date,
-              sr.work_start_date,
-              sr.work_completion_date,
+              st.name as service_type,
+              TO_CHAR(sr.request_date, 'YYYY-MM-DD') as request_date,
+              TO_CHAR(sr.assignment_date, 'YYYY-MM-DD') as assignment_date,
+              TO_CHAR(sr.estimated_completion_date, 'YYYY-MM-DD') as estimated_completion_date,
+              TO_CHAR(sr.work_start_date, 'YYYY-MM-DD') as work_start_date,
+              TO_CHAR(sr.work_completion_date, 'YYYY-MM-DD') as work_completion_date,
               u1.name as requester_name,
               u2.name as technician_name,
               u2.department as technician_department,
@@ -117,7 +118,9 @@ export const getServiceReport = async (req: Request, res: Response): Promise<voi
        FROM service_requests sr
        LEFT JOIN users u1 ON sr.requester_id = u1.id
        LEFT JOIN users u2 ON sr.technician_id = u2.id
-       LEFT JOIN service_categories sc ON sr.category_id = sc.id
+       LEFT JOIN current_statuses cs ON sr.current_status_id = cs.id
+       LEFT JOIN stages s ON sr.stage_id = s.id
+       LEFT JOIN service_types st ON sr.service_type_id = st.id
        WHERE ${whereClause}
        ORDER BY sr.${sortBy} ${sortOrder}
        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
@@ -198,19 +201,19 @@ export const getServiceStatistics = async (req: Request, res: Response): Promise
     const statsResult = await db.query(`
       SELECT 
         COUNT(*) as total_requests,
-        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_requests,
-        COUNT(CASE WHEN status = 'assigned' THEN 1 END) as assigned_requests,
-        COUNT(CASE WHEN status = 'in_progress' THEN 1 END) as in_progress_requests,
-        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_requests,
-        COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled_requests,
-        COUNT(CASE WHEN stage = '접수' THEN 1 END) as stage_received,
-        COUNT(CASE WHEN stage = '배정' THEN 1 END) as stage_assigned,
-        COUNT(CASE WHEN stage = '재배정' THEN 1 END) as stage_reassigned,
-        COUNT(CASE WHEN stage = '확인' THEN 1 END) as stage_confirmed,
-        COUNT(CASE WHEN stage = '예정' THEN 1 END) as stage_scheduled,
-        COUNT(CASE WHEN stage = '작업' THEN 1 END) as stage_working,
-        COUNT(CASE WHEN stage = '완료' THEN 1 END) as stage_completed,
-        COUNT(CASE WHEN stage = '미결' THEN 1 END) as stage_pending,
+        COUNT(CASE WHEN cs.name = '정상작동' THEN 1 END) as pending_requests,
+        COUNT(CASE WHEN cs.name = '오류발생' THEN 1 END) as assigned_requests,
+        COUNT(CASE WHEN cs.name = '메시지창' THEN 1 END) as in_progress_requests,
+        COUNT(CASE WHEN cs.name = '부분불능' THEN 1 END) as completed_requests,
+        COUNT(CASE WHEN cs.name = '전체불능' THEN 1 END) as cancelled_requests,
+        COUNT(CASE WHEN s.name = '접수' THEN 1 END) as stage_received,
+        COUNT(CASE WHEN s.name = '배정' THEN 1 END) as stage_assigned,
+        COUNT(CASE WHEN s.name = '재배정' THEN 1 END) as stage_reassigned,
+        COUNT(CASE WHEN s.name = '확인' THEN 1 END) as stage_confirmed,
+        COUNT(CASE WHEN s.name = '예정' THEN 1 END) as stage_scheduled,
+        COUNT(CASE WHEN s.name = '작업' THEN 1 END) as stage_working,
+        COUNT(CASE WHEN s.name = '완료' THEN 1 END) as stage_completed,
+        COUNT(CASE WHEN s.name = '미결' THEN 1 END) as stage_pending,
         AVG(CASE 
           WHEN assignment_date IS NOT NULL THEN 
             EXTRACT(EPOCH FROM (assignment_date - request_date)) / 3600
@@ -221,7 +224,8 @@ export const getServiceStatistics = async (req: Request, res: Response): Promise
             EXTRACT(EPOCH FROM (work_completion_date - work_start_date)) / 3600
           ELSE NULL 
         END) as avg_work_hours
-      FROM service_requests 
+      FROM service_requests sr
+      LEFT JOIN current_statuses cs ON sr.current_status_id = cs.id
       WHERE ${whereClause}
     `, queryParams);
 
@@ -230,7 +234,7 @@ export const getServiceStatistics = async (req: Request, res: Response): Promise
       SELECT 
         requester_department,
         COUNT(*) as request_count,
-        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_count
+        COUNT(CASE WHEN cs.name = '정상작동' THEN 1 END) as completed_count
       FROM service_requests 
       WHERE ${whereClause}
       GROUP BY requester_department
@@ -240,12 +244,14 @@ export const getServiceStatistics = async (req: Request, res: Response): Promise
     // Get service type statistics
     const typeResult = await db.query(`
       SELECT 
-        service_type,
+        st.name as service_type,
         COUNT(*) as request_count,
-        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_count
-      FROM service_requests 
+        COUNT(CASE WHEN cs.name = '정상작동' THEN 1 END) as completed_count
+      FROM service_requests sr
+      LEFT JOIN service_types st ON sr.service_type_id = st.id
+      LEFT JOIN current_statuses cs ON sr.current_status_id = cs.id
       WHERE ${whereClause}
-      GROUP BY service_type
+      GROUP BY st.name
       ORDER BY request_count DESC
     `, queryParams);
 
@@ -404,10 +410,10 @@ export const getDashboardData = async (req: Request, res: Response): Promise<voi
     const serviceStats = await db.query(`
       SELECT 
         COUNT(*) as total_requests,
-        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_requests,
-        COUNT(CASE WHEN status = 'assigned' THEN 1 END) as assigned_requests,
-        COUNT(CASE WHEN status = 'in_progress' THEN 1 END) as in_progress_requests,
-        COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed_requests,
+        COUNT(CASE WHEN cs.name = '정상작동' THEN 1 END) as pending_requests,
+        COUNT(CASE WHEN cs.name = '오류발생' THEN 1 END) as assigned_requests,
+        COUNT(CASE WHEN cs.name = '메시지창' THEN 1 END) as in_progress_requests,
+        COUNT(CASE WHEN cs.name = '부분불능' THEN 1 END) as completed_requests,
         COUNT(CASE WHEN stage = '접수' THEN 1 END) as stage_received,
         COUNT(CASE WHEN stage = '배정' THEN 1 END) as stage_assigned,
         COUNT(CASE WHEN stage = '재배정' THEN 1 END) as stage_reassigned,
@@ -416,7 +422,8 @@ export const getDashboardData = async (req: Request, res: Response): Promise<voi
         COUNT(CASE WHEN stage = '작업' THEN 1 END) as stage_working,
         COUNT(CASE WHEN stage = '완료' THEN 1 END) as stage_completed,
         COUNT(CASE WHEN stage = '미결' THEN 1 END) as stage_pending
-      FROM service_requests 
+      FROM service_requests sr
+      LEFT JOIN current_statuses cs ON sr.current_status_id = cs.id
       WHERE ${whereClause}
     `, queryParams);
 

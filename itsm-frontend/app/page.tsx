@@ -196,7 +196,7 @@ export default function Home() {
           if (permissionResponse.success && permissionResponse.data) {
             const userRoles = permissionResponse.data.map(role => role.name);
             
-            if (userRoles.includes('시스템관리자')) {
+            if (userRoles.includes('시스템관리')) {
               router.push('/system-admin');
             } else if (userRoles.includes('관리매니저')) {
               router.push('/service-manager');

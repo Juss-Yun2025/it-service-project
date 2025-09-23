@@ -35,9 +35,24 @@ export const PermissionGuard: React.FC<PermissionGuardProps> = ({
 
         const response = await apiClient.checkPermission(currentUserId, resource, action);
         
+        console.log('PermissionGuard 디버깅:', {
+          userId: currentUserId,
+          resource,
+          action,
+          response: response,
+          success: response.success,
+          data: response.data,
+          hasPermission: response.data?.hasPermission
+        });
+        
         if (response.success) {
-          setHasPermission(response.data?.hasPermission || false);
+          console.log('PermissionGuard 응답 성공:', response);
+          // 백엔드 응답 구조: {success: true, hasPermission: boolean}
+          const hasPermission = response.hasPermission === true;
+          console.log('PermissionGuard 권한 체크 결과:', hasPermission, 'hasPermission:', response.hasPermission);
+          setHasPermission(hasPermission);
         } else {
+          console.log('PermissionGuard 실패:', response);
           setHasPermission(false);
         }
       } catch (error) {

@@ -398,8 +398,8 @@ const TechnicianAssignment: React.FC = () => {
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(serviceRequest.priority)}`}>
                       우선순위: {serviceRequest.priority}
                     </span>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(serviceRequest.status)}`}>
-                      {serviceRequest.status}
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(serviceRequest.currentStatus)}`}>
+                      {serviceRequest.currentStatus}
                     </span>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRequestTypeColor(serviceRequest.requestType)}`}>
                       {serviceRequest.requestType}

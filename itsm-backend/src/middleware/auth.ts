@@ -6,7 +6,11 @@ import { JWTPayload, User } from '../types';
 declare global {
   namespace Express {
     interface Request {
-      user?: Omit<User, 'password_hash'>;
+      user?: {
+        id: string;
+        email: string;
+        role: string;
+      };
     }
   }
 }
@@ -33,8 +37,8 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
     req.user = {
       id: decoded.userId,
       email: decoded.email,
-      role: decoded.role as User['role']
-    } as Omit<User, 'password_hash'>;
+      role: decoded.role
+    };
     
     next();
   } catch (error) {

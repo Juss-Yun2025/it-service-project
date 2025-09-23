@@ -6,7 +6,7 @@ import { ServiceRequest, ServiceRequestCreate, ApiResponse, SearchParams } from 
 export const createServiceRequest = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
-    const { title, description, category_id, priority, service_type }: ServiceRequestCreate = req.body;
+    const { title, description, priority, service_type_id }: ServiceRequestCreate = req.body;
 
     if (!userId) {
       res.status(401).json({
@@ -35,13 +35,13 @@ export const createServiceRequest = async (req: Request, res: Response): Promise
     const user = userResult.rows[0];
     const requestNumber = generateRequestNumber();
 
-    // Create service request
+    // Create service request (생성 당시의 사용자 정보 보존)
     const result = await db.query<ServiceRequest>(
       `INSERT INTO service_requests 
-       (request_number, title, description, category_id, requester_id, requester_department, priority, service_type)
+       (request_number, title, description, requester_id, requester_name, requester_department, priority, service_type_id)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [requestNumber, title, description, category_id, userId, user.department, priority, service_type]
+      [requestNumber, title, description, userId, user.name, user.department, priority, service_type_id]
     );
 
     res.status(201).json({
@@ -122,14 +122,15 @@ export const getServiceRequests = async (req: Request, res: Response): Promise<v
       paramIndex++;
     }
 
-    if (status) {
-      whereConditions.push(`status = $${paramIndex}`);
-      queryParams.push(status);
-      paramIndex++;
-    }
+    // status 필터 제거 (status 컬럼이 제거됨)
+    // if (status) {
+    //   whereConditions.push(`status = $${paramIndex}`);
+    //   queryParams.push(status);
+    //   paramIndex++;
+    // }
 
     if (stage) {
-      whereConditions.push(`stage = $${paramIndex}`);
+      whereConditions.push(`s.name = $${paramIndex}`);
       queryParams.push(stage);
       paramIndex++;
     }
@@ -162,7 +163,10 @@ export const getServiceRequests = async (req: Request, res: Response): Promise<v
 
     // Get total count
     const countResult = await db.query(
-      `SELECT COUNT(*) FROM service_requests WHERE ${whereClause}`,
+      `SELECT COUNT(*) FROM service_requests sr
+       LEFT JOIN service_types st ON sr.service_type_id = st.id
+       LEFT JOIN stages s ON sr.stage_id = s.id
+       WHERE ${whereClause}`,
       queryParams
     );
     const total = parseInt(countResult.rows[0].count);
@@ -173,12 +177,14 @@ export const getServiceRequests = async (req: Request, res: Response): Promise<v
               u1.name as requester_name,
               u2.name as technician_name,
               u3.name as assignment_manager_name,
-              sc.name as category_name
+              st.name as service_type,
+              s.name as stage
        FROM service_requests sr
        LEFT JOIN users u1 ON sr.requester_id = u1.id
        LEFT JOIN users u2 ON sr.technician_id = u2.id
        LEFT JOIN users u3 ON sr.assignment_manager_id = u3.id
-       LEFT JOIN service_categories sc ON sr.category_id = sc.id
+       LEFT JOIN service_types st ON sr.service_type_id = st.id
+       LEFT JOIN stages s ON sr.stage_id = s.id
        WHERE ${whereClause}
        ORDER BY sr.${sortBy} ${sortOrder}
        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
@@ -245,12 +251,14 @@ export const getServiceRequestById = async (req: Request, res: Response): Promis
               u1.name as requester_name,
               u2.name as technician_name,
               u3.name as assignment_manager_name,
-              sc.name as category_name
+              st.name as service_type,
+              s.name as stage
        FROM service_requests sr
        LEFT JOIN users u1 ON sr.requester_id = u1.id
        LEFT JOIN users u2 ON sr.technician_id = u2.id
        LEFT JOIN users u3 ON sr.assignment_manager_id = u3.id
-       LEFT JOIN service_categories sc ON sr.category_id = sc.id
+       LEFT JOIN service_types st ON sr.service_type_id = st.id
+       LEFT JOIN stages s ON sr.stage_id = s.id
        WHERE ${whereClause}`,
       queryParams
     );
@@ -368,16 +376,24 @@ export const updateServiceRequest = async (req: Request, res: Response): Promise
       paramIndex++;
     }
 
-    if (status !== undefined) {
-      updateFields.push(`status = $${paramIndex}`);
-      updateParams.push(status);
-      paramIndex++;
-    }
+    // status 업데이트 제거 (status 컬럼이 제거됨)
+    // if (status !== undefined) {
+    //   updateFields.push(`status = $${paramIndex}`);
+    //   updateParams.push(status);
+    //   paramIndex++;
+    // }
 
     if (stage !== undefined) {
-      updateFields.push(`stage = $${paramIndex}`);
-      updateParams.push(stage);
-      paramIndex++;
+      // stage는 stages 테이블의 name을 참조하므로 stage_id로 변환
+      const stageResult = await db.query(
+        'SELECT id FROM stages WHERE name = $1',
+        [stage]
+      );
+      if (stageResult.rows.length > 0) {
+        updateFields.push(`stage_id = $${paramIndex}`);
+        updateParams.push(stageResult.rows[0].id);
+        paramIndex++;
+      }
     }
 
     if (estimated_completion_date !== undefined) {
@@ -399,9 +415,30 @@ export const updateServiceRequest = async (req: Request, res: Response): Promise
     }
 
     if (technician_id !== undefined) {
+      // technician_id가 변경되는 경우 조치담당자 정보 조회 (부서 정보는 보존)
+      const technicianResult = await db.query(
+        'SELECT name, department FROM users WHERE id = $1',
+        [technician_id]
+      );
+
+      if (technicianResult.rows.length === 0) {
+        res.status(400).json({
+          success: false,
+          message: '조치담당자를 찾을 수 없습니다.'
+        } as ApiResponse);
+        return;
+      }
+
+      const technician = technicianResult.rows[0];
       updateFields.push(`technician_id = $${paramIndex}`);
       updateParams.push(technician_id);
       paramIndex++;
+      
+      updateFields.push(`technician_name = $${paramIndex}`);
+      updateParams.push(technician.name);
+      paramIndex++;
+      
+      // technician_department는 생성 당시의 부서 정보를 보존하므로 업데이트하지 않음
     }
 
     if (resolution_notes !== undefined) {
@@ -484,20 +521,34 @@ export const assignServiceRequest = async (req: Request, res: Response): Promise
 
     const technician = technicianResult.rows[0];
 
-    // Update service request
+    // Get stage_id for '배정'
+    const stageResult = await db.query(
+      'SELECT id FROM stages WHERE name = $1',
+      ['배정']
+    );
+    
+    if (stageResult.rows.length === 0) {
+      res.status(500).json({
+        success: false,
+        message: 'Stage not found'
+      } as ApiResponse);
+      return;
+    }
+
+    // Update service request (배정 당시의 부서 정보 보존)
     const result = await db.query<ServiceRequest>(
       `UPDATE service_requests 
        SET technician_id = $1, 
-           technician_department = $2,
-           assignment_manager_id = $3,
+           technician_name = $2,
+           technician_department = $3,
+           assignment_manager_id = $4,
            assignment_date = CURRENT_TIMESTAMP,
-           stage = $4,
-           status = $5,
+           stage_id = $5,
            estimated_completion_date = $6,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $7
        RETURNING *`,
-      [technician_id, technician.department, userId, '배정', 'assigned', estimated_completion_date, id]
+      [technician_id, technician.name, technician.department, userId, stageResult.rows[0].id, estimated_completion_date, id]
     );
 
     if (result.rows.length === 0) {
@@ -526,25 +577,3 @@ export const assignServiceRequest = async (req: Request, res: Response): Promise
     return;}
 };
 
-export const getServiceCategories = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const result = await db.query(
-      'SELECT * FROM service_categories ORDER BY name'
-    );
-
-    res.json({
-      success: true,
-      data: result.rows,
-      message: 'Service categories retrieved successfully'
-    } as ApiResponse);
-
-  } catch (error) {
-    console.error('Get service categories error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error'
-    } as ApiResponse);
-  
-
-    return;}
-};

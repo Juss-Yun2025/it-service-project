@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Icon from '@/components/ui/Icon'
-import { apiClient, User, UserUpdateRequest, Department } from '@/lib/api'
+import { apiClient, User, UserUpdateRequest, Department, Role, Position } from '@/lib/api'
 import { PermissionGuard, RoleGuard, usePermissions, useRoles } from '@/components/PermissionGuard'
 
 // 데이터 타입 정의
@@ -11,7 +11,6 @@ interface ServiceRequest {
   id: string
   requestNumber: string
   title: string
-  status: string
   currentStatus: string
   requestDate: string
   requestTime?: string
@@ -27,6 +26,7 @@ interface ServiceRequest {
   location: string
   actualRequester?: string
   actualContact?: string
+  actualRequesterDepartment?: string
   serviceType: string
   completionDate?: string
   // 배정 관련 필드들
@@ -153,6 +153,10 @@ function SystemAdminPageContent() {
   const [departments, setDepartments] = useState<Department[]>([])
   const [departmentsLoading, setDepartmentsLoading] = useState(false)
   
+  // 직급 목록 관리
+  const [positions, setPositions] = useState<Position[]>([])
+  const [positionsLoading, setPositionsLoading] = useState(false)
+  
   // 드래그 관련 상태
   const [isDragging, setIsDragging] = useState(false)
   const [startX, setStartX] = useState(0)
@@ -234,6 +238,11 @@ function SystemAdminPageContent() {
   const [serviceWorkCurrentStage, setServiceWorkCurrentStage] = useState('예정')
   const [showServiceWorkCompleteModal, setShowServiceWorkCompleteModal] = useState(false)
   const [showServiceWorkDeleteCompleteModal, setShowServiceWorkDeleteCompleteModal] = useState(false)
+
+  // 디버깅을 위한 useEffect
+  useEffect(() => {
+    console.log('serviceWorkScheduledDate 변경됨:', serviceWorkScheduledDate);
+  }, [serviceWorkScheduledDate]);
   
   // 시스템 관리자 정보 상태
   const [managerInfo, setManagerInfo] = useState({
@@ -247,6 +256,9 @@ function SystemAdminPageContent() {
   })
   const [showPendingWork, setShowPendingWork] = useState(true)
   const [showServiceAggregation, setShowServiceAggregation] = useState(true)
+  
+  // 권한 관리 관련 상태
+  const [availableRoles, setAvailableRoles] = useState<Role[]>([])
   const [showGeneralInquiryStatus, setShowGeneralInquiryStatus] = useState(true)
   const [selectedDepartment, setSelectedDepartment] = useState('전체')
   const [currentDepartment, setCurrentDepartment] = useState('전체')
@@ -326,6 +338,15 @@ function SystemAdminPageContent() {
     setUserManagementCurrentPage(1)
   }, [userManagementSearchDepartment, userManagementSearchRole, userManagementSearchStartDate, userManagementSearchEndDate, userManagementSearchName])
 
+  // 검색어 입력 시 디바운싱 적용
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      loadUsers() // 검색어가 있든 없든 항상 로드
+    }, 500) // 500ms 디바운싱
+
+    return () => clearTimeout(timeoutId)
+  }, [userManagementSearchName])
+
   // 서비스 요청 데이터
   const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([]);
   const [serviceRequestsLoading, setServiceRequestsLoading] = useState(false);
@@ -356,28 +377,33 @@ function SystemAdminPageContent() {
           id: item.id.toString(),
           requestNumber: item.request_number,
           title: item.title,
-          status: item.status,
           currentStatus: item.current_status,
-          requestDate: new Date(item.request_date).toISOString().split('T')[0], // YYYY-MM-DD 형식으로 변환
-          requestTime: item.request_time,
+          requestDate: item.request_date || '',
+          requestTime: item.request_time ? item.request_time.substring(0, 5) : null,
           requester: item.requester_name,
           department: item.requester_department,
           stage: item.stage,
-          assignTime: item.assign_time,
-          assignDate: item.assign_date ? new Date(item.assign_date).toLocaleString('ko-KR') : '',
+          assignTime: item.assign_time ? item.assign_time.substring(0, 5) : null,
+          assignDate: item.assign_date || '',
           assignee: item.assignee_name || '',
           assigneeDepartment: item.assignee_department || '',
           content: item.content,
           contact: item.contact || '',
           location: item.location || '',
           serviceType: item.service_type,
-          completionDate: item.completion_date ? new Date(item.completion_date).toLocaleString('ko-KR') : '',
+          completionDate: item.completion_date || '',
           assignmentOpinion: item.assignment_opinion || '',
           workContent: item.work_content || '',
           currentWorkStage: item.current_work_stage || '',
+          actualRequester: item.actual_requester_name || '',
           actualContact: item.actual_contact || '',
+          actualRequesterDepartment: item.actual_requester_department || '',
           problemIssue: item.problem_issue || '',
-          isUnresolved: item.is_unresolved || false
+          isUnresolved: item.is_unresolved || false,
+          // 작업정보등록 관련 필드들 추가
+          scheduledDate: item.scheduled_date || '',
+          workStartDate: item.work_start_date || '',
+          workCompleteDate: item.work_complete_date || ''
         }));
         
         setServiceRequests(transformedData);
@@ -405,6 +431,30 @@ function SystemAdminPageContent() {
     fetchServiceRequests();
   }, [serviceWorkSearchStartDate, serviceWorkSearchEndDate, serviceWorkSelectedDepartment, showServiceIncompleteOnly, serviceRequestsPagination.page]);
 
+  // 권한 목록 로드
+  useEffect(() => {
+    loadAvailableRoles();
+  }, []);
+
+  // 직급 목록 로드
+  const loadPositions = async () => {
+    setPositionsLoading(true);
+    try {
+      const response = await apiClient.getPositions();
+      if (response.success && response.data) {
+        setPositions(response.data);
+      }
+    } catch (error) {
+      console.error('직급 목록 로드 오류:', error);
+    } finally {
+      setPositionsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPositions();
+  }, []);
+
   // 더미 데이터 제거됨 - API 기반으로 교체
   // 더미 데이터 제거됨 - serviceRequests는 API에서 가져옴
 
@@ -412,7 +462,7 @@ function SystemAdminPageContent() {
   const serviceReportData = serviceRequests.map(request => {
     // 배정(h) 계산: 신청시간 - 배정시간
     const assignmentHours = request.assignTime && request.requestTime ? 
-      Math.round((new Date(`2025-08-31 ${request.assignTime}`).getTime() - new Date(`2025-08-31 ${request.requestTime}`).getTime()) / (1000 * 60 * 60) * 10) / 10 : 0.2;
+      Math.round((new Date(`2025-08-31 ${request.assignTime}`).getTime() - new Date(`2025-08-31 ${request.requestTime}`).getTime()) / (1000 * 60 * 60) * 10) / 10 : 0;
     
     // 작업(h) 계산: 작업시작시간 - 작업완료시간 (임시로 0.2h 설정)
     const workHours = request.stage === '완료' ? 0.5 : 0.2;
@@ -421,7 +471,6 @@ function SystemAdminPageContent() {
       id: request.id,
       requestNumber: request.requestNumber,
       title: request.title,
-      currentStatus: request.currentStatus,
       requester: request.requester,
       requesterDepartment: request.department,
       stage: request.stage,
@@ -430,11 +479,11 @@ function SystemAdminPageContent() {
       assignee: request.assignee || '',
       assigneeDepartment: request.assigneeDepartment || '',
       workHours: workHours,
-      requestDateTime: `${request.requestDate} ${request.requestTime}`,
+      requestDateTime: `${request.requestDate} ${request.requestTime || ''}`.trim(),
       assignDateTime: request.assignDate || '',
-      scheduledDateTime: request.scheduledDate || '',
-      workStartDateTime: request.workStartDate || '',
-      workCompleteDateTime: request.workCompleteDate || ''
+      scheduledDateTime: request.scheduled_date || '',
+      workStartDateTime: request.work_start_date || '',
+      workCompleteDateTime: request.work_complete_date || ''
     }
   });
 
@@ -580,15 +629,10 @@ function SystemAdminPageContent() {
     }
   }
 
-  // 컴포넌트 마운트 시 사용자 데이터 로드
+  // 사용자 데이터 로드 (페이지, 검색 조건 변경 시)
   useEffect(() => {
     loadUsers()
-  }, [userManagementCurrentPage, userManagementSearchDepartment, userManagementSearchRole, userManagementSearchName, userManagementSearchStartDate, userManagementSearchEndDate])
-
-  // 컴포넌트 마운트 시 한 번만 사용자 데이터 로드
-  useEffect(() => {
-    loadUsers()
-  }, [])
+  }, [userManagementCurrentPage, userManagementSearchDepartment, userManagementSearchRole, userManagementSearchStartDate, userManagementSearchEndDate])
 
   // 사용자관리 필터링 (API 데이터 사용)
   const filteredUsers = (users || []).filter(user => {
@@ -596,7 +640,7 @@ function SystemAdminPageContent() {
     if (userManagementSearchDepartment !== '전체' && user.department !== userManagementSearchDepartment) return false;
     
     // 권한 필터
-    if (userManagementSearchRole !== '전체' && user.role !== userManagementSearchRole) return false;
+    if (userManagementSearchRole !== '전체' && !user.roles?.includes(userManagementSearchRole)) return false;
     
     // 성명 검색
     if (userManagementSearchName && !user.name.includes(userManagementSearchName)) return false;
@@ -790,6 +834,19 @@ function SystemAdminPageContent() {
     setShowAssignmentModal(false)
     setSelectedRequest(null)
   }
+
+  // 권한 관리 함수들
+  const loadAvailableRoles = async () => {
+    try {
+      const response = await apiClient.getAllRoles()
+      if (response.success && response.data) {
+        setAvailableRoles(response.data)
+      }
+    } catch (error) {
+      console.error('권한 목록 로드 오류:', error)
+    }
+  }
+
 
   const handleInfoSubmit = () => {
     if (selectedRequest) {
@@ -1435,7 +1492,7 @@ function SystemAdminPageContent() {
                           paginatedServiceRequests.map((request) => (
                           <tr key={request.id} className="hover:bg-gray-50">
                             <td className="px-2 py-2 text-gray-900 text-center">{request.requestNumber}</td>
-                            <td className="px-2 py-2 text-gray-900 text-center">{request.requestTime || '13:00'}</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{request.requestTime || '-'}</td>
                             <td className="px-2 py-2 text-gray-900">{request.title}</td>
                             <td className="px-2 py-2 text-center">
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -1453,7 +1510,7 @@ function SystemAdminPageContent() {
                             </td>
                             <td className="px-2 py-2 text-gray-900 text-center">{request.requester}</td>
                             <td className="px-2 py-2 text-gray-900 text-center">{request.department}</td>
-                            <td className="px-2 py-2 text-gray-900 text-center">{request.assignTime || '13:10'}</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{request.assignTime || '-'}</td>
                             <td className="px-2 py-2 text-center">
                               <div className="flex items-center justify-center">
                                 {request.stage === '접수' && <Icon name="user" size={16} className="text-blue-600" />}
@@ -1503,31 +1560,83 @@ function SystemAdminPageContent() {
                                   <>
                                     <button
                                       onClick={() => {
-                                        setSelectedWorkRequest(request);
+                                        console.log('수정 모달 열기 - 신청번호:', request?.request_number);
+                                        console.log('원본 request 데이터:', JSON.stringify(request, null, 2));
                                         
-                                        // 기존 데이터가 있으면 불러오기, 없으면 현재 시점으로 설정
-                                        if (request.scheduledDate) {
-                                          setServiceWorkScheduledDate(request.scheduledDate)
-                                          setServiceWorkStartDate(request.workStartDate || '')
-                                          setServiceWorkContent(request.workContent || '')
-                                          setServiceWorkCompleteDate(request.workCompleteDate || '')
-                                          setServiceWorkProblemIssue(request.problemIssue || '')
-                                          setServiceWorkIsUnresolved(request.isUnresolved || false)
-                                          setServiceWorkCurrentStage(request.currentWorkStage || '예정')
-                                        } else {
-                                          // 현재 시점으로 자동 설정 (한국 시간)
-                                          const now = new Date()
-                                          const kstOffset = 9 * 60 // 한국은 UTC+9
-                                          const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000))
-                                          const formattedNow = kstTime.toISOString().slice(0, 16)
-                                          setServiceWorkScheduledDate(formattedNow)
-                                          setServiceWorkStartDate('')
-                                          setServiceWorkContent('')
-                                          setServiceWorkCompleteDate('')
-                                          setServiceWorkProblemIssue('')
-                                          setServiceWorkIsUnresolved(false)
-                                          setServiceWorkCurrentStage('예정')
+                                        // request 객체가 유효한지 확인
+                                        if (!request) {
+                                          console.error('request 객체가 undefined입니다!');
+                                          return;
                                         }
+                                        
+                                        // 먼저 상태 초기화
+                                        setServiceWorkScheduledDate('')
+                                        setServiceWorkStartDate('')
+                                        setServiceWorkContent('')
+                                        setServiceWorkCompleteDate('')
+                                        setServiceWorkProblemIssue('')
+                                        setServiceWorkIsUnresolved(false)
+                                        setServiceWorkCurrentStage('예정')
+                                        
+                                        // request 객체를 로컬 변수로 저장
+                                        const currentRequest = request;
+                                        
+                                        // 약간의 지연 후 데이터 설정 (React 상태 업데이트 보장)
+                                        setTimeout(() => {
+                                          setSelectedWorkRequest(currentRequest);
+                                          
+                                          // datetime-local 형식에 맞게 변환 (YYYY-MM-DDTHH:MM)
+                                          const formatForDateTimeLocal = (dateStr: string) => {
+                                            console.log('formatForDateTimeLocal 입력:', dateStr);
+                                            if (!dateStr) {
+                                              console.log('빈 문자열 반환');
+                                              return '';
+                                            }
+                                            // API에서 받은 형식: "2025-08-23T00:00" 또는 "2025-08-23T14:00"
+                                            // datetime-local 형식: "2025-08-23T00:00" (초 없음)
+                                            const result = dateStr.slice(0, 16);
+                                            console.log('formatForDateTimeLocal 결과:', result);
+                                            return result;
+                                          };
+                                          
+                                          const formattedScheduledDate = formatForDateTimeLocal(currentRequest.scheduledDate || '');
+                                          const formattedWorkStartDate = formatForDateTimeLocal(currentRequest.workStartDate || '');
+                                          const formattedWorkCompleteDate = formatForDateTimeLocal(currentRequest.workCompleteDate || '');
+                                          
+                                          console.log('수정 모달 데이터 로딩:');
+                                          console.log('원본 데이터:', JSON.stringify({
+                                            scheduledDate: currentRequest.scheduledDate,
+                                            workStartDate: currentRequest.workStartDate,
+                                            workCompleteDate: currentRequest.workCompleteDate,
+                                            workContent: currentRequest.workContent,
+                                            problemIssue: currentRequest.problemIssue,
+                                            isUnresolved: currentRequest.isUnresolved,
+                                            currentWorkStage: currentRequest.currentWorkStage
+                                          }, null, 2));
+                                          console.log('변환된 데이터:', JSON.stringify({
+                                            scheduled_date: formattedScheduledDate,
+                                            work_start_date: formattedWorkStartDate,
+                                            work_complete_date: formattedWorkCompleteDate
+                                          }, null, 2));
+                                          
+                                          setServiceWorkScheduledDate(formattedScheduledDate)
+                                          setServiceWorkStartDate(formattedWorkStartDate)
+                                          setServiceWorkContent(currentRequest.workContent || '')
+                                          setServiceWorkCompleteDate(formattedWorkCompleteDate)
+                                          setServiceWorkProblemIssue(currentRequest.problemIssue || '')
+                                          setServiceWorkIsUnresolved(currentRequest.isUnresolved || false)
+                                          setServiceWorkCurrentStage(currentRequest.currentWorkStage || '예정')
+                                          
+                                          console.log('상태 변수 설정 완료:', JSON.stringify({
+                                            serviceWorkScheduledDate: formattedScheduledDate,
+                                            serviceWorkStartDate: formattedWorkStartDate,
+                                            serviceWorkCompleteDate: formattedWorkCompleteDate,
+                                            serviceWorkContent: currentRequest.workContent || '',
+                                            serviceWorkProblemIssue: currentRequest.problemIssue || '',
+                                            serviceWorkIsUnresolved: currentRequest.isUnresolved || false,
+                                            serviceWorkCurrentStage: currentRequest.currentWorkStage || '예정'
+                                          }, null, 2));
+                                        }, 100);
                                         
                                         setShowServiceWorkInfoModal(true);
                                       }}
@@ -1891,14 +2000,30 @@ function SystemAdminPageContent() {
                         <input
                           type="date"
                           value={userManagementSearchStartDate}
-                          onChange={(e) => setUserManagementSearchStartDate(e.target.value)}
+                          max={userManagementSearchEndDate}
+                          onChange={(e) => {
+                            const startDate = e.target.value;
+                            setUserManagementSearchStartDate(startDate);
+                            // 시작일이 종료일보다 늦으면 종료일을 시작일로 설정
+                            if (startDate && userManagementSearchEndDate && startDate > userManagementSearchEndDate) {
+                              setUserManagementSearchEndDate(startDate);
+                            }
+                          }}
                           className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
                         />
                         <span className="text-gray-600 font-medium">~</span>
                         <input
                           type="date"
                           value={userManagementSearchEndDate}
-                          onChange={(e) => setUserManagementSearchEndDate(e.target.value)}
+                          min={userManagementSearchStartDate}
+                          onChange={(e) => {
+                            const endDate = e.target.value;
+                            setUserManagementSearchEndDate(endDate);
+                            // 종료일이 시작일보다 이르면 시작일을 종료일로 설정
+                            if (endDate && userManagementSearchStartDate && endDate < userManagementSearchStartDate) {
+                              setUserManagementSearchStartDate(endDate);
+                            }
+                          }}
                           className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
                         />
                       </div>
@@ -1916,6 +2041,7 @@ function SystemAdminPageContent() {
                           <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">성명</th>
                           <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">소속</th>
                           <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">직급</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">연락처</th>
                           <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">권한</th>
                           <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">생성일시</th>
                           <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">상태</th>
@@ -1968,7 +2094,10 @@ function SystemAdminPageContent() {
                               <td className="px-2 py-2 text-gray-900 text-center">{user.name}</td>
                               <td className="px-2 py-2 text-gray-900 text-center">{user.department}</td>
                               <td className="px-2 py-2 text-gray-900 text-center">{user.position}</td>
-                              <td className="px-2 py-2 text-gray-900 text-center">{user.role}</td>
+                              <td className="px-2 py-2 text-gray-900 text-center">{user.phone || '-'}</td>
+                              <td className="px-2 py-2 text-gray-900 text-center">
+                                {user.roles ? user.roles : <span className="text-gray-400">권한 없음</span>}
+                              </td>
                               <td className="px-2 py-2 text-gray-900 text-center">
                                 {(() => {
                                   const date = new Date(user.created_at);
@@ -1996,7 +2125,8 @@ function SystemAdminPageContent() {
                                         name: user.name,
                                         department: user.department,
                                         position: user.position,
-                                        role: user.role,
+                                        phone: user.phone || '',
+                                        role: user.roles ? user.roles.split(',')[0] : '', // 첫 번째 권한만 사용
                                         status: user.status
                                       });
                                       setShowUserEditModal(true);
@@ -2050,6 +2180,7 @@ function SystemAdminPageContent() {
                 )}
               </div>
             </div>
+            </PermissionGuard>
           )}
 
           {/* 프레임 3: 일반문의 현황 */}
@@ -2248,14 +2379,47 @@ function SystemAdminPageContent() {
                       value={editUserData.position || ''}
                       onChange={(e) => setEditUserData({...editUserData, position: e.target.value})}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={positionsLoading}
                     >
-                      <option value="부장">부장</option>
-                      <option value="과장">과장</option>
-                      <option value="차장">차장</option>
-                      <option value="대리">대리</option>
-                      <option value="사원">사원</option>
-                      <option value="촉탁">촉탁</option>
+                      <option value="">직급을 선택하세요</option>
+                      {positions.map((position) => (
+                        <option key={position.id} value={position.name}>
+                          {position.name}
+                        </option>
+                      ))}
                     </select>
+                    {positionsLoading && (
+                      <p className="text-xs text-gray-500 mt-1">직급 목록을 불러오는 중...</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600 mb-1">연락처</label>
+                    <input
+                      type="tel"
+                      value={editUserData.phone || ''}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // 숫자와 하이픈만 허용
+                        const phoneRegex = /^[0-9-]*$/;
+                        if (phoneRegex.test(value)) {
+                          // 010-1234-5678 형식으로 자동 포맷팅
+                          let formatted = value.replace(/[^0-9]/g, '');
+                          if (formatted.length >= 3) {
+                            formatted = formatted.substring(0, 3) + '-' + formatted.substring(3);
+                          }
+                          if (formatted.length >= 8) {
+                            formatted = formatted.substring(0, 8) + '-' + formatted.substring(8, 12);
+                          }
+                          setEditUserData({...editUserData, phone: formatted});
+                        }
+                      }}
+                      placeholder="010-1234-5678"
+                      maxLength={13}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      형식: 010-1234-5678 (숫자와 하이픈만 입력 가능)
+                    </p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-600 mb-1">권한</label>
@@ -2263,13 +2427,18 @@ function SystemAdminPageContent() {
                       value={editUserData.role || ''}
                       onChange={(e) => setEditUserData({...editUserData, role: e.target.value})}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={availableRoles.length === 0}
                     >
-                      <option value="시스템관리">시스템관리</option>
-                      <option value="관리매니저">관리매니저</option>
-                      <option value="배정담당자">배정담당자</option>
-                      <option value="조치담당자">조치담당자</option>
-                      <option value="일반사용자">일반사용자</option>
+                      <option value="">권한을 선택하세요</option>
+                      {availableRoles.map((role) => (
+                        <option key={role.id} value={role.name}>
+                          {role.name}
+                        </option>
+                      ))}
                     </select>
+                    {availableRoles.length === 0 && (
+                      <p className="text-xs text-gray-500 mt-1">권한 목록을 불러오는 중...</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-600 mb-1">상태</label>
@@ -2293,12 +2462,22 @@ function SystemAdminPageContent() {
                   if (!selectedUser) return;
                   
                   try {
+                  // 연락처 유효성 검사
+                  if (editUserData.phone && editUserData.phone.trim() !== '') {
+                    const phoneRegex = /^010-\d{4}-\d{4}$/;
+                    if (!phoneRegex.test(editUserData.phone)) {
+                      alert('연락처 형식이 올바르지 않습니다. (예: 010-1234-5678)');
+                      return;
+                    }
+                  }
+
                     const updateData: UserUpdateRequest = {
                       email: editUserData.email,
                       name: editUserData.name,
                       department: editUserData.department,
                       position: editUserData.position,
-                      role: editUserData.role,
+                    phone: editUserData.phone || '',
+                    role: editUserData.role || '',
                       status: editUserData.status
                     };
                     
@@ -2324,6 +2503,7 @@ function SystemAdminPageContent() {
           </div>
         </div>
       )}
+
 
       {/* 비밀번호 초기화 성공 모달 */}
       {showPasswordResetSuccessModal && resetPasswordResult && selectedUser && (
@@ -2556,7 +2736,7 @@ function SystemAdminPageContent() {
                     <div>
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="calendar" size={14} className="mr-1" />
-                        신청 일시 : <span className="text-sm ml-1 text-black">{selectedRequest.requestDate} {selectedRequest.requestTime}</span>
+                        신청 일시 : <span className="text-sm ml-1 text-black">{selectedRequest.requestDate} {selectedRequest.requestTime || ''}</span>
                       </span>
                     </div>
                     
@@ -2567,15 +2747,26 @@ function SystemAdminPageContent() {
                       </span>
                     </div>
                     
+                    {selectedRequest.actualRequester && (
                     <div>
                       <span className="text-sm font-medium text-gray-600">실제 신청자 : </span>
-                      <span className="text-sm ml-1">{selectedRequest.actualRequester || selectedRequest.requester}</span>
+                        <span className="text-sm ml-1">{selectedRequest.actualRequester}</span>
                     </div>
+                    )}
                     
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">실제 연락처 : </span>
-                      <span className="text-sm ml-1">{selectedRequest.actualContact || selectedRequest.contact}</span>
-                    </div>
+                    {selectedRequest.actualContact && (
+                      <div>
+                        <span className="text-sm font-medium text-gray-600">실제 연락처 : </span>
+                        <span className="text-sm ml-1">{selectedRequest.actualContact}</span>
+                      </div>
+                    )}
+                    
+                    {selectedRequest.actualRequesterDepartment && (
+                      <div>
+                        <span className="text-sm font-medium text-gray-600">실제 소속 : </span>
+                        <span className="text-sm ml-1">{selectedRequest.actualRequesterDepartment}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -2741,7 +2932,7 @@ function SystemAdminPageContent() {
                     <div>
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="calendar" size={14} className="mr-1" />
-                        신청일시: <span className="text-sm ml-1 text-black">{selectedRequest.requestDate} {selectedRequest.requestTime}</span>
+                        신청일시: <span className="text-sm ml-1 text-black">{selectedRequest.requestDate} {selectedRequest.requestTime || ''}</span>
                       </span>
                     </div>
                     
@@ -2753,15 +2944,26 @@ function SystemAdminPageContent() {
                       <span className="text-sm ml-5 text-red-600 font-semibold">{selectedRequest.currentStatus}</span>
                     </div>
                     
+                    {selectedRequest.actualRequester && (
                     <div>
                       <span className="text-sm font-medium text-gray-600">실제신청자: </span>
-                      <span className="text-sm ml-5">{selectedRequest.actualRequester || selectedRequest.requester}</span>
+                        <span className="text-sm ml-5">{selectedRequest.actualRequester}</span>
                     </div>
+                    )}
                     
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">실제연락처: </span>
-                      <span className="text-sm ml-5">{selectedRequest.actualContact || selectedRequest.contact}</span>
-                    </div>
+                    {selectedRequest.actualContact && (
+                      <div>
+                        <span className="text-sm font-medium text-gray-600">실제연락처: </span>
+                        <span className="text-sm ml-5">{selectedRequest.actualContact}</span>
+                      </div>
+                    )}
+                    
+                    {selectedRequest.actualRequesterDepartment && (
+                      <div>
+                        <span className="text-sm font-medium text-gray-600">실제소속: </span>
+                        <span className="text-sm ml-5">{selectedRequest.actualRequesterDepartment}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -3445,7 +3647,7 @@ function SystemAdminPageContent() {
                     <div>
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="calendar" size={14} className="mr-1" />
-                        신청일시: <span className="text-sm ml-1 text-black">{selectedRequest.requestDate} {selectedRequest.requestTime}</span>
+                        신청일시: <span className="text-sm ml-1 text-black">{selectedRequest.requestDate} {selectedRequest.requestTime || ''}</span>
                       </span>
                     </div>
                     
@@ -3457,15 +3659,26 @@ function SystemAdminPageContent() {
                       <span className="text-sm ml-5 text-red-600 font-semibold">{selectedRequest.currentStatus}</span>
                     </div>
                     
+                    {selectedRequest.actualRequester && (
                     <div>
                       <span className="text-sm font-medium text-gray-600">실제신청자: </span>
-                      <span className="text-sm ml-5">{selectedRequest.actualRequester || selectedRequest.requester}</span>
+                        <span className="text-sm ml-5">{selectedRequest.actualRequester}</span>
                     </div>
+                    )}
                     
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">실제연락처: </span>
-                      <span className="text-sm ml-5">{selectedRequest.actualContact || selectedRequest.contact}</span>
-                    </div>
+                    {selectedRequest.actualContact && (
+                      <div>
+                        <span className="text-sm font-medium text-gray-600">실제연락처: </span>
+                        <span className="text-sm ml-5">{selectedRequest.actualContact}</span>
+                      </div>
+                    )}
+                    
+                    {selectedRequest.actualRequesterDepartment && (
+                      <div>
+                        <span className="text-sm font-medium text-gray-600">실제소속: </span>
+                        <span className="text-sm ml-5">{selectedRequest.actualRequesterDepartment}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -4026,7 +4239,7 @@ function SystemAdminPageContent() {
                       <div className="space-y-0">
                         <div>
                           <span className="text-xs font-medium text-gray-500">전) 배정일시: </span>
-                          <span className="text-xs ml-2">{selectedWorkRequest.assignTime || '2025.08.31 11:40'}</span>
+                          <span className="text-xs ml-2">{selectedWorkRequest.assignTime || '-'}</span>
                         </div>
                         
                         <div>
@@ -4150,7 +4363,7 @@ function SystemAdminPageContent() {
                     <div>
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="calendar" size={14} className="mr-1" />
-                        신청일시: <span className="text-sm ml-1 text-black">{selectedWorkRequest.requestDate} {selectedWorkRequest.requestTime}</span>
+                        신청일시: <span className="text-sm ml-1 text-black">{selectedWorkRequest.requestDate} {selectedWorkRequest.requestTime || ''}</span>
                       </span>
                     </div>
                     
@@ -4162,15 +4375,26 @@ function SystemAdminPageContent() {
                       <span className="text-sm ml-5 text-red-600 font-semibold">{selectedWorkRequest.currentStatus}</span>
                     </div>
                     
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">실제신청자: </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.actualRequester || selectedWorkRequest.requester}</span>
-                    </div>
+                    {selectedWorkRequest.actualRequester && (
+                      <div>
+                        <span className="text-sm font-medium text-gray-600">실제신청자: </span>
+                        <span className="text-sm ml-5">{selectedWorkRequest.actualRequester}</span>
+                      </div>
+                    )}
                     
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">실제연락처: </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.actualContact || selectedWorkRequest.contact}</span>
-                    </div>
+                    {selectedWorkRequest.actualContact && (
+                      <div>
+                        <span className="text-sm font-medium text-gray-600">실제연락처: </span>
+                        <span className="text-sm ml-5">{selectedWorkRequest.actualContact}</span>
+                      </div>
+                    )}
+                    
+                    {selectedWorkRequest.actualRequesterDepartment && (
+                      <div>
+                        <span className="text-sm font-medium text-gray-600">실제소속: </span>
+                        <span className="text-sm ml-5">{selectedWorkRequest.actualRequesterDepartment}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -4210,13 +4434,18 @@ function SystemAdminPageContent() {
                       <div className="flex-1">
                           <label className="block text-sm font-medium text-gray-600 mb-2">예정 조율 일시</label>
                       <input
+                        key={`scheduled-${selectedWorkRequest?.id || 'new'}`}
                         type="datetime-local"
                             value={serviceWorkScheduledDate}
-                            onChange={(e) => setServiceWorkScheduledDate(e.target.value)}
+                            onChange={(e) => {
+                              console.log('예정조율일시 입력 변경:', e.target.value);
+                              setServiceWorkScheduledDate(e.target.value);
+                            }}
                             disabled={serviceWorkCurrentStage !== '예정' && serviceWorkCurrentStage !== '완료' && serviceWorkCurrentStage !== '미결'}
                             className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                               (serviceWorkCurrentStage !== '예정' && serviceWorkCurrentStage !== '완료' && serviceWorkCurrentStage !== '미결') ? 'bg-gray-100 cursor-not-allowed' : ''
                             }`}
+                            onFocus={() => console.log('예정조율일시 입력 필드 포커스, 현재 값:', serviceWorkScheduledDate)}
                         />
                       </div>
                         {serviceWorkCurrentStage === '예정' && (
@@ -4257,6 +4486,7 @@ function SystemAdminPageContent() {
                         <div className="flex-1">
                           <label className="block text-sm font-medium text-gray-600 mb-2">작업 시작 일시</label>
                       <input
+                        key={`work-start-${selectedWorkRequest?.id || 'new'}`}
                         type="datetime-local"
                             value={serviceWorkStartDate}
                             onChange={(e) => setServiceWorkStartDate(e.target.value)}
@@ -4264,7 +4494,7 @@ function SystemAdminPageContent() {
                             className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                               (serviceWorkCurrentStage !== '작업' && serviceWorkCurrentStage !== '완료' && serviceWorkCurrentStage !== '미결') ? 'bg-gray-100 cursor-not-allowed' : ''
                             }`}
-                      />
+                        />
                     </div>
                         {serviceWorkCurrentStage === '작업' && (
                           <div className="flex items-center gap-2">
@@ -4304,7 +4534,8 @@ function SystemAdminPageContent() {
                     <div>
                           <label className="block text-sm font-medium text-gray-600 mb-2">작업 내역</label>
                       <textarea
-                            value={serviceWorkContent}
+                        key={`work-content-${selectedWorkRequest?.id || 'new'}`}
+                        value={serviceWorkContent}
                             onChange={(e) => setServiceWorkContent(e.target.value)}
                             disabled={serviceWorkCurrentStage !== '완료' && serviceWorkCurrentStage !== '미결'}
                             className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
@@ -4317,6 +4548,7 @@ function SystemAdminPageContent() {
                     <div>
                           <label className="block text-sm font-medium text-gray-600 mb-2">작업 완료 일시</label>
                       <input
+                        key={`work-complete-${selectedWorkRequest?.id || 'new'}`}
                         type="datetime-local"
                             value={serviceWorkCompleteDate}
                             onChange={(e) => setServiceWorkCompleteDate(e.target.value)}
@@ -4324,7 +4556,7 @@ function SystemAdminPageContent() {
                             className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                               (serviceWorkCurrentStage !== '완료' && serviceWorkCurrentStage !== '미결') ? 'bg-gray-100 cursor-not-allowed' : ''
                             }`}
-                      />
+                        />
                     </div>
                         {serviceWorkCurrentStage === '완료' && (
                           <div className="flex justify-end">
@@ -4357,6 +4589,7 @@ function SystemAdminPageContent() {
                         <div className="flex-1">
                           <label className="block text-sm font-medium text-gray-600 mb-2">문제 사항</label>
                       <textarea
+                        key={`problem-issue-${selectedWorkRequest?.id || 'new'}`}
                             value={serviceWorkProblemIssue}
                             onChange={(e) => setServiceWorkProblemIssue(e.target.value)}
                             disabled={serviceWorkCurrentStage !== '미결'}
@@ -4387,6 +4620,7 @@ function SystemAdminPageContent() {
                       </div>
                       <div className="mt-3 flex items-center">
                       <input
+                        key={`unresolved-${selectedWorkRequest?.id || 'new'}`}
                         type="checkbox"
                           id="serviceWorkUnresolved"
                           checked={serviceWorkIsUnresolved}
@@ -4417,9 +4651,51 @@ function SystemAdminPageContent() {
                   취소
                 </button>
                 <button
-                  onClick={() => {
-                    setShowServiceWorkInfoModal(false);
-                  setShowServiceWorkCompleteModal(true);
+                  onClick={async () => {
+                    if (selectedWorkRequest) {
+                      try {
+                        // 작업정보 데이터 준비
+                        const updateData = {
+                          scheduled_date: serviceWorkScheduledDate || null,
+                          work_start_date: serviceWorkStartDate || null,
+                          work_content: serviceWorkContent || null,
+                          work_complete_date: serviceWorkCompleteDate || null,
+                          problem_issue: serviceWorkProblemIssue || null,
+                          is_unresolved: serviceWorkIsUnresolved || false,
+                          current_work_stage: serviceWorkCurrentStage
+                        };
+
+                        console.log('수정할 데이터:', updateData);
+                        console.log('현재 상태 변수들:', {
+                          serviceWorkScheduledDate,
+                          serviceWorkStartDate,
+                          serviceWorkContent,
+                          serviceWorkCompleteDate,
+                          serviceWorkProblemIssue,
+                          serviceWorkIsUnresolved,
+                          serviceWorkCurrentStage
+                        });
+
+                        // API 호출하여 DB 업데이트
+                        const response = await apiClient.updateServiceRequest(
+                          parseInt(selectedWorkRequest.id), 
+                          updateData
+                        );
+
+                        if (response.success) {
+                          alert('작업정보가 성공적으로 저장되었습니다.');
+                          // 데이터 새로고침
+                          await fetchServiceRequests();
+                          // 모달 닫기
+                          setShowServiceWorkInfoModal(false);
+                        } else {
+                          alert('작업정보 저장에 실패했습니다: ' + (response.message || '알 수 없는 오류'));
+                        }
+                      } catch (error) {
+                        console.error('작업정보 저장 오류:', error);
+                        alert('작업정보 저장 중 오류가 발생했습니다.');
+                      }
+                    }
                   }}
                 className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
                 >
@@ -4503,7 +4779,7 @@ function SystemAdminPageContent() {
                     <div>
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="calendar" size={14} className="mr-1" />
-                        신청일시: <span className="text-sm ml-1 text-black">{selectedWorkRequest.requestDate} {selectedWorkRequest.requestTime}</span>
+                        신청일시: <span className="text-sm ml-1 text-black">{selectedWorkRequest.requestDate} {selectedWorkRequest.requestTime || ''}</span>
                       </span>
                     </div>
                     
@@ -4515,15 +4791,26 @@ function SystemAdminPageContent() {
                       <span className="text-sm ml-5 text-red-600 font-semibold">{selectedWorkRequest.currentStatus}</span>
                     </div>
                     
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">실제신청자: </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.actualRequester || selectedWorkRequest.requester}</span>
-                    </div>
+                    {selectedWorkRequest.actualRequester && (
+                      <div>
+                        <span className="text-sm font-medium text-gray-600">실제신청자: </span>
+                        <span className="text-sm ml-5">{selectedWorkRequest.actualRequester}</span>
+                      </div>
+                    )}
                     
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">실제연락처: </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.actualContact || selectedWorkRequest.contact}</span>
-                    </div>
+                    {selectedWorkRequest.actualContact && (
+                      <div>
+                        <span className="text-sm font-medium text-gray-600">실제연락처: </span>
+                        <span className="text-sm ml-5">{selectedWorkRequest.actualContact}</span>
+                      </div>
+                    )}
+                    
+                    {selectedWorkRequest.actualRequesterDepartment && (
+                      <div>
+                        <span className="text-sm font-medium text-gray-600">실제소속: </span>
+                        <span className="text-sm ml-5">{selectedWorkRequest.actualRequesterDepartment}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -4566,7 +4853,7 @@ function SystemAdminPageContent() {
                       <div className="space-y-2">
                     <div>
                           <span className="text-sm font-medium text-gray-600">예정조율일시 :</span>
-                          <span className="text-sm ml-2">{selectedWorkRequest.scheduledDate || '2025.08.31 15:00'}</span>
+                          <span className="text-sm ml-2">{selectedWorkRequest.scheduled_date || '2025.08.31 15:00'}</span>
                     </div>
                       </div>
                     </div>
@@ -5918,12 +6205,12 @@ function SystemAdminPageContent() {
 
 export default function SystemAdminPage() {
   return (
-    <RoleGuard requiredRoles={['시스템관리자']} fallback={
+    <RoleGuard requiredRoles={['시스템관리']} fallback={
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="text-6xl mb-4">🔒</div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">접근 권한이 없습니다</h1>
-          <p className="text-gray-600 mb-4">시스템관리자 권한이 필요합니다.</p>
+          <p className="text-gray-600 mb-4">시스템관리 권한이 필요합니다.</p>
           <button 
             onClick={() => window.history.back()}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"

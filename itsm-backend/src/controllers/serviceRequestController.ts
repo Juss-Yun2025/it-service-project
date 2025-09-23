@@ -18,11 +18,14 @@ export interface ServiceRequest {
   assignee_id?: number;
   assignee_name?: string;
   assignee_department?: string;
+  technician_id?: number;
+  technician_name?: string;
+  technician_department?: string;
   content: string;
   contact?: string;
   location?: string;
   actual_contact?: string;
-  service_type: string;
+  service_type: string; // This will be populated from service_types table
   completion_date?: string;
   assignment_opinion?: string;
   previous_assign_date?: string;
@@ -54,20 +57,24 @@ export const getAllServiceRequests = async (req: Request, res: Response): Promis
     } = req.query;
 
     let query = `
-      SELECT sr.id, sr.request_number, sr.title, sr.status, sr.current_status,
-             sr.request_date, sr.request_time, sr.requester_id, sr.assignee_id,
-             sr.assignee_name, sr.assignee_department, sr.content, sr.contact,
-             sr.location, sr.actual_contact, sr.service_type, sr.completion_date,
-             sr.assignment_opinion, sr.previous_assign_date, sr.previous_assignee,
-             sr.previous_assignment_opinion, sr.rejection_date, sr.rejection_opinion,
-             sr.scheduled_date, sr.work_start_date, sr.work_content,
-             sr.work_complete_date, sr.problem_issue, sr.is_unresolved,
-             sr.current_work_stage, sr.stage, sr.assign_time, sr.assign_date,
+      SELECT sr.id, sr.request_number, sr.title, cs.name as current_status,
+             TO_CHAR(sr.request_date, 'YYYY-MM-DD') as request_date, sr.request_time, sr.requester_id, sr.assignee_id,
+             sr.assignee_name, sr.assignee_department, sr.technician_id,
+             sr.technician_name, sr.technician_department, sr.content, sr.contact,
+             sr.location, sr.actual_contact, sr.actual_requester_name, sr.actual_requester_department,
+             st.name as service_type, TO_CHAR(sr.completion_date, 'YYYY-MM-DD') as completion_date,
+             sr.assignment_opinion, TO_CHAR(sr.previous_assign_date, 'YYYY-MM-DD') as previous_assign_date, sr.previous_assignee,
+             sr.previous_assignment_opinion, TO_CHAR(sr.rejection_date, 'YYYY-MM-DD') as rejection_date, sr.rejection_opinion,
+             TO_CHAR(sr.scheduled_date, 'YYYY-MM-DD"T"HH24:MI') as scheduled_date, TO_CHAR(sr.work_start_date, 'YYYY-MM-DD"T"HH24:MI') as work_start_date, sr.work_content,
+             TO_CHAR(sr.work_complete_date, 'YYYY-MM-DD"T"HH24:MI') as work_complete_date, sr.problem_issue, sr.is_unresolved,
+             sr.current_work_stage, s.name as stage, sr.assign_time, TO_CHAR(sr.assign_date, 'YYYY-MM-DD') as assign_date,
              sr.created_at, sr.updated_at,
-             u1.name as requester_name,
-             u1.department as requester_department
+             sr.requester_name,
+             sr.requester_department
       FROM service_requests sr
-      LEFT JOIN users u1 ON sr.requester_id = u1.id
+      LEFT JOIN current_statuses cs ON sr.current_status_id = cs.id
+      LEFT JOIN service_types st ON sr.service_type_id = st.id
+      LEFT JOIN stages s ON sr.stage_id = s.id
       WHERE 1=1
     `;
     
@@ -85,10 +92,10 @@ export const getAllServiceRequests = async (req: Request, res: Response): Promis
       queryParams.push(endDate);
     }
 
-    // 부서 필터
+    // 부서 필터 (조치담당자 부서 기준)
     if (department && department !== '전체') {
       paramCount++;
-      query += ` AND sr.assignee_department = $${paramCount}`;
+      query += ` AND sr.technician_department = $${paramCount}`;
       queryParams.push(department);
     }
 
@@ -116,8 +123,9 @@ export const getAllServiceRequests = async (req: Request, res: Response): Promis
     let countQuery = `
       SELECT COUNT(*) as total
       FROM service_requests sr
-      LEFT JOIN users u1 ON sr.requester_id = u1.id
-      LEFT JOIN users u2 ON sr.assignee_id = u2.id
+      LEFT JOIN current_statuses cs ON sr.current_status_id = cs.id
+      LEFT JOIN service_types st ON sr.service_type_id = st.id
+      LEFT JOIN stages s ON sr.stage_id = s.id
       WHERE 1=1
     `;
     
@@ -136,7 +144,7 @@ export const getAllServiceRequests = async (req: Request, res: Response): Promis
 
     if (department && department !== '전체') {
       countParamCount++;
-      countQuery += ` AND sr.assignee_department = $${countParamCount}`;
+      countQuery += ` AND sr.technician_department = $${countParamCount}`;
       countParams.push(department);
     }
 
@@ -172,14 +180,28 @@ export const getServiceRequestById = async (req: Request, res: Response): Promis
     const { id } = req.params;
     
     const result = await db.query<ServiceRequest>(
-      `SELECT sr.*, 
+      `SELECT sr.id, sr.request_number, sr.title, sr.current_status_id,
+              TO_CHAR(sr.request_date, 'YYYY-MM-DD') as request_date, sr.request_time, sr.requester_id, sr.assignee_id,
+              sr.assignee_name, sr.assignee_department, sr.technician_id,
+              sr.technician_name, sr.technician_department, sr.content, sr.contact,
+              sr.location, sr.actual_contact, sr.actual_requester_name, sr.actual_requester_department,
+              sr.service_type_id, TO_CHAR(sr.completion_date, 'YYYY-MM-DD') as completion_date,
+              sr.assignment_opinion, TO_CHAR(sr.previous_assign_date, 'YYYY-MM-DD') as previous_assign_date, sr.previous_assignee,
+              sr.previous_assignment_opinion, TO_CHAR(sr.rejection_date, 'YYYY-MM-DD') as rejection_date, sr.rejection_opinion,
+              TO_CHAR(sr.scheduled_date, 'YYYY-MM-DD"T"HH24:MI') as scheduled_date, TO_CHAR(sr.work_start_date, 'YYYY-MM-DD"T"HH24:MI') as work_start_date, sr.work_content,
+              TO_CHAR(sr.work_complete_date, 'YYYY-MM-DD"T"HH24:MI') as work_complete_date, sr.problem_issue, sr.is_unresolved,
+              sr.current_work_stage, sr.stage_id, sr.assign_time, TO_CHAR(sr.assign_date, 'YYYY-MM-DD') as assign_date,
+              sr.created_at, sr.updated_at,
               u1.name as requester_name,
               u1.department as requester_department,
               u2.name as assignee_name,
-              u2.department as assignee_department
+              u2.department as assignee_department,
+              u3.name as technician_name,
+              u3.department as technician_department
        FROM service_requests sr
        LEFT JOIN users u1 ON sr.requester_id = u1.id
        LEFT JOIN users u2 ON sr.assignee_id = u2.id
+       LEFT JOIN users u3 ON sr.technician_id = u3.id
        WHERE sr.id = $1`,
       [id]
     );
@@ -212,12 +234,62 @@ export const createServiceRequest = async (req: Request, res: Response): Promise
       title,
       content,
       requester_id,
-      requester_name,
-      requester_department,
+      assignee_id,
+      technician_id,
       contact,
       location,
-      service_type
+      service_type_id
     } = req.body;
+
+    // requester_id로 사용자 정보 조회 (생성 당시의 부서 정보 보존)
+    const requesterResult = await db.query(
+      'SELECT name, department FROM users WHERE id = $1',
+      [requester_id]
+    );
+
+    if (requesterResult.rows.length === 0) {
+      res.status(400).json({
+        success: false,
+        error: '신청자를 찾을 수 없습니다.'
+      });
+      return;
+    }
+
+    const requester = requesterResult.rows[0];
+    const requester_name = requester.name;
+    const requester_department = requester.department; // 생성 당시의 부서 정보로 고정
+
+    // assignee_id로 배정담당자 정보 조회 (선택적)
+    let assignee_name = null;
+    let assignee_department = null;
+    if (assignee_id) {
+      const assigneeResult = await db.query(
+        'SELECT name, department FROM users WHERE id = $1',
+        [assignee_id]
+      );
+      
+      if (assigneeResult.rows.length > 0) {
+        const assignee = assigneeResult.rows[0];
+        assignee_name = assignee.name;
+        assignee_department = assignee.department;
+      }
+    }
+
+    // technician_id로 조치담당자 정보 조회 (선택적)
+    let technician_name = null;
+    let technician_department = null;
+    if (technician_id) {
+      const technicianResult = await db.query(
+        'SELECT name, department FROM users WHERE id = $1',
+        [technician_id]
+      );
+      
+      if (technicianResult.rows.length > 0) {
+        const technician = technicianResult.rows[0];
+        technician_name = technician.name;
+        technician_department = technician.department;
+      }
+    }
 
     // 요청 번호 생성 (SR-YYYYMMDD-XXX 형식)
     const today = new Date();
@@ -240,9 +312,11 @@ export const createServiceRequest = async (req: Request, res: Response): Promise
 
     const result = await db.query<ServiceRequest>(
       `INSERT INTO service_requests 
-       (request_number, title, content, requester_id, requester_name, requester_department, 
-        contact, location, service_type, request_time)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       (request_number, title, content, requester_id, requester_name, requester_department,
+        assignee_id, assignee_name, assignee_department,
+        technician_id, technician_name, technician_department,
+        contact, location, service_type_id, request_time)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
        RETURNING *`,
       [
         requestNumber,
@@ -251,9 +325,15 @@ export const createServiceRequest = async (req: Request, res: Response): Promise
         requester_id,
         requester_name,
         requester_department,
+        assignee_id,
+        assignee_name,
+        assignee_department,
+        technician_id,
+        technician_name,
+        technician_department,
         contact,
         location,
-        service_type || '일반',
+        service_type_id,
         new Date().toTimeString().slice(0, 8)
       ]
     );
@@ -277,6 +357,67 @@ export const updateServiceRequest = async (req: Request, res: Response): Promise
     const { id } = req.params;
     const updateData = req.body;
 
+    // requester_id가 변경되는 경우 사용자 정보 조회
+    if (updateData.requester_id) {
+      const requesterResult = await db.query(
+        'SELECT name, department FROM users WHERE id = $1',
+        [updateData.requester_id]
+      );
+
+      if (requesterResult.rows.length === 0) {
+        res.status(400).json({
+          success: false,
+          error: '신청자를 찾을 수 없습니다.'
+        });
+        return;
+      }
+
+      const requester = requesterResult.rows[0];
+      // requester_id가 변경될 때만 사용자 정보 업데이트 (부서 이동 고려)
+      updateData.requester_name = requester.name;
+      updateData.requester_department = requester.department;
+    }
+
+    // assignee_id가 변경되는 경우 배정담당자 정보 조회 (부서 정보는 보존)
+    if (updateData.assignee_id) {
+      const assigneeResult = await db.query(
+        'SELECT name, department FROM users WHERE id = $1',
+        [updateData.assignee_id]
+      );
+
+      if (assigneeResult.rows.length === 0) {
+        res.status(400).json({
+          success: false,
+          error: '배정담당자를 찾을 수 없습니다.'
+        });
+        return;
+      }
+
+      const assignee = assigneeResult.rows[0];
+      updateData.assignee_name = assignee.name;
+      // assignee_department는 생성 당시의 부서 정보를 보존하므로 업데이트하지 않음
+    }
+
+    // technician_id가 변경되는 경우 조치담당자 정보 조회 (부서 정보는 보존)
+    if (updateData.technician_id) {
+      const technicianResult = await db.query(
+        'SELECT name, department FROM users WHERE id = $1',
+        [updateData.technician_id]
+      );
+
+      if (technicianResult.rows.length === 0) {
+        res.status(400).json({
+          success: false,
+          error: '조치담당자를 찾을 수 없습니다.'
+        });
+        return;
+      }
+
+      const technician = technicianResult.rows[0];
+      updateData.technician_name = technician.name;
+      // technician_department는 생성 당시의 부서 정보를 보존하므로 업데이트하지 않음
+    }
+
     // 업데이트할 필드들만 동적으로 구성
     const updateFields = [];
     const values = [];
@@ -285,8 +426,22 @@ export const updateServiceRequest = async (req: Request, res: Response): Promise
     Object.keys(updateData).forEach(key => {
       if (updateData[key] !== undefined) {
         paramCount++;
-        updateFields.push(`${key} = $${paramCount}`);
-        values.push(updateData[key]);
+        
+        // datetime-local 형식의 날짜 필드들을 TIMESTAMP로 변환
+        if (key === 'scheduled_date' || key === 'work_start_date' || key === 'work_complete_date') {
+          if (updateData[key]) {
+            // datetime-local 형식 (YYYY-MM-DDTHH:MM)을 PostgreSQL TIMESTAMP 형식으로 변환
+            const dateTime = new Date(updateData[key]);
+            updateFields.push(`${key} = $${paramCount}`);
+            values.push(dateTime.toISOString());
+          } else {
+            updateFields.push(`${key} = $${paramCount}`);
+            values.push(null);
+          }
+        } else {
+          updateFields.push(`${key} = $${paramCount}`);
+          values.push(updateData[key]);
+        }
       }
     });
 

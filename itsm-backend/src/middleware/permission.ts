@@ -3,7 +3,7 @@ import { db } from '../config/database';
 
 // 권한 검증 미들웨어
 export const requirePermission = (resource: string, action: string) => {
-  return async (req: Request, res: Response, next: NextFunction) => {
+  return async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       // JWT 토큰에서 사용자 ID 추출 (auth 미들웨어에서 설정됨)
       const userId = (req as any).user?.id;
@@ -40,7 +40,7 @@ export const requirePermission = (resource: string, action: string) => {
       next();
     } catch (error) {
       console.error('권한 검증 오류:', error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         message: '권한 검증에 실패했습니다.'
       });
@@ -50,7 +50,7 @@ export const requirePermission = (resource: string, action: string) => {
 
 // 역할 검증 미들웨어
 export const requireRole = (roleName: string) => {
-  return async (req: Request, res: Response, next: NextFunction) => {
+  return async (req: Request, res: Response, next: NextFunction): Promise<Response | void> => {
     try {
       const userId = (req as any).user?.id;
       
@@ -84,7 +84,7 @@ export const requireRole = (roleName: string) => {
       next();
     } catch (error) {
       console.error('역할 검증 오류:', error);
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         message: '역할 검증에 실패했습니다.'
       });
@@ -92,8 +92,8 @@ export const requireRole = (roleName: string) => {
   };
 };
 
-// 시스템관리자 권한 검증
-export const requireSystemAdmin = requireRole('시스템관리자');
+// 시스템관리 권한 검증
+export const requireSystemAdmin = requireRole('시스템관리');
 
 // 관리매니저 권한 검증
 export const requireManager = requireRole('관리매니저');

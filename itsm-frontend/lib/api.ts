@@ -45,6 +45,7 @@ export interface UserUpdateRequest {
   name?: string;
   department?: string;
   position?: string;
+  phone?: string;
   role?: string;
   status?: string;
 }
@@ -58,6 +59,29 @@ export interface Department {
   updated_at: string;
 }
 
+export interface Position {
+  id: number;
+  name: string;
+  description?: string;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PositionCreateRequest {
+  name: string;
+  description?: string;
+  sort_order?: number;
+}
+
+export interface PositionUpdateRequest {
+  name?: string;
+  description?: string;
+  sort_order?: number;
+  is_active?: boolean;
+}
+
 export interface DepartmentCreateRequest {
   name: string;
   description?: string;
@@ -69,13 +93,23 @@ export interface DepartmentUpdateRequest {
   is_active?: boolean;
 }
 
+export interface ServiceType {
+  id: number;
+  name: string;
+  description?: string;
+  color?: string;
+  is_active?: boolean;
+  sort_order?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
 // ===== 서비스 요청 관련 인터페이스 =====
 
 export interface ServiceRequest {
   id: number;
   request_number: string;
   title: string;
-  status: string;
   current_status: string;
   request_date: string;
   request_time?: string;
@@ -124,7 +158,6 @@ export interface ServiceRequestCreateRequest {
 
 export interface ServiceRequestUpdateRequest {
   title?: string;
-  status?: string;
   current_status?: string;
   stage?: string;
   assign_time?: string;
@@ -139,6 +172,14 @@ export interface ServiceRequestUpdateRequest {
   service_type?: string;
   completion_date?: string;
   assignment_opinion?: string;
+  // 작업정보 필드들
+  scheduled_date?: string;
+  work_start_date?: string;
+  work_content?: string;
+  work_complete_date?: string;
+  problem_issue?: string;
+  is_unresolved?: boolean;
+  current_work_stage?: string;
   previous_assign_date?: string;
   previous_assignee?: string;
   previous_assignment_opinion?: string;
@@ -680,18 +721,18 @@ class ApiClient {
   }
 
   // 사용자에게 역할 할당
-  async assignRole(data: RoleAssignmentRequest): Promise<ApiResponse<UserRole>> {
+  async assignRole(userId: string, roleId: number): Promise<ApiResponse<UserRole>> {
     return this.request<UserRole>('/api/permissions/assign-role', {
       method: 'POST',
-      body: JSON.stringify(data)
+      body: JSON.stringify({ userId, roleId })
     });
   }
 
   // 사용자에서 역할 제거
-  async removeRole(data: RoleAssignmentRequest): Promise<ApiResponse<void>> {
+  async removeRole(userId: string, roleId: number): Promise<ApiResponse<void>> {
     return this.request<void>('/api/permissions/remove-role', {
       method: 'DELETE',
-      body: JSON.stringify(data)
+      body: JSON.stringify({ userId, roleId })
     });
   }
 
@@ -703,6 +744,76 @@ class ApiClient {
   // 모든 권한 목록 조회
   async getAllPermissions(): Promise<ApiResponse<Permission[]>> {
     return this.request<Permission[]>('/api/permissions/permissions');
+  }
+
+  // ===== 직급 관련 API =====
+  
+  // 모든 직급 조회
+  async getPositions(): Promise<ApiResponse<Position[]>> {
+    return this.request<Position[]>('/api/positions');
+  }
+
+  // 특정 직급 조회
+  async getPosition(id: number): Promise<ApiResponse<Position>> {
+    return this.request<Position>(`/api/positions/${id}`);
+  }
+
+  // 새 직급 생성
+  async createPosition(data: PositionCreateRequest): Promise<ApiResponse<Position>> {
+    return this.request<Position>('/api/positions', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  // 직급 수정
+  async updatePosition(id: number, data: PositionUpdateRequest): Promise<ApiResponse<Position>> {
+    return this.request<Position>(`/api/positions/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+
+  // 직급 삭제
+  async deletePosition(id: number): Promise<ApiResponse<void>> {
+    return this.request<void>(`/api/positions/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
+  // ===== 서비스 유형 관련 API =====
+
+  // 모든 서비스 유형 조회
+  async getServiceTypes(): Promise<ApiResponse<ServiceType[]>> {
+    return this.request<ServiceType[]>('/api/service-types');
+  }
+
+  // 서비스 유형 ID로 조회
+  async getServiceType(id: number): Promise<ApiResponse<ServiceType>> {
+    return this.request<ServiceType>(`/api/service-types/${id}`);
+  }
+
+  // 새 서비스 유형 생성
+  async createServiceType(data: Partial<ServiceType>): Promise<ApiResponse<ServiceType>> {
+    return this.request<ServiceType>('/api/service-types', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  // 서비스 유형 수정
+  async updateServiceType(id: number, data: Partial<ServiceType>): Promise<ApiResponse<ServiceType>> {
+    return this.request<ServiceType>(`/api/service-types/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+
+  // 서비스 유형 삭제
+  async deleteServiceType(id: number): Promise<ApiResponse<void>> {
+    return this.request<void>(`/api/service-types/${id}`, {
+      method: 'DELETE'
+    });
   }
 }
 

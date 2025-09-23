@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS service_requests (
     previous_assignment_opinion TEXT,
     rejection_date TIMESTAMP WITH TIME ZONE,
     rejection_opinion TEXT,
-    scheduled_date DATE,
+    scheduled_date TIMESTAMP WITH TIME ZONE,
     work_start_date TIMESTAMP WITH TIME ZONE,
     work_content TEXT,
     work_complete_date TIMESTAMP WITH TIME ZONE,

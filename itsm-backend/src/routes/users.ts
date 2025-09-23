@@ -15,7 +15,7 @@ router.get('/', requireAdmin, getAllUsers);
 router.get('/:id', getUserById);
 
 // Update user (admin only)
-router.put('/:id', requireAdmin, validateRequired(['name', 'department', 'position', 'role']), updateUser);
+router.put('/:id', requireAdmin, validateRequired(['name', 'department', 'position']), updateUser);
 
 // Delete user (admin only)
 router.delete('/:id', requireAdmin, deleteUser);

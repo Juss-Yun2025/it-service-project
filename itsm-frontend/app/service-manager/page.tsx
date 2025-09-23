@@ -1062,7 +1062,7 @@ export default function ServiceManagerPage() {
     const data = (departmentData as Record<string, any>)[selectedDept] || departmentData['IT팀']
     
     // 날짜에 따른 가중치 적용 (예시)
-    const daysDiff = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24))
+    const daysDiff = Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24))
     const dateMultiplier = Math.max(0.5, Math.min(2, daysDiff / 30)) // 30일 기준으로 가중치 계산
     
     setChartData({
@@ -1086,10 +1086,10 @@ export default function ServiceManagerPage() {
     }
     
     const selectedDept = inquirySelectedDepartment || ''
-    const data = departmentInquiryData[selectedDept] || departmentInquiryData['']
+    const data = (departmentInquiryData as Record<string, any>)[selectedDept] || departmentInquiryData['']
     
     // 날짜에 따른 가중치 적용 (1주일 기준)
-    const daysDiff = Math.ceil((new Date(inquiryEndDate) - new Date(inquiryStartDate)) / (1000 * 60 * 60 * 24))
+    const daysDiff = Math.ceil((new Date(inquiryEndDate).getTime() - new Date(inquiryStartDate).getTime()) / (1000 * 60 * 60 * 24))
     const dateMultiplier = Math.max(0.5, Math.min(2, daysDiff / 7)) // 7일 기준으로 가중치 계산
     
     const newData = {

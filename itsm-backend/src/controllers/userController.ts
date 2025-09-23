@@ -10,6 +10,7 @@ export const getAllUsers = async (req: Request, res: Response): Promise<void> =>
       page = 1,
       limit = 10,  // 기본 limit을 10으로 설정 (페이지네이션)
       search,
+      name,  // name 파라미터 추가
       status,
       department,
       role,
@@ -26,38 +27,49 @@ export const getAllUsers = async (req: Request, res: Response): Promise<void> =>
 
     // Build WHERE conditions
     if (search) {
-      whereConditions.push(`(name ILIKE $${paramIndex} OR email ILIKE $${paramIndex})`);
+      whereConditions.push(`(u.name ILIKE $${paramIndex} OR u.email ILIKE $${paramIndex})`);
       queryParams.push(`%${search}%`);
       paramIndex++;
     }
 
+    if (name) {
+      whereConditions.push(`u.name ILIKE $${paramIndex}`);
+      queryParams.push(`%${name}%`);
+      paramIndex++;
+    }
+
     if (status) {
-      whereConditions.push(`status = $${paramIndex}`);
+      whereConditions.push(`u.status = $${paramIndex}`);
       queryParams.push(status);
       paramIndex++;
     }
 
     if (department) {
-      whereConditions.push(`department = $${paramIndex}`);
+      whereConditions.push(`u.department = $${paramIndex}`);
       queryParams.push(department);
       paramIndex++;
     }
 
+    // role 필터는 user_roles 테이블을 통해 처리
     if (role) {
-      whereConditions.push(`role = $${paramIndex}`);
+      whereConditions.push(`EXISTS (
+        SELECT 1 FROM user_roles ur 
+        JOIN roles r ON ur.role_id = r.id 
+        WHERE ur.user_id = u.id AND r.name = $${paramIndex} AND r.is_active = true
+      )`);
       queryParams.push(role);
       paramIndex++;
     }
 
     if (startDate) {
-      whereConditions.push(`created_at >= $${paramIndex}::date`);
+      whereConditions.push(`u.created_at >= $${paramIndex}::date`);
       queryParams.push(startDate);
       paramIndex++;
     }
 
     if (endDate) {
       // endDate에 시간을 추가하여 해당 날짜의 끝까지 포함
-      whereConditions.push(`created_at < $${paramIndex}::date + interval '1 day'`);
+      whereConditions.push(`u.created_at < $${paramIndex}::date + interval '1 day'`);
       queryParams.push(endDate);
       paramIndex++;
     }
@@ -66,17 +78,26 @@ export const getAllUsers = async (req: Request, res: Response): Promise<void> =>
 
     // Get total count
     const countResult = await db.query(
-      `SELECT COUNT(*) FROM users WHERE ${whereClause}`,
+      `SELECT COUNT(*) FROM users u WHERE ${whereClause}`,
       queryParams
     );
     const total = parseInt(countResult.rows[0].count);
 
-    // Get users with pagination
-    const usersResult = await db.query<User>(
-      `SELECT id, email, name, department, position, role, phone, status, created_at, updated_at, last_login
-       FROM users 
+    // Get users with pagination and roles
+    const usersResult = await db.query(
+      `SELECT u.id, u.email, u.name, u.department, u.position, u.phone, u.status, 
+              u.created_at, u.updated_at, u.last_login,
+              COALESCE(
+                STRING_AGG(r.name, ', ' ORDER BY r.name), 
+                ''
+              ) as roles
+       FROM users u
+       LEFT JOIN user_roles ur ON u.id = ur.user_id
+       LEFT JOIN roles r ON ur.role_id = r.id AND r.is_active = true
        WHERE ${whereClause}
-       ORDER BY ${sortBy} ${sortOrder}
+       GROUP BY u.id, u.email, u.name, u.department, u.position, u.phone, u.status, 
+                u.created_at, u.updated_at, u.last_login
+       ORDER BY ${sortBy.replace(/users\./g, 'u.')} ${sortOrder}
        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
       [...queryParams, limit, offset]
     );
@@ -111,7 +132,7 @@ export const getUserById = async (req: Request, res: Response): Promise<void> =>
     const { id } = req.params;
 
     const result = await db.query<User>(
-      'SELECT id, email, name, department, position, role, phone, status, created_at, updated_at, last_login FROM users WHERE id = $1',
+      'SELECT id, email, name, department, position, phone, status, created_at, updated_at, last_login FROM users WHERE id = $1',
       [id]
     );
 
@@ -144,7 +165,19 @@ export const getUserById = async (req: Request, res: Response): Promise<void> =>
 export const updateUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { name, department, position, role, phone, status } = req.body;
+    const { name, department, position, phone, role, status } = req.body;
+
+    // 연락처 유효성 검사
+    if (phone && phone.trim() !== '') {
+      const phoneRegex = /^010-\d{4}-\d{4}$/;
+      if (!phoneRegex.test(phone)) {
+        res.status(400).json({
+          success: false,
+          message: '연락처 형식이 올바르지 않습니다. (예: 010-1234-5678)'
+        } as ApiResponse);
+        return;
+      }
+    }
 
     // Check if user exists
     const existingUser = await db.query(
@@ -164,11 +197,23 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
     // Update user
     const result = await db.query<User>(
       `UPDATE users 
-       SET name = $1, department = $2, position = $3, role = $4, phone = $5, status = $6, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $7
-       RETURNING id, email, name, department, position, role, phone, status, created_at, updated_at, last_login`,
-      [name, department, position, role, phone, status, id]
+       SET name = $1, department = $2, position = $3, phone = $4, status = $5, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $6
+       RETURNING id, email, name, department, position, phone, status, created_at, updated_at, last_login`,
+      [name, department, position, phone, status, id]
     );
+
+    // 권한 업데이트 (role이 제공된 경우)
+    if (role) {
+      // 기존 권한 모두 제거
+      await db.query('DELETE FROM user_roles WHERE user_id = $1', [id]);
+      
+      // 새 권한 할당
+      const roleResult = await db.query('SELECT id FROM roles WHERE name = $1', [role]);
+      if (roleResult.rows.length > 0) {
+        await db.query('INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2)', [id, roleResult.rows[0].id]);
+      }
+    }
 
     res.json({
       success: true,
