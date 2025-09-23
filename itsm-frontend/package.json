@@ -7,8 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "extract-figma-tokens": "node scripts/extract-figma-tokens.js",
-    "generate-figma-css": "node scripts/extract-figma-tokens.js && echo 'CSS 변수가 lib/figma-tokens.css에 생성되었습니다.'"
+    "extract-figma-tokens": "echo '피그마 관련 스크립트가 제거되었습니다.'",
+    "generate-figma-css": "echo '피그마 관련 스크립트가 제거되었습니다.'"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.2.3",

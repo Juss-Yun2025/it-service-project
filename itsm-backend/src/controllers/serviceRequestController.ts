@@ -39,7 +39,17 @@ export interface ServiceRequest {
   work_complete_date?: string;
   problem_issue?: string;
   is_unresolved?: boolean;
-  current_work_stage?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Stage {
+  id: number;
+  name: string;
+  description: string;
+  color: string;
+  is_active: boolean;
+  progress_name: string;
   created_at: string;
   updated_at: string;
 }
@@ -67,7 +77,7 @@ export const getAllServiceRequests = async (req: Request, res: Response): Promis
              sr.previous_assignment_opinion, TO_CHAR(sr.rejection_date, 'YYYY-MM-DD') as rejection_date, sr.rejection_opinion,
              TO_CHAR(sr.scheduled_date, 'YYYY-MM-DD"T"HH24:MI') as scheduled_date, TO_CHAR(sr.work_start_date, 'YYYY-MM-DD"T"HH24:MI') as work_start_date, sr.work_content,
              TO_CHAR(sr.work_complete_date, 'YYYY-MM-DD"T"HH24:MI') as work_complete_date, sr.problem_issue, sr.is_unresolved,
-             sr.current_work_stage, s.name as stage, sr.assign_time, TO_CHAR(sr.assign_date, 'YYYY-MM-DD"T"HH24:MI') as assign_date,
+             s.name as stage, sr.stage_id, sr.assign_time, TO_CHAR(sr.assign_date, 'YYYY-MM-DD"T"HH24:MI') as assign_date,
              sr.created_at, sr.updated_at,
              sr.requester_name,
              sr.requester_department
@@ -190,7 +200,7 @@ export const getServiceRequestById = async (req: Request, res: Response): Promis
               sr.previous_assignment_opinion, TO_CHAR(sr.rejection_date, 'YYYY-MM-DD') as rejection_date, sr.rejection_opinion,
               TO_CHAR(sr.scheduled_date, 'YYYY-MM-DD"T"HH24:MI') as scheduled_date, TO_CHAR(sr.work_start_date, 'YYYY-MM-DD"T"HH24:MI') as work_start_date, sr.work_content,
               TO_CHAR(sr.work_complete_date, 'YYYY-MM-DD"T"HH24:MI') as work_complete_date, sr.problem_issue, sr.is_unresolved,
-              sr.current_work_stage, sr.stage_id, sr.assign_time, TO_CHAR(sr.assign_date, 'YYYY-MM-DD"T"HH24:MI') as assign_date,
+              sr.stage_id, sr.assign_time, TO_CHAR(sr.assign_date, 'YYYY-MM-DD"T"HH24:MI') as assign_date,
               sr.created_at, sr.updated_at,
               u1.name as requester_name,
               u1.department as requester_department,
@@ -418,6 +428,44 @@ export const updateServiceRequest = async (req: Request, res: Response): Promise
       // technician_department는 생성 당시의 부서 정보를 보존하므로 업데이트하지 않음
     }
 
+    // stage 필드가 있으면 stage_id로 변환
+    if (updateData.stage) {
+      const stageResult = await db.query(
+        'SELECT id FROM stages WHERE name = $1',
+        [updateData.stage]
+      );
+      
+      if (stageResult.rows.length === 0) {
+        res.status(400).json({
+          success: false,
+          error: '유효하지 않은 단계입니다.'
+        });
+        return;
+      }
+      
+      updateData.stage_id = stageResult.rows[0].id;
+      delete updateData.stage; // stage 필드 제거
+    }
+
+    // service_type 필드가 있으면 service_type_id로 변환
+    if (updateData.service_type) {
+      const serviceTypeResult = await db.query(
+        'SELECT id FROM service_types WHERE name = $1',
+        [updateData.service_type]
+      );
+      
+      if (serviceTypeResult.rows.length === 0) {
+        res.status(400).json({
+          success: false,
+          error: '유효하지 않은 서비스 타입입니다.'
+        });
+        return;
+      }
+      
+      updateData.service_type_id = serviceTypeResult.rows[0].id;
+      delete updateData.service_type; // service_type 필드 제거
+    }
+
     // 업데이트할 필드들만 동적으로 구성
     const updateFields = [];
     const values = [];
@@ -517,6 +565,109 @@ export const deleteServiceRequest = async (req: Request, res: Response): Promise
     res.status(500).json({
       success: false,
       error: '서비스 요청 삭제에 실패했습니다.'
+    });
+  }
+};
+
+// 모든 단계 정보 조회
+export const getAllStages = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await db.query(`
+      SELECT id, name, description, color, is_active, progress_name, created_at, updated_at
+      FROM stages 
+      WHERE is_active = true 
+      ORDER BY id
+    `);
+
+    res.json({
+      success: true,
+      data: result.rows
+    });
+  } catch (error) {
+    console.error('Error fetching stages:', error);
+    res.status(500).json({
+      success: false,
+      error: '단계 정보 조회에 실패했습니다.'
+    });
+  }
+};
+
+// 특정 단계 정보 조회
+export const getStageById = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const result = await db.query(`
+      SELECT id, name, description, color, is_active, progress_name, created_at, updated_at
+      FROM stages 
+      WHERE id = $1 AND is_active = true
+    `, [id]);
+
+    if (result.rows.length === 0) {
+      res.status(404).json({
+        success: false,
+        error: '단계를 찾을 수 없습니다.'
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error fetching stage:', error);
+    res.status(500).json({
+      success: false,
+      error: '단계 정보 조회에 실패했습니다.'
+    });
+  }
+};
+
+// 단계별 다음 단계 조회
+export const getNextStage = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { currentStageId } = req.params;
+    
+    // 현재 단계 정보 조회
+    const currentStageResult = await db.query(`
+      SELECT id, name FROM stages WHERE id = $1 AND is_active = true
+    `, [currentStageId]);
+
+    if (currentStageResult.rows.length === 0) {
+      res.status(404).json({
+        success: false,
+        error: '현재 단계를 찾을 수 없습니다.'
+      });
+      return;
+    }
+
+    // 다음 단계 조회 (id가 현재 단계보다 큰 첫 번째 활성 단계)
+    const nextStageResult = await db.query(`
+      SELECT id, name, description, color, progress_name
+      FROM stages 
+      WHERE id > $1 AND is_active = true 
+      ORDER BY id 
+      LIMIT 1
+    `, [currentStageId]);
+
+    if (nextStageResult.rows.length === 0) {
+      res.json({
+        success: true,
+        data: null,
+        message: '다음 단계가 없습니다.'
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: nextStageResult.rows[0]
+    });
+  } catch (error) {
+    console.error('Error fetching next stage:', error);
+    res.status(500).json({
+      success: false,
+      error: '다음 단계 조회에 실패했습니다.'
     });
   }
 };

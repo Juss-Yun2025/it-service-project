@@ -206,3 +206,52 @@ export const getProgressByStageName = async (req: Request, res: Response): Promi
     return;
   }
 };
+
+// 다음 단계 조회
+export const getNextStage = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { currentStageId } = req.params;
+    
+    // 현재 단계 정보 조회
+    const currentStageResult = await db.query(
+      'SELECT id, name FROM stages WHERE id = $1 AND is_active = true',
+      [currentStageId]
+    );
+
+    if (currentStageResult.rows.length === 0) {
+      res.status(404).json({
+        success: false,
+        error: 'Current stage not found'
+      });
+      return;
+    }
+
+    // 다음 단계 조회 (id가 현재 단계보다 큰 첫 번째 활성 단계)
+    const nextStageResult = await db.query(
+      'SELECT id, name, description, color, progress_name FROM stages WHERE id > $1 AND is_active = true ORDER BY id LIMIT 1',
+      [currentStageId]
+    );
+
+    if (nextStageResult.rows.length === 0) {
+      res.json({
+        success: true,
+        data: null,
+        message: 'No next stage available'
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: nextStageResult.rows[0]
+    });
+    return;
+  } catch (error) {
+    console.error('Error fetching next stage:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch next stage'
+    });
+    return;
+  }
+};

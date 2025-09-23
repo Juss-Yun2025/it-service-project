@@ -5,7 +5,8 @@ import {
   createStage,
   updateStage,
   deleteStage,
-  getProgressByStageName
+  getProgressByStageName,
+  getNextStage
 } from '../controllers/stageController';
 
 const router = express.Router();
@@ -27,5 +28,8 @@ router.delete('/:id', deleteStage);
 
 // 단계명으로 진행명 조회
 router.get('/progress/:stageName', getProgressByStageName);
+
+// 다음 단계 조회
+router.get('/next/:currentStageId', getNextStage);
 
 export default router;

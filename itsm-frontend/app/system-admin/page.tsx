@@ -1,10 +1,12 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Icon from '@/components/ui/Icon'
-import { apiClient, User, UserUpdateRequest, Department, Role, Position } from '@/lib/api'
+import { apiClient, User, UserUpdateRequest, Department, Role, Position, Stage, ServiceType } from '@/lib/api'
 import { PermissionGuard, RoleGuard, usePermissions, useRoles } from '@/components/PermissionGuard'
+
+// 상수 정의는 제거됨 - DB에서 동적으로 로드
 
 // 데이터 타입 정의
 interface ServiceRequest {
@@ -21,6 +23,8 @@ interface ServiceRequest {
   assignDate?: string
   assignee?: string
   assigneeDepartment?: string
+  technician?: string
+  technicianDepartment?: string
   content: string
   contact: string
   location: string
@@ -43,7 +47,7 @@ interface ServiceRequest {
   workCompleteDate?: string
   problemIssue?: string
   isUnresolved?: boolean
-  currentWorkStage?: string
+  stageId?: number
 }
 
 interface PendingWork {
@@ -73,10 +77,108 @@ function SystemAdminPageContent() {
     }
   }
 
-  // 컴포넌트 마운트 시 부서 목록 가져오기
+  const fetchServiceTypes = async () => {
+    setServiceTypesLoading(true)
+    try {
+      const response = await apiClient.getServiceTypes()
+      if (response.success && response.data) {
+        setServiceTypes(response.data)
+      } else {
+        console.error('Failed to fetch service types:', response.error)
+      }
+    } catch (error) {
+      console.error('Error fetching service types:', error)
+    } finally {
+      setServiceTypesLoading(false)
+    }
+  }
+
+  // 부서별 조치담당자 가져오기 (조치담당자 권한만)
+  const fetchTechniciansByDepartment = async (departmentName: string) => {
+    try {
+      console.log('부서별 조치담당자 조회 시작:', departmentName)
+      
+      // 조치담당자 권한을 가진 사용자만 조회
+      const response = await apiClient.getUsers({
+        page: 1,
+        limit: 1000,
+        department: departmentName,
+        role: '조치담당자' // 조치담당자 권한만 조회
+      })
+      console.log('부서별 조치담당자 조회 응답:', response)
+      
+      if (response.success && response.data) {
+        // getUsers API의 응답 구조에 맞게 수정
+        const usersData = (response.data as any).users || response.data
+        const technicians = Array.isArray(usersData) ? usersData : []
+        console.log(`${departmentName} 부서 조치담당자 목록:`, technicians)
+        return technicians
+      }
+      
+      // 조치담당자 권한이 없는 경우 빈 배열 반환
+      console.log(`${departmentName} 부서에 조치담당자 권한을 가진 사용자가 없습니다.`)
+      return []
+    } catch (error) {
+      console.error('Error fetching technicians by department:', error)
+      return []
+    }
+  }
+
+  // 배정작업 모달 - 조치 소속 변경 핸들러
+  const handleAssignmentDepartmentChange = async (departmentName: string) => {
+    setAssignmentDepartment(departmentName)
+    
+    if (departmentName) {
+      const technicians = await fetchTechniciansByDepartment(departmentName)
+      setAssignmentTechnicians(technicians)
+      
+      // 조치담당자가 없는 경우 알림
+      if (technicians.length === 0) {
+        alert(`${departmentName}에 조치담당자 권한을 가진 사용자가 없습니다.`)
+      }
+      
+      // 현재 선택된 조치자가 새로운 부서에 없으면 초기화
+      const currentTechnician = assignmentTechnician
+      if (currentTechnician && !technicians.find(t => t.name === currentTechnician)) {
+        setAssignmentTechnician('')
+      }
+    } else {
+      setAssignmentTechnicians([])
+      setAssignmentTechnician('')
+    }
+  }
+
+  // 재배정작업 모달 - 조치 소속 변경 핸들러
+  const handleReassignmentDepartmentChange = async (departmentName: string) => {
+    setReassignmentDepartment(departmentName)
+    
+    if (departmentName) {
+      const technicians = await fetchTechniciansByDepartment(departmentName)
+      setReassignmentTechnicians(technicians)
+      
+      // 조치담당자가 없는 경우 알림
+      if (technicians.length === 0) {
+        alert(`${departmentName}에 조치담당자 권한을 가진 사용자가 없습니다.`)
+      }
+      
+      // 현재 선택된 조치자가 새로운 부서에 없으면 초기화
+      const currentTechnician = reassignmentTechnician
+      if (currentTechnician && !technicians.find(t => t.name === currentTechnician)) {
+        setReassignmentTechnician('')
+      }
+    } else {
+      setReassignmentTechnicians([])
+      setReassignmentTechnician('')
+    }
+  }
+
+  // 컴포넌트 마운트 시 부서 목록과 서비스 타입 가져오기
   useEffect(() => {
     fetchDepartments()
+    fetchServiceTypes()
   }, [])
+
+
   
   const [currentDate, setCurrentDate] = useState('')
   const [currentTime, setCurrentTime] = useState('')
@@ -104,7 +206,7 @@ function SystemAdminPageContent() {
   const [workCompleteDate, setWorkCompleteDate] = useState('')
   const [problemIssue, setProblemIssue] = useState('')
   const [isUnresolved, setIsUnresolved] = useState(false)
-  const [currentStage, setCurrentStage] = useState('예정')
+  const [currentStage, setCurrentStage] = useState('')
   const [selectedRequest, setSelectedRequest] = useState<ServiceRequest | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [showPasswordModal, setShowPasswordModal] = useState(false)
@@ -153,6 +255,20 @@ function SystemAdminPageContent() {
   const [departments, setDepartments] = useState<Department[]>([])
   const [departmentsLoading, setDepartmentsLoading] = useState(false)
   
+  // 서비스 타입 목록 관리
+  const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([])
+  const [serviceTypesLoading, setServiceTypesLoading] = useState(false)
+
+  // 서비스 타입이 로드된 후 기본값 설정
+  useEffect(() => {
+    if (serviceTypes.length > 0) {
+      const defaultServiceType = serviceTypes[0].name
+      setAssignmentServiceType(defaultServiceType)
+      setReassignmentServiceType(defaultServiceType)
+    }
+  }, [serviceTypes])
+
+  
   // 직급 목록 관리
   const [positions, setPositions] = useState<Position[]>([])
   const [positionsLoading, setPositionsLoading] = useState(false)
@@ -200,7 +316,7 @@ function SystemAdminPageContent() {
   const [showGeneralInquiryReplyModal, setShowGeneralInquiryReplyModal] = useState(false)
   const [showGeneralInquiryEditModal, setShowGeneralInquiryEditModal] = useState(false)
   const [showGeneralInquiryDeleteModal, setShowGeneralInquiryDeleteModal] = useState(false)
-  const [selectedInquiry, setSelectedInquiry] = useState<any>(null)
+  const [selectedInquiry, setSelectedInquiry] = useState<{id: number; title: string; content: string; status: string} | null>(null)
   const [generalInquiryCurrentPage, setGeneralInquiryCurrentPage] = useState(1)
   const [generalInquirySearchStartDate, setGeneralInquirySearchStartDate] = useState(() => {
     const oneWeekAgo = new Date()
@@ -214,6 +330,20 @@ function SystemAdminPageContent() {
   const [showServiceWorkInfoModal, setShowServiceWorkInfoModal] = useState(false)
   const [showServiceWorkDeleteModal, setShowServiceWorkDeleteModal] = useState(false)
   const [selectedWorkRequest, setSelectedWorkRequest] = useState<ServiceRequest | null>(null)
+  
+  // 배정작업 모달 상태
+  const [assignmentDepartment, setAssignmentDepartment] = useState('')
+  const [assignmentTechnician, setAssignmentTechnician] = useState('')
+  const [assignmentOpinion, setAssignmentOpinion] = useState('')
+  const [assignmentServiceType, setAssignmentServiceType] = useState('')
+  const [assignmentTechnicians, setAssignmentTechnicians] = useState<User[]>([])
+  
+  // 재배정작업 모달 상태
+  const [reassignmentDepartment, setReassignmentDepartment] = useState('')
+  const [reassignmentTechnician, setReassignmentTechnician] = useState('')
+  const [reassignmentOpinion, setReassignmentOpinion] = useState('')
+  const [reassignmentServiceType, setReassignmentServiceType] = useState('')
+  const [reassignmentTechnicians, setReassignmentTechnicians] = useState<User[]>([])
   const [serviceWorkSearchStartDate, setServiceWorkSearchStartDate] = useState(() => {
     // 현재일 기준 1주일 전 (실제 운영 시에는 이 값 사용)
     const oneWeekAgo = new Date()
@@ -235,24 +365,275 @@ function SystemAdminPageContent() {
   const [serviceWorkCompleteDate, setServiceWorkCompleteDate] = useState('')
   const [serviceWorkProblemIssue, setServiceWorkProblemIssue] = useState('')
   const [serviceWorkIsUnresolved, setServiceWorkIsUnresolved] = useState(false)
-  const [serviceWorkCurrentStage, setServiceWorkCurrentStage] = useState('예정')
+  // selectedWorkRequest?.stage는 selectedWorkRequest.stage를 사용하므로 별도 상태 변수 불필요
   const [showServiceWorkCompleteModal, setShowServiceWorkCompleteModal] = useState(false)
-  const [showServiceWorkDeleteCompleteModal, setShowServiceWorkDeleteCompleteModal] = useState(false)
 
   // 디버깅을 위한 useEffect
   useEffect(() => {
     console.log('serviceWorkScheduledDate 변경됨:', serviceWorkScheduledDate);
   }, [serviceWorkScheduledDate]);
+
+  // 컴포넌트 마운트 시 stages 로드
+  useEffect(() => {
+    loadStages();
+  }, []);
+
+  // 단계 정보 상태
+  const [stages, setStages] = useState<Stage[]>([]);
+  const [stagesLoading, setStagesLoading] = useState(false);
+
+  // stages가 로드된 후 기본값 설정
+  useEffect(() => {
+    if (stages.length > 0 && !currentStage) {
+      setCurrentStage(stages[0].name)
+    }
+  }, [stages, currentStage])
+
+  // 단계 정보 로드
+  const loadStages = async () => {
+    try {
+      setStagesLoading(true);
+      const response = await apiClient.getStages();
+      if (response.success && response.data) {
+        setStages(response.data);
+      }
+    } catch (error) {
+      console.error('단계 정보 로드 실패:', error);
+    } finally {
+      setStagesLoading(false);
+    }
+  };
+
+  // 단계별 프로세스 관리 함수들
+  const getCurrentStage = () => {
+    return selectedWorkRequest?.stage || stages[0]?.name || '';
+  };
+
+  const getCurrentStageId = () => {
+    const currentStageName = getCurrentStage();
+    const stage = stages.find(s => s.name === currentStageName);
+    return stage?.id || stages[0]?.id || 0;
+  };
+
+  // 단계별 ID 가져오기 헬퍼 함수
+  const getStageIdByName = (stageName: string) => {
+    const stage = stages.find(s => s.name === stageName);
+    return stage?.id || 0;
+  };
+
+  // 단계별 이름 가져오기 헬퍼 함수
+  const getStageNameById = (stageId: number) => {
+    const stage = stages.find(s => s.id === stageId);
+    return stage?.name || '';
+  };
+
+  // 현재 일시를 datetime-local 형식으로 반환하는 함수
+  const getCurrentDateTime = () => {
+    const now = new Date();
+    const kstOffset = 9 * 60; // 한국은 UTC+9
+    const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000));
+    return kstTime.toISOString().slice(0, 16);
+  };
+
+  // datetime-local 형식을 YYYY-MM-DD HH:MM 형식으로 변환
+  const formatDateTimeForDisplay = (dateTimeString: string | null | undefined) => {
+    if (!dateTimeString) return '-';
+    
+    try {
+      // YYYY-MM-DDTHH:MM 형식을 YYYY-MM-DD HH:MM로 변환
+      return dateTimeString.replace('T', ' ');
+    } catch (error) {
+      console.error('날짜 형식 변환 오류:', error);
+      return '-';
+    }
+  };
+
+  // 필드 값이 없을 때 현재 일시를 초기값으로 설정하는 함수
+  const getFieldValueWithDefault = (fieldName: string, currentValue: string) => {
+    if (currentValue) return currentValue;
+    
+    const currentStageId = getCurrentStageId();
+    
+    // 해당 단계에서 활성화된 필드인 경우에만 현재 일시 반환
+    if (isFieldEnabled(fieldName)) {
+      return getCurrentDateTime();
+    }
+    
+    return currentValue;
+  };
+
+  const isFieldEnabled = (fieldName: string) => {
+    const currentStageName = getCurrentStage();
+    
+    // stages 테이블 기반으로 필드 활성화 로직
+    switch (fieldName) {
+      case 'scheduledDate':
+        return currentStageName === '확인'; // 확인 단계에서 예정조율일시 활성화
+      case 'workStartDate':
+        return currentStageName === '예정'; // 예정 단계에서 작업시작일시 활성화
+      case 'workContent':
+        return currentStageName === '작업'; // 작업 단계에서 작업내역 활성화
+      case 'workCompleteDate':
+        return currentStageName === '작업'; // 작업 단계에서 작업완료일시 활성화
+      case 'problemIssue':
+        return currentStageName === '완료'; // 완료 단계에서 문제사항 활성화
+      case 'isUnresolved':
+        return currentStageName === '완료'; // 완료 단계에서 미결 Check 활성화
+      default:
+        return false;
+    }
+  };
+
+  const canProceedToNextStage = () => {
+    const currentStageName = getCurrentStage();
+    
+    // stages 테이블 기반으로 단계 진행 검증
+    switch (currentStageName) {
+      case '확인': // 확인 단계
+        return !!serviceWorkScheduledDate;
+      case '예정': // 예정 단계
+        return !!serviceWorkStartDate;
+      case '작업': // 작업 단계
+        return !!(serviceWorkContent && serviceWorkCompleteDate);
+      case '완료': // 완료 단계
+        return !!serviceWorkProblemIssue;
+      default:
+        return false;
+    }
+  };
+
+  const getNextStage = async () => {
+    const currentStageId = getCurrentStageId();
+    
+    try {
+      const response = await apiClient.getNextStage(currentStageId);
+      if (response.success && response.data) {
+        return response.data; // Stage 객체 전체 반환
+      }
+    } catch (error) {
+      console.error('다음 단계 조회 실패:', error);
+    }
+    
+    // fallback: DB의 stages 데이터를 기반으로 다음 단계 찾기
+    const currentStage = getCurrentStage();
+    const currentStageData = stages.find(s => s.name === currentStage);
+    
+    if (currentStageData) {
+      // 현재 단계의 sort_order보다 큰 첫 번째 단계를 다음 단계로 사용
+      const nextStage = stages
+        .filter(s => s.is_active && s.sort_order > currentStageData.sort_order)
+        .sort((a, b) => a.sort_order - b.sort_order)[0];
+      
+      if (nextStage) {
+        return nextStage;
+      }
+    }
+    
+    // fallback: 현재 단계 그대로 반환
+    return currentStageData || { 
+      id: currentStageId, 
+      name: currentStage, 
+      description: '',
+      sort_order: 0,
+      is_active: true,
+      created_at: '',
+      updated_at: ''
+    };
+  };
+
+  // 단계별 진행 처리 함수
+  const handleStageProgression = async () => {
+    if (!canProceedToNextStage()) {
+      alert('현재 단계의 필수 입력사항을 모두 입력해주세요.');
+      return;
+    }
+
+    const currentStageId = getCurrentStageId();
+    const nextStage = await getNextStage();
+
+    try {
+      // 백엔드에 단계 업데이트 요청
+      const updateData = {
+        stage: nextStage?.name || null,
+        scheduled_date: serviceWorkScheduledDate || null,
+        work_start_date: serviceWorkStartDate || null,
+        work_complete_date: serviceWorkCompleteDate || null,
+        work_content: serviceWorkContent || null,
+        problem_issue: serviceWorkProblemIssue || null,
+        is_unresolved: serviceWorkIsUnresolved
+      };
+
+      const response = await apiClient.put(`/service-requests/${selectedWorkRequest?.id}`, updateData);
+      
+      if (response.success) {
+        // 성공 시 selectedWorkRequest 업데이트
+        setSelectedWorkRequest(prev => prev ? { ...prev, stage: nextStage?.name || prev.stage } : null);
+        
+        // 다음 단계에서 새로 활성화되는 필드에 현재 시점 설정
+        const nextStageId = nextStage?.id;
+        const currentDateTime = getCurrentDateTime();
+        
+        console.log('단계 진행 후 초기값 설정:', {
+          currentStageId,
+          nextStageId,
+          nextStageName: nextStage?.name,
+          currentDateTime
+        });
+        
+        // 다음 단계에 따라 해당 필드에 현재 시점 설정
+        if (nextStageId === 5) { // 예정 단계로 이동
+          if (!serviceWorkStartDate) {
+            setServiceWorkStartDate(currentDateTime);
+            console.log('작업시작일시에 현재 시점 설정:', currentDateTime);
+          }
+        } else if (nextStageId === 6) { // 작업 단계로 이동
+          if (!serviceWorkCompleteDate) {
+            setServiceWorkCompleteDate(currentDateTime);
+            console.log('작업완료일시에 현재 시점 설정:', currentDateTime);
+          }
+        }
+        
+        // 단계별 메시지 표시
+        let stageMessage = '';
+        const currentStageName = getCurrentStage();
+        switch (currentStageName) {
+          case '확인': // 확인 단계
+            stageMessage = '작업 예정 조율 단계가 진행 되었습니다. 다음 단계로 진행....';
+            break;
+          case '예정': // 예정 단계
+            stageMessage = '작업 시작 단계가 진행 되었습니다. 다음 단계로 진행....';
+            break;
+          case '작업': // 작업 단계
+            stageMessage = '작업 단계가 완료 되었습니다. 미결 사항이 있다면 다음 단계로 진행....';
+            break;
+          case '완료': // 완료 단계
+            stageMessage = '미결 단계로 처리 되었습니다....';
+            break;
+          default:
+            stageMessage = '다음 단계로 진행....';
+        }
+        alert(stageMessage);
+        
+        // 데이터 새로고침
+        fetchServiceRequests();
+      } else {
+        alert('단계 진행 중 오류가 발생했습니다: ' + response.error);
+      }
+    } catch (error) {
+      console.error('단계 진행 오류:', error);
+      alert('단계 진행 중 오류가 발생했습니다.');
+    }
+  };
   
   // 시스템 관리자 정보 상태
   const [managerInfo, setManagerInfo] = useState({
-    name: '김시스템',
-    email: 'admin@itsm.com',
-    fullName: '김시스템',
-    position: '대리',
-    department: 'IT팀',
-    phone: '010-1234-5678',
-    createDate: '2024-01-15 09:00:00'
+    name: '',
+    email: '',
+    fullName: '',
+    position: '',
+    department: '',
+    phone: '',
+    createDate: ''
   })
   const [showPendingWork, setShowPendingWork] = useState(true)
   const [showServiceAggregation, setShowServiceAggregation] = useState(true)
@@ -262,8 +643,15 @@ function SystemAdminPageContent() {
   const [showGeneralInquiryStatus, setShowGeneralInquiryStatus] = useState(true)
   const [selectedDepartment, setSelectedDepartment] = useState('전체')
   const [currentDepartment, setCurrentDepartment] = useState('전체')
-  const [startDate, setStartDate] = useState(new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().split('T')[0])
-  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0])
+  const [startDate, setStartDate] = useState(() => {
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    return oneMonthAgo.toISOString().split('T')[0];
+  })
+  const [endDate, setEndDate] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  })
   const [inquirySelectedDepartment, setInquirySelectedDepartment] = useState('')
   const [inquiryCurrentDepartment, setInquiryCurrentDepartment] = useState('전체 부서')
   const [inquiryStartDate, setInquiryStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 7)).toISOString().split('T')[0])
@@ -357,6 +745,7 @@ function SystemAdminPageContent() {
     totalPages: 0
   });
 
+
   // 서비스 요청 데이터 가져오기
   const fetchServiceRequests = async () => {
     setServiceRequestsLoading(true);
@@ -373,7 +762,7 @@ function SystemAdminPageContent() {
       const response = await apiClient.getServiceRequests(params);
       if (response.success && response.data) {
         // API 응답 데이터를 프론트엔드 형식으로 변환
-        const transformedData = response.data.map((item: any) => ({
+        const transformedData = response.data.map((item: ServiceRequest) => ({
           id: item.id.toString(),
           requestNumber: item.request_number,
           title: item.title,
@@ -384,9 +773,11 @@ function SystemAdminPageContent() {
           department: item.requester_department,
           stage: item.stage,
           assignTime: item.assign_time ? item.assign_time.substring(0, 5) : null,
-          assignDate: item.assign_date || '',
+          assignDate: item.assign_date ? item.assign_date.substring(0, 10) : '',
           assignee: item.assignee_name || '',
           assigneeDepartment: item.assignee_department || '',
+          technician: item.technician_name || '',
+          technicianDepartment: item.technician_department || '',
           content: item.content,
           contact: item.contact || '',
           location: item.location || '',
@@ -394,12 +785,12 @@ function SystemAdminPageContent() {
           completionDate: item.completion_date || '',
           assignmentOpinion: item.assignment_opinion || '',
           workContent: item.work_content || '',
-          currentWorkStage: item.current_work_stage || '',
           actualRequester: item.actual_requester_name || '',
           actualContact: item.actual_contact || '',
           actualRequesterDepartment: item.actual_requester_department || '',
           problemIssue: item.problem_issue || '',
           isUnresolved: item.is_unresolved || false,
+          stageId: item.stage_id,
           // 작업정보등록 관련 필드들 추가
           scheduledDate: item.scheduled_date || '',
           workStartDate: item.work_start_date || '',
@@ -462,10 +853,10 @@ function SystemAdminPageContent() {
   const serviceReportData = serviceRequests.map(request => {
     // 배정(h) 계산: 신청시간 - 배정시간
     const assignmentHours = request.assignTime && request.requestTime ? 
-      Math.round((new Date(`2025-08-31 ${request.assignTime}`).getTime() - new Date(`2025-08-31 ${request.requestTime}`).getTime()) / (1000 * 60 * 60) * 10) / 10 : 0;
+      Math.round((new Date(`${request.assignDate} ${request.assignTime}`).getTime() - new Date(`${request.requestDate} ${request.requestTime}`).getTime()) / (1000 * 60 * 60) * 10) / 10 : 0;
     
-    // 작업(h) 계산: 작업시작시간 - 작업완료시간 (임시로 0.2h 설정)
-    const workHours = request.stage === '완료' ? 0.5 : 0.2;
+    // 작업(h) 계산: 작업시작시간 - 작업완료시간
+    const workHours = 0; // 실제 데이터로 계산 필요
 
     return {
       id: request.id,
@@ -518,8 +909,8 @@ function SystemAdminPageContent() {
   );
 
   // 엑셀 다운로드 함수
-  const generateServiceReportExcel = (data: any[]) => {
-    const XLSX = require('xlsx');
+  const generateServiceReportExcel = async (data: ServiceRequest[]) => {
+    const XLSX = await import('xlsx');
     
     // 헤더 정의
     const headers = ['신청번호', '신청제목', '현재상태', '신청자', '신청소속', '단계', '배정(h)', '서비스유형', '조치담당자', '조치담당자소속', '작업(h)', '신청일시', '배정일', '예상조율일시', '작업시작일시', '작업완료일시'];
@@ -578,9 +969,9 @@ function SystemAdminPageContent() {
     return wb;
   };
 
-  const downloadExcel = (data: any[], filename: string) => {
-    const XLSX = require('xlsx');
-    const wb = generateServiceReportExcel(data);
+  const downloadExcel = async (data: ServiceRequest[], filename: string) => {
+    const XLSX = await import('xlsx');
+    const wb = await generateServiceReportExcel(data);
     XLSX.writeFile(wb, filename);
   };
 
@@ -590,7 +981,7 @@ function SystemAdminPageContent() {
     setUserError('')
     
     try {
-      const params: any = {
+      const params: Record<string, string | number | boolean> = {
         page: userManagementCurrentPage,
         limit: 10  // 페이지네이션을 위해 limit을 10으로 설정
       }
@@ -702,14 +1093,7 @@ function SystemAdminPageContent() {
   // 필터 조건 로그 제거됨
 
   // 미결 현황 데이터
-  const [pendingWorks, setPendingWorks] = useState<PendingWork[]>([
-    {
-      id: '1',
-      technician: '김기술',
-      lastWeekPending: 0,
-      longTermPending: 1
-    }
-  ])
+  const [pendingWorks, setPendingWorks] = useState<PendingWork[]>([])
 
   // 필터링된 서비스 요청 목록
   const filteredRequests = serviceRequests.filter(request => {
@@ -868,42 +1252,102 @@ function SystemAdminPageContent() {
   }
 
   // 차트 데이터 업데이트 함수
-  const updateChartData = () => {
-    // 부서와 날짜에 따른 데이터 시뮬레이션
-    const departmentData = {
-      'IT팀': { received: 5, assigned: 10, working: 6, completed: 5, failed: 2 },
-      '운영팀': { received: 8, assigned: 12, working: 4, completed: 8, failed: 1 },
-      '개발팀': { received: 3, assigned: 6, working: 8, completed: 3, failed: 0 },
-      '인사팀': { received: 2, assigned: 4, working: 2, completed: 2, failed: 1 },
-      '': { received: 18, assigned: 32, working: 20, completed: 18, failed: 4 } // 전체 부서
-    }
+  const updateChartData = useCallback(() => {
+    // 실제 서비스 요청 데이터를 기반으로 부서별 통계 계산
+    const departmentData: { [key: string]: { received: number, assigned: number, working: number, completed: number, failed: number } } = {};
     
-    const selectedDept = selectedDepartment || ''
-    const data = departmentData[selectedDept] || departmentData['IT팀']
+    // 전체 부서 초기화
+    departmentData['전체'] = { received: 0, assigned: 0, working: 0, completed: 0, failed: 0 };
     
-    // 날짜에 따른 가중치 적용 (예시)
-    const daysDiff = Math.ceil((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24))
-    const dateMultiplier = Math.max(0.5, Math.min(2, daysDiff / 30)) // 30일 기준으로 가중치 계산
+    // DB에서 가져온 부서 목록으로 초기화
+    departments.forEach(dept => {
+      departmentData[dept.name] = { received: 0, assigned: 0, working: 0, completed: 0, failed: 0 };
+    });
     
+    // 날짜 필터링을 위한 시작일과 종료일 설정
+    const filterStartDate = new Date(startDate + 'T00:00:00');
+    const filterEndDate = new Date(endDate + 'T23:59:59');
+    
+    // 실제 서비스 요청 데이터를 기반으로 통계 계산 (날짜 필터링 적용)
+    serviceRequests.forEach(request => {
+      // 날짜 필터링: 신청일 기준
+      const requestDate = new Date(request.requestDate + 'T00:00:00');
+      if (requestDate < filterStartDate || requestDate > filterEndDate) {
+        return; // 날짜 범위를 벗어나면 제외
+      }
+      
+      const deptName = request.department || '';
+      
+      // 전체 통계 업데이트
+      departmentData['전체'].received++;
+      if (deptName && departmentData[deptName]) {
+        departmentData[deptName].received++;
+      }
+      
+      // 단계별 통계 업데이트
+      switch (request.stage) {
+        case '배정':
+          departmentData['전체'].assigned++;
+          if (deptName && departmentData[deptName]) departmentData[deptName].assigned++;
+          break;
+        case '작업':
+          departmentData['전체'].working++;
+          if (deptName && departmentData[deptName]) departmentData[deptName].working++;
+          break;
+        case '완료':
+          departmentData['전체'].completed++;
+          if (deptName && departmentData[deptName]) departmentData[deptName].completed++;
+          break;
+        case '미결':
+          departmentData['전체'].failed++;
+          if (deptName && departmentData[deptName]) departmentData[deptName].failed++;
+          break;
+      }
+    });
+    
+    // 선택된 부서 또는 전체 부서 데이터 사용
+    const selectedDept = selectedDepartment === '전체' ? '전체' : selectedDepartment;
+    const data = departmentData[selectedDept] || departmentData['전체'] || { received: 0, assigned: 0, working: 0, completed: 0, failed: 0 };
+    
+    // 실제 데이터를 그대로 사용 (가중치 제거)
     setChartData({
-      received: Math.round(data.received * dateMultiplier),
-      assigned: Math.round(data.assigned * dateMultiplier),
-      working: Math.round(data.working * dateMultiplier),
-      completed: Math.round(data.completed * dateMultiplier),
-      failed: Math.round(data.failed * dateMultiplier)
+      received: data.received || 0,
+      assigned: data.assigned || 0,
+      working: data.working || 0,
+      completed: data.completed || 0,
+      failed: data.failed || 0
     })
-  }
+  }, [serviceRequests, departments, selectedDepartment, startDate, endDate])
+
+  // 서비스 요청 데이터나 부서 데이터가 변경될 때 차트 데이터 업데이트
+  useEffect(() => {
+    if (serviceRequests.length > 0 && departments.length > 0) {
+      updateChartData()
+    }
+  }, [serviceRequests, departments, updateChartData])
+
+  // 부서 데이터가 변경될 때 일반문의 데이터 업데이트
+  useEffect(() => {
+    if (departments.length > 0) {
+      updateInquiryData()
+    }
+  }, [departments])
 
   // 일반문의현황 데이터 업데이트 함수
   const updateInquiryData = () => {
-    // 부서와 날짜에 따른 일반문의 데이터 시뮬레이션 (답변/미답변만)
-    const departmentInquiryData = {
-      'IT팀': { answered: 15, unanswered: 10, total: 25, completionRate: 60.0, avgResponseTime: 2.3 },
-      '운영팀': { answered: 20, unanswered: 8, total: 28, completionRate: 71.4, avgResponseTime: 1.8 },
-      '개발팀': { answered: 12, unanswered: 15, total: 27, completionRate: 44.4, avgResponseTime: 3.2 },
-      '인사팀': { answered: 8, unanswered: 5, total: 13, completionRate: 61.5, avgResponseTime: 2.1 },
-      '': { answered: 55, unanswered: 38, total: 93, completionRate: 59.1, avgResponseTime: 2.4 } // 전체 부서
-    }
+    // 실제 일반문의 데이터를 기반으로 부서별 통계 계산
+    const departmentInquiryData: { [key: string]: { answered: number, unanswered: number, total: number, completionRate: number, avgResponseTime: number } } = {};
+    
+    // 전체 부서 초기화
+    departmentInquiryData[''] = { answered: 0, unanswered: 0, total: 0, completionRate: 0, avgResponseTime: 0 };
+    
+    // DB에서 가져온 부서 목록으로 초기화
+    departments.forEach(dept => {
+      departmentInquiryData[dept.name] = { answered: 0, unanswered: 0, total: 0, completionRate: 0, avgResponseTime: 0 };
+    });
+    
+    // TODO: 실제 일반문의 데이터가 있을 때 여기서 통계 계산
+    // 현재는 일반문의 API가 없으므로 빈 데이터로 유지
     
     const selectedDept = inquirySelectedDepartment || ''
     const data = departmentInquiryData[selectedDept] || departmentInquiryData['']
@@ -926,7 +1370,7 @@ function SystemAdminPageContent() {
   // 부서나 날짜 변경 시 차트 데이터 업데이트
   useEffect(() => {
     updateChartData()
-  }, [selectedDepartment, startDate, endDate])
+  }, [selectedDepartment, startDate, endDate, updateChartData])
 
   // 일반문의현황 부서나 날짜 변경 시 데이터 업데이트
   useEffect(() => {
@@ -1524,15 +1968,46 @@ function SystemAdminPageContent() {
                                 <span className="ml-1 text-gray-900">{request.stage}</span>
                               </div>
                             </td>
-                            <td className="px-2 py-2 text-gray-900 text-center">{request.assignee || '-'}</td>
-                            <td className="px-2 py-2 text-gray-900 text-center">{request.assigneeDepartment || '-'}</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{request.technician || '-'}</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{request.technicianDepartment || '-'}</td>
                             <td className="px-2 py-2 text-center">
                               <div className="flex space-x-1 justify-center">
                                 {/* 접수 단계: 조치담당자 미확정 - 배정작업 버튼 */}
                                 {request.stage === '접수' && (
                 <button
-                                    onClick={() => {
+                                    onClick={async () => {
                                       setSelectedWorkRequest(request);
+                                      // 기존 데이터로 초기화
+                                      const technicianDept = request.technicianDepartment || '';
+                                      const technicianName = request.technician || '';
+                                      
+                                      console.log('배정작업 모달 열기 - 기존 데이터:', {
+                                        technicianDept,
+                                        technicianName,
+                                        request: request
+                                      });
+                                      
+                                      setAssignmentDepartment(technicianDept);
+                                      setAssignmentTechnician(technicianName);
+                                      setAssignmentOpinion(request.assignmentOpinion || '');
+                                      setAssignmentServiceType(request.serviceType || serviceTypes[0]?.name || '');
+                                      
+                                      console.log('배정작업 모달 - 설정된 값들:', {
+                                        technicianDept,
+                                        technicianName,
+                                        assignmentOpinion: request.assignmentOpinion || '',
+                                        serviceType: request.serviceType || serviceTypes[0]?.name || ''
+                                      });
+                                      
+                                      // 조치 소속이 있으면 해당 부서의 담당자 목록 로드
+                                      if (technicianDept) {
+                                        const technicians = await fetchTechniciansByDepartment(technicianDept);
+                                        setAssignmentTechnicians(technicians);
+                                        console.log('로드된 담당자 목록:', technicians);
+                                      } else {
+                                        setAssignmentTechnicians([]);
+                                      }
+                                      
                                       setShowServiceAssignmentModal(true);
                                     }}
                                     className="px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600 transition-colors"
@@ -1544,8 +2019,23 @@ function SystemAdminPageContent() {
                                 {/* 재배정 단계: 조치담당자 미확정 - 재배정작업 버튼 */}
                                 {request.stage === '재배정' && (
                                   <button
-                                    onClick={() => {
+                                    onClick={async () => {
                                       setSelectedWorkRequest(request);
+                                      // 기존 데이터로 초기화
+                                      const technicianDept = request.technicianDepartment || '';
+                                      setReassignmentDepartment(technicianDept);
+                                      setReassignmentTechnician(request.technician || '');
+                                      setReassignmentOpinion(request.assignmentOpinion || '');
+                                      setReassignmentServiceType(request.serviceType || serviceTypes[0]?.name || '');
+                                      
+                                      // 조치 소속이 있으면 해당 부서의 담당자 목록 로드
+                                      if (technicianDept) {
+                                        const technicians = await fetchTechniciansByDepartment(technicianDept);
+                                        setReassignmentTechnicians(technicians);
+                                      } else {
+                                        setReassignmentTechnicians([]);
+                                      }
+                                      
                                       setShowServiceReassignmentModal(true);
                                     }}
                                     className="px-2 py-1 bg-orange-500 text-white rounded text-xs hover:bg-orange-600 transition-colors"
@@ -1571,12 +2061,11 @@ function SystemAdminPageContent() {
                                         
                                         // 먼저 상태 초기화
                                         setServiceWorkScheduledDate('')
-                                        setServiceWorkStartDate('')
-                                        setServiceWorkContent('')
-                                        setServiceWorkCompleteDate('')
-                                        setServiceWorkProblemIssue('')
-                                        setServiceWorkIsUnresolved(false)
-                                        setServiceWorkCurrentStage('예정')
+                                          setServiceWorkStartDate('')
+                                          setServiceWorkContent('')
+                                          setServiceWorkCompleteDate('')
+                                          setServiceWorkProblemIssue('')
+                                          setServiceWorkIsUnresolved(false)
                                         
                                         // request 객체를 로컬 변수로 저장
                                         const currentRequest = request;
@@ -1611,7 +2100,7 @@ function SystemAdminPageContent() {
                                             workContent: currentRequest.workContent,
                                             problemIssue: currentRequest.problemIssue,
                                             isUnresolved: currentRequest.isUnresolved,
-                                            currentWorkStage: currentRequest.currentWorkStage
+                                            stage: currentRequest.stage
                                           }, null, 2));
                                           console.log('변환된 데이터:', JSON.stringify({
                                             scheduled_date: formattedScheduledDate,
@@ -1619,13 +2108,47 @@ function SystemAdminPageContent() {
                                             work_complete_date: formattedWorkCompleteDate
                                           }, null, 2));
                                           
-                                          setServiceWorkScheduledDate(formattedScheduledDate)
-                                          setServiceWorkStartDate(formattedWorkStartDate)
+                                          // 단계별 초기값 설정
+                                          const currentStageId = stages.find(s => s.name === currentRequest.stage)?.id || 5;
+                                          const currentDateTime = getCurrentDateTime();
+                                          
+                                          console.log('단계별 초기값 설정:', {
+                                            currentStage: currentRequest.stage,
+                                            currentStageId,
+                                            currentDateTime,
+                                            hasScheduledDate: !!formattedScheduledDate,
+                                            hasWorkStartDate: !!formattedWorkStartDate,
+                                            hasWorkCompleteDate: !!formattedWorkCompleteDate
+                                          });
+                                          
+                                          // 예정조율일시: 확인 단계(id=4)에서 활성화, 데이터가 없으면 현재 일시
+                                          const scheduledDateValue = (currentStageId === 4 && !formattedScheduledDate) 
+                                            ? currentDateTime 
+                                            : formattedScheduledDate;
+                                          
+                                          // 작업시작일시: 예정 단계(id=5)에서 활성화, 데이터가 없으면 현재 일시
+                                          const workStartDateValue = (currentStageId === 5 && !formattedWorkStartDate) 
+                                            ? currentDateTime 
+                                            : formattedWorkStartDate;
+                                          
+                                          // 작업완료일시: 작업 단계(id=6)에서 활성화, 데이터가 없으면 현재 일시
+                                          const workCompleteDateValue = (currentStageId === 6 && !formattedWorkCompleteDate) 
+                                            ? currentDateTime 
+                                            : formattedWorkCompleteDate;
+                                          
+                                          console.log('설정된 초기값:', {
+                                            scheduledDateValue,
+                                            workStartDateValue,
+                                            workCompleteDateValue
+                                          });
+                                          
+                                          setServiceWorkScheduledDate(scheduledDateValue)
+                                          setServiceWorkStartDate(workStartDateValue)
                                           setServiceWorkContent(currentRequest.workContent || '')
-                                          setServiceWorkCompleteDate(formattedWorkCompleteDate)
+                                          setServiceWorkCompleteDate(workCompleteDateValue)
                                           setServiceWorkProblemIssue(currentRequest.problemIssue || '')
                                           setServiceWorkIsUnresolved(currentRequest.isUnresolved || false)
-                                          setServiceWorkCurrentStage(currentRequest.currentWorkStage || '예정')
+                                          // stage는 selectedWorkRequest.stage를 사용하므로 별도 설정 불필요
                                           
                                           console.log('상태 변수 설정 완료:', JSON.stringify({
                                             serviceWorkScheduledDate: formattedScheduledDate,
@@ -1634,7 +2157,7 @@ function SystemAdminPageContent() {
                                             serviceWorkContent: currentRequest.workContent || '',
                                             serviceWorkProblemIssue: currentRequest.problemIssue || '',
                                             serviceWorkIsUnresolved: currentRequest.isUnresolved || false,
-                                            serviceWorkCurrentStage: currentRequest.currentWorkStage || '예정'
+                                            stage: currentRequest.stage
                                           }, null, 2));
                                         }, 100);
                                         
@@ -2781,17 +3304,17 @@ function SystemAdminPageContent() {
                     <div className="space-y-0">
                       <div>
                         <span className="text-sm font-medium text-gray-600">배정 일시 : </span>
-                        <span className="text-sm">{selectedRequest.assignDate || '2025.08.31 11:10'}</span>
+                        <span className="text-sm">{selectedRequest.assignDate || '-'}</span>
                       </div>
                       
                       <div>
                         <span className="text-sm font-medium text-gray-600">배정 담당자 : </span>
-                        <span className="text-sm">{selectedRequest.assignee || '이배정'}</span>
+                        <span className="text-sm">{selectedRequest.assignee || '-'}</span>
                       </div>
                       
                       <div>
                         <span className="text-sm font-medium text-gray-600">배정 의견 : </span>
-                        <span className="text-sm">{selectedRequest.assignmentOpinion || '업무에 적합하여 배정'}</span>
+                        <span className="text-sm">{selectedRequest.assignmentOpinion || '-'}</span>
                       </div>
                       
                       <div>
@@ -2801,7 +3324,7 @@ function SystemAdminPageContent() {
                       
                       <div>
                         <span className="text-sm font-medium text-gray-600">조치 담당자 : </span>
-                        <span className="text-sm">{selectedRequest.assignee || '-'}</span>
+                        <span className="text-sm">{selectedRequest.technician || '-'}</span>
                       </div>
                       
                       <div>
@@ -2981,19 +3504,24 @@ function SystemAdminPageContent() {
               <div className="space-y-2">
                           <div>
                             <span className="text-sm font-medium text-gray-600">배정일시 :</span>
-                            <span className="text-sm text-gray-800 ml-2">{selectedRequest.assignDate} {selectedRequest.assignTime || ''}</span>
+                            <span className="text-sm text-gray-800 ml-2">
+                              {selectedRequest.assignDate && selectedRequest.assignTime 
+                                ? `${selectedRequest.assignDate} ${selectedRequest.assignTime}`
+                                : selectedRequest.assignDate || '-'
+                              }
+                            </span>
                 </div>
                           <div>
                             <span className="text-sm font-medium text-gray-600">배정 담당자 :</span>
-                            <span className="text-sm text-gray-800 ml-2">{selectedRequest.assignee || '이배정'}</span>
+                            <span className="text-sm text-gray-800 ml-2">{selectedRequest.assignee || '-'}</span>
                 </div>
                           <div>
                             <span className="text-sm font-medium text-gray-600">서비스 조치 정보 :</span>
-                            <span className="text-sm text-gray-800 ml-2">{selectedRequest.serviceType || '문제'}</span>
+                            <span className="text-sm text-gray-800 ml-2">{selectedRequest.serviceType || '-'}</span>
                           </div>
                           <div>
                             <span className="text-sm font-medium text-gray-600">조치담당자 :</span>
-                            <span className="text-sm text-gray-800 ml-2">{selectedRequest.assignee || '-'}</span>
+                            <span className="text-sm text-gray-800 ml-2">{selectedRequest.technician || '-'}</span>
               </div>
             </div>
           </div>
@@ -3694,11 +4222,16 @@ function SystemAdminPageContent() {
                     <div className="mb-4 p-3 bg-gray-50 rounded">
                       <h4 className="text-sm font-medium text-gray-700 mb-2">배정정보</h4>
                       <div className="space-y-1 text-xs">
-                        <div><span className="font-medium">배정일시:</span> {selectedRequest.assignDate} {selectedRequest.assignTime || ''}</div>
-                        <div><span className="font-medium">배정담당자:</span> {selectedRequest.assignee || '이배정'}</div>
-                        <div><span className="font-medium">배정의견:</span> {selectedRequest.assignmentOpinion || '업무에 적합하여 배정'}</div>
-                        <div><span className="font-medium">서비스유형:</span> {selectedRequest.serviceType}</div>
-                        <div><span className="font-medium">조치담당자:</span> {selectedRequest.assignee || '-'}</div>
+                        <div><span className="font-medium">배정일시:</span> 
+                          {selectedRequest.assignDate && selectedRequest.assignTime 
+                            ? `${selectedRequest.assignDate} ${selectedRequest.assignTime}`
+                            : selectedRequest.assignDate || '-'
+                          }
+                        </div>
+                        <div><span className="font-medium">배정담당자:</span> {selectedRequest.assignee || '-'}</div>
+                        <div><span className="font-medium">배정의견:</span> {selectedRequest.assignmentOpinion || '-'}</div>
+                        <div><span className="font-medium">서비스유형:</span> {selectedRequest.serviceType || '-'}</div>
+                        <div><span className="font-medium">조치담당자:</span> {selectedRequest.technician || '-'}</div>
                       </div>
                     </div>
 
@@ -3895,76 +4428,85 @@ function SystemAdminPageContent() {
                       <div className="space-y-4">
                   <div className="flex items-center space-x-2 mb-4">
                     <Icon name="user" size={20} className="text-gray-600" />
-                    <h3 className="text-lg font-semibold text-gray-800">서비스신청정보</h3>
+                    <h3 className="text-lg font-semibold text-gray-800">서비스 신청 정보</h3>
                         </div>
                   
-                  <div className="space-y-0">
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">신청번호: </span>
+                  <div className="space-y-1">
+                    <div className="py-1">
+                      <span className="text-sm font-medium text-gray-600">신청 번호 : </span>
                       <span className="text-sm font-bold text-red-600">{selectedWorkRequest.requestNumber}</span>
                         </div>
                     
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">신청제목: </span>
+                    <div className="py-1">
+                      <span className="text-sm font-medium text-gray-600">신청 제목 : </span>
                       <span className="text-sm">{selectedWorkRequest.title}</span>
                         </div>
                     
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">신청내용: </span>
-                      <div className="text-sm mt-1 p-2 bg-gray-50 rounded text-gray-700">
+                    <div className="py-1">
+                      <span className="text-sm font-medium text-gray-600">신청 내용 </span>
+                      <div className="text-sm mt-1 p-3 bg-gray-50 rounded text-gray-700 min-h-24 max-h-48 overflow-y-auto whitespace-pre-wrap">
                         {selectedWorkRequest.content}
                       </div>
                     </div>
                     
-                    <div>
+                    <div className="py-1">
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="user" size={14} className="mr-1" />
-                        신청자: 
+                        신청자 :  <span className="text-sm ml-1">{selectedWorkRequest.requester} ({selectedWorkRequest.department})</span>
                       </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.requester} ({selectedWorkRequest.department})</span>
                     </div>
                     
-                    <div>
+                    <div className="py-1">
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="mail" size={14} className="mr-1" />
-                        신청연락처: 
+                        신청 연락처 : <span className="text-sm ml-1">{selectedWorkRequest.contact}</span>
                       </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.contact}</span>
                     </div>
                     
-                    <div>
+                    <div className="py-1">
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="briefcase" size={14} className="mr-1" />
-                        신청위치: 
+                        신청 위치 
                       </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.location}</span>
+                      <div className="text-sm mt-1 p-3 bg-gray-50 rounded text-gray-700 min-h-16 max-h-32 overflow-y-auto whitespace-pre-wrap">
+                        {selectedWorkRequest.location}
+                      </div>
                     </div>
                     
-                    <div>
+                    <div className="py-1 mb-5">
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="calendar" size={14} className="mr-1" />
-                        신청일시: 
+                        신청 일시 : <span className="text-sm ml-1 text-black">{selectedWorkRequest.requestDate} {selectedWorkRequest.requestTime || ''}</span>
                       </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.requestDate}</span>
                     </div>
                     
-                    <div>
+                    <div className="py-1 mb-5">
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="message-square" size={14} className="mr-1" />
-                        현재상태: 
+                        현재 상태 : <span className="text-sm ml-1 text-red-600 font-semibold">{selectedWorkRequest.currentStatus}</span>
                       </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.currentStatus}</span>
                     </div>
                     
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">실제신청자: </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.requester}</span>
+                    {selectedWorkRequest.actualRequester && (
+                      <div className="py-1">
+                        <span className="text-sm font-medium text-gray-600">실제 신청자 : </span>
+                        <span className="text-sm ml-1">{selectedWorkRequest.actualRequester}</span>
                     </div>
+                    )}
                     
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">실제연락처: </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.contact}</span>
+                    {selectedWorkRequest.actualContact && (
+                      <div className="py-1">
+                        <span className="text-sm font-medium text-gray-600">실제 연락처 : </span>
+                        <span className="text-sm ml-1">{selectedWorkRequest.actualContact}</span>
                     </div>
+                    )}
+                    
+                    {selectedWorkRequest.actualRequesterDepartment && (
+                      <div className="py-1">
+                        <span className="text-sm font-medium text-gray-600">실제 소속 : </span>
+                        <span className="text-sm ml-1">{selectedWorkRequest.actualRequesterDepartment}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -3972,47 +4514,53 @@ function SystemAdminPageContent() {
                       <div className="space-y-4">
                   <div className="flex items-center space-x-2 mb-4">
                     <Icon name="settings" size={20} className="text-gray-600" />
-                    <h3 className="text-lg font-semibold text-gray-800">배정정보</h3>
+                    <h3 className="text-lg font-semibold text-gray-800">배정 작업 정보</h3>
                         </div>
                   
                   <div className="space-y-0">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-600 mb-1">조치담당 소속</label>
-                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="">부서를 선택하세요</option>
-                        <option value="IT팀">IT팀</option>
-                        <option value="운영팀">운영팀</option>
-                        <option value="개발팀">개발팀</option>
-                        <option value="보안팀">보안팀</option>
-                        <option value="인사팀">인사팀</option>
-                        <option value="재무팀">재무팀</option>
-                      </select>
-                        </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-600 mb-1">조치 소속</label>
+                        <select 
+                          value={assignmentDepartment}
+                          onChange={(e) => handleAssignmentDepartmentChange(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">소속을 선택해 주세요.</option>
+                          {departments.map(dept => (
+                            <option key={dept.id} value={dept.name}>{dept.name}</option>
+                          ))}
+                        </select>
+                      </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-600 mb-1">조치담당자</label>
-                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="">담당자를 선택하세요</option>
-                        <option value="김기술">김기술</option>
-                        <option value="박기술">박기술</option>
-                        <option value="홍기술">홍기술</option>
-                        <option value="최기술">최기술</option>
-                        <option value="정기술">정기술</option>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">조치 담당자</label>
+                      <select 
+                        value={assignmentTechnician}
+                        onChange={(e) => setAssignmentTechnician(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={!assignmentDepartment}
+                      >
+                        <option value="">조치자를 선택하세요</option>
+                        {Array.isArray(assignmentTechnicians) && assignmentTechnicians.map(technician => (
+                          <option key={technician.id} value={technician.name}>{technician.name}</option>
+                        ))}
                       </select>
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-600 mb-1">배정의견</label>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">배정 의견</label>
                       <textarea 
+                        value={assignmentOpinion}
+                        onChange={(e) => setAssignmentOpinion(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 h-20"
-                        placeholder="배정 담당자 의견"
+                        placeholder="배정 담당자 의견을 입력하세요"
                       />
                     </div>
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-1 flex items-center">
                         <Icon name="calendar" size={16} className="mr-1" />
-                        배정일시(현재)
+                        배정 일시(현재)
                       </label>
                       <div className="px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg text-sm">
                         {new Date().toLocaleString('ko-KR', { 
@@ -4027,14 +4575,14 @@ function SystemAdminPageContent() {
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-1">서비스 조치 유형</label>
-                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="요청">요청</option>
-                        <option value="장애">장애</option>
-                        <option value="변경">변경</option>
-                        <option value="문제">문제</option>
-                        <option value="적용">적용</option>
-                        <option value="구성">구성</option>
-                        <option value="자산">자산</option>
+                      <select 
+                        value={assignmentServiceType}
+                        onChange={(e) => setAssignmentServiceType(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        {serviceTypes.map(type => (
+                          <option key={type.id} value={type.name}>{type.name}</option>
+                        ))}
                       </select>
                     </div>
                   </div>
@@ -4051,9 +4599,63 @@ function SystemAdminPageContent() {
                 취소
               </button>
               <button
-                onClick={() => {
-                  alert('배정이 완료되었습니다.')
-                  setShowServiceAssignmentModal(false)
+                onClick={async () => {
+                  if (!assignmentDepartment || !assignmentTechnician) {
+                    alert('조치담당 소속과 조치담당자를 선택해주세요.');
+                    return;
+                  }
+                  
+                  try {
+                    // 조치자 ID 찾기
+                    const selectedTechnician = assignmentTechnicians.find(t => t.name === assignmentTechnician);
+                    const technicianId = selectedTechnician?.id || null;
+                    
+                    // 현재 로그인 사용자 정보 가져오기
+                    const userStr = localStorage.getItem('user');
+                    let currentUser = null;
+                    if (userStr) {
+                      currentUser = JSON.parse(userStr);
+                    }
+                    
+                    const updateData = {
+                      stage: '배정',
+                      // 조치소속은 technician_department에 저장
+                      technician_department: assignmentDepartment,
+                      // 조치자는 technician_name과 technician_id에 저장
+                      technician_name: assignmentTechnician,
+                      technician_id: technicianId,
+                      // 배정의견은 assignment_opinion에 저장
+                      assignment_opinion: assignmentOpinion,
+                      // 서비스 타입
+                      service_type: assignmentServiceType,
+                      // 배정일시는 현재시점 기준 assign_date(날짜+시간)와 assign_time(시간만)에 저장
+                      assign_date: new Date().toISOString(), // YYYY-MM-DDTHH:MM:SS.sssZ 형식
+                      assign_time: new Date().toTimeString().split(' ')[0].substring(0, 5), // HH:MM 형식
+                      // 배정담당자는 현재 로그인 사용자 (assignee_name, assignee_id, assignee_department)
+                      assignee_name: currentUser?.name || '시스템관리자',
+                      assignee_id: currentUser?.id || null,
+                      assignee_department: currentUser?.department || '시스템관리팀'
+                    };
+                    
+                    const response = await apiClient.put(`/service-requests/${selectedWorkRequest?.id}`, updateData);
+                    
+                    if (response.success) {
+                      alert('배정이 완료되었습니다.');
+                      setShowServiceAssignmentModal(false);
+                      // 상태 초기화
+                      setAssignmentDepartment('');
+                      setAssignmentTechnician('');
+                      setAssignmentOpinion('');
+                      setAssignmentServiceType(serviceTypes[0]?.name || '');
+                      // 목록 새로고침
+                      await fetchServiceRequests();
+                    } else {
+                      alert('배정 중 오류가 발생했습니다: ' + response.error);
+                    }
+                  } catch (error) {
+                    console.error('배정 오류:', error);
+                    alert('배정 중 오류가 발생했습니다.');
+                  }
                 }}
                 className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all duration-200"
               >
@@ -4089,76 +4691,85 @@ function SystemAdminPageContent() {
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2 mb-4">
                     <Icon name="user" size={20} className="text-gray-600" />
-                    <h3 className="text-lg font-semibold text-gray-800">서비스신청정보</h3>
+                    <h3 className="text-lg font-semibold text-gray-800">서비스 신청 정보</h3>
                   </div>
                   
-                  <div className="space-y-0">
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">신청번호: </span>
+                  <div className="space-y-1">
+                    <div className="py-1">
+                      <span className="text-sm font-medium text-gray-600">신청 번호 : </span>
                       <span className="text-sm font-bold text-blue-600">{selectedWorkRequest.requestNumber}</span>
                     </div>
                     
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">신청제목: </span>
+                    <div className="py-1">
+                      <span className="text-sm font-medium text-gray-600">신청 제목 : </span>
                       <span className="text-sm">{selectedWorkRequest.title}</span>
                     </div>
                     
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">신청내용: </span>
-                      <div className="text-sm mt-1 p-2 bg-gray-50 rounded text-gray-700">
+                    <div className="py-1">
+                      <span className="text-sm font-medium text-gray-600">신청 내용 </span>
+                      <div className="text-sm mt-1 p-3 bg-gray-50 rounded text-gray-700 min-h-24 max-h-48 overflow-y-auto whitespace-pre-wrap">
                         {selectedWorkRequest.content}
                       </div>
                     </div>
                     
-                    <div>
+                    <div className="py-1">
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="user" size={14} className="mr-1" />
-                        신청자: 
+                        신청자 :  <span className="text-sm ml-1">{selectedWorkRequest.requester} ({selectedWorkRequest.department})</span>
                           </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.requester} ({selectedWorkRequest.department})</span>
                         </div>
                     
-                    <div>
+                    <div className="py-1">
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="mail" size={14} className="mr-1" />
-                        신청연락처: 
+                        신청 연락처 : <span className="text-sm ml-1">{selectedWorkRequest.contact}</span>
                       </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.contact}</span>
                       </div>
                     
-                    <div>
+                    <div className="py-1">
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="briefcase" size={14} className="mr-1" />
-                        신청위치: 
+                        신청 위치 
                       </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.location}</span>
+                      <div className="text-sm mt-1 p-3 bg-gray-50 rounded text-gray-700 min-h-16 max-h-32 overflow-y-auto whitespace-pre-wrap">
+                        {selectedWorkRequest.location}
+                      </div>
                     </div>
                     
-                    <div>
+                    <div className="py-1 mb-5">
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="calendar" size={14} className="mr-1" />
-                        신청일시: 
+                        신청 일시 : <span className="text-sm ml-1 text-black">{selectedWorkRequest.requestDate} {selectedWorkRequest.requestTime || ''}</span>
                       </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.requestDate}</span>
                     </div>
                     
-                    <div>
+                    <div className="py-1 mb-5">
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="message-square" size={14} className="mr-1" />
-                        현재상태: 
+                        현재 상태 : <span className="text-sm ml-1 text-red-600 font-semibold">{selectedWorkRequest.currentStatus}</span>
                       </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.currentStatus}</span>
                     </div>
                     
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">실제신청자: </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.requester}</span>
+                    {selectedWorkRequest.actualRequester && (
+                      <div className="py-1">
+                        <span className="text-sm font-medium text-gray-600">실제 신청자 : </span>
+                        <span className="text-sm ml-1">{selectedWorkRequest.actualRequester}</span>
                     </div>
+                    )}
                     
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">실제연락처: </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.contact}</span>
+                    {selectedWorkRequest.actualContact && (
+                      <div className="py-1">
+                        <span className="text-sm font-medium text-gray-600">실제 연락처 : </span>
+                        <span className="text-sm ml-1">{selectedWorkRequest.actualContact}</span>
                     </div>
+                    )}
+                    
+                    {selectedWorkRequest.actualRequesterDepartment && (
+                      <div className="py-1">
+                        <span className="text-sm font-medium text-gray-600">실제 소속 : </span>
+                        <span className="text-sm ml-1">{selectedWorkRequest.actualRequesterDepartment}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -4171,35 +4782,41 @@ function SystemAdminPageContent() {
                   
                   <div className="space-y-0">
                     <div>
-                      <label className="block text-sm font-medium text-gray-600 mb-1">조치담당 소속</label>
-                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="">부서를 선택하세요</option>
-                        <option value="IT팀">IT팀</option>
-                        <option value="운영팀">운영팀</option>
-                        <option value="개발팀">개발팀</option>
-                        <option value="보안팀">보안팀</option>
-                        <option value="인사팀">인사팀</option>
-                        <option value="재무팀">재무팀</option>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">조치 소속</label>
+                      <select 
+                        value={reassignmentDepartment}
+                        onChange={(e) => handleReassignmentDepartmentChange(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">소속을 선택해 주세요.</option>
+                        {departments.map(dept => (
+                          <option key={dept.id} value={dept.name}>{dept.name}</option>
+                        ))}
                       </select>
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-600 mb-1">조치담당자</label>
-                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="">담당자를 선택하세요</option>
-                        <option value="김기술">김기술</option>
-                        <option value="박기술">박기술</option>
-                        <option value="홍기술">홍기술</option>
-                        <option value="최기술">최기술</option>
-                        <option value="정기술">정기술</option>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">조치 담당자</label>
+                      <select 
+                        value={reassignmentTechnician}
+                        onChange={(e) => setReassignmentTechnician(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={!reassignmentDepartment}
+                      >
+                        <option value="">조치자를 선택하세요</option>
+                        {Array.isArray(reassignmentTechnicians) && reassignmentTechnicians.map(technician => (
+                          <option key={technician.id} value={technician.name}>{technician.name}</option>
+                        ))}
                       </select>
                     </div>
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-1">재배정의견</label>
                       <textarea 
+                        value={reassignmentOpinion}
+                        onChange={(e) => setReassignmentOpinion(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 h-20"
-                        placeholder="배정 담당자 의견"
+                        placeholder="재배정 담당자 의견을 입력하세요"
                       />
                     </div>
                     
@@ -4222,13 +4839,9 @@ function SystemAdminPageContent() {
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-1">서비스 조치 유형</label>
                       <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="구성">구성</option>
-                        <option value="요청">요청</option>
-                        <option value="장애">장애</option>
-                        <option value="변경">변경</option>
-                        <option value="문제">문제</option>
-                        <option value="적용">적용</option>
-                        <option value="자산">자산</option>
+                        {serviceTypes.map(type => (
+                          <option key={type.id} value={type.name}>{type.name}</option>
+                        ))}
                       </select>
                     </div>
                     
@@ -4239,27 +4852,37 @@ function SystemAdminPageContent() {
                       <div className="space-y-0">
                         <div>
                           <span className="text-xs font-medium text-gray-500">전) 배정일시: </span>
-                          <span className="text-xs ml-2">{selectedWorkRequest.assignTime || '-'}</span>
+                          <span className="text-xs ml-2">
+                            {selectedWorkRequest.assignDate && selectedWorkRequest.assignTime 
+                              ? `${selectedWorkRequest.assignDate} ${selectedWorkRequest.assignTime}`
+                              : '-'
+                            }
+                          </span>
                         </div>
                         
                         <div>
                           <span className="text-xs font-medium text-gray-500">전) 배정담당자: </span>
-                          <span className="text-xs ml-2">이배정 (관리팀)</span>
+                          <span className="text-xs ml-2">
+                            {selectedWorkRequest.assignee && selectedWorkRequest.assigneeDepartment
+                              ? `${selectedWorkRequest.assignee} (${selectedWorkRequest.assigneeDepartment})`
+                              : '-'
+                            }
+                          </span>
                         </div>
                         
                         <div>
                           <span className="text-xs font-medium text-gray-500">전) 배정의견: </span>
-                          <span className="text-xs ml-2">업무에 적합하여 배정</span>
+                          <span className="text-xs ml-2">{selectedWorkRequest.assignmentOpinion || '-'}</span>
                         </div>
                         
                         <div>
                           <span className="text-xs font-medium text-gray-500">전) 조치담당자: </span>
-                          <span className="text-xs ml-2">{selectedWorkRequest.assignee || '홍기술'}</span>
+                          <span className="text-xs ml-2">{selectedWorkRequest.technician || '-'}</span>
                         </div>
                         
                         <div>
                           <span className="text-xs font-medium text-red-600">반려의견: </span>
-                          <span className="text-xs ml-2 text-red-600">금일 휴가 입니다.</span>
+                          <span className="text-xs ml-2 text-red-600">{selectedWorkRequest.rejectionOpinion || '-'}</span>
                         </div>
                       </div>
                     </div>
@@ -4277,9 +4900,64 @@ function SystemAdminPageContent() {
                 취소
               </button>
               <button
-                onClick={() => {
-                  alert('재배정이 완료되었습니다.')
-                  setShowServiceReassignmentModal(false)
+                onClick={async () => {
+                  // 유효성 검사
+                  if (!reassignmentDepartment || !reassignmentTechnician) {
+                    alert('조치담당 소속과 조치담당자를 선택해주세요.');
+                    return;
+                  }
+                  
+                  try {
+                    // 조치자 ID 찾기
+                    const selectedTechnician = reassignmentTechnicians.find(t => t.name === reassignmentTechnician);
+                    const technicianId = selectedTechnician?.id || null;
+                    
+                    // 현재 로그인 사용자 정보 가져오기
+                    const userStr = localStorage.getItem('user');
+                    let currentUser = null;
+                    if (userStr) {
+                      currentUser = JSON.parse(userStr);
+                    }
+                    
+                    const updateData = {
+                      stage: '재배정',
+                      // 조치소속은 technician_department에 저장
+                      technician_department: reassignmentDepartment,
+                      // 조치자는 technician_name과 technician_id에 저장
+                      technician_name: reassignmentTechnician,
+                      technician_id: technicianId,
+                      // 배정의견은 assignment_opinion에 저장
+                      assignment_opinion: reassignmentOpinion,
+                      // 서비스 타입
+                      service_type: reassignmentServiceType,
+                      // 배정일시는 현재시점 기준 assign_date(날짜+시간)와 assign_time(시간만)에 저장
+                      assign_date: new Date().toISOString(), // YYYY-MM-DDTHH:MM:SS.sssZ 형식
+                      assign_time: new Date().toTimeString().split(' ')[0].substring(0, 5), // HH:MM 형식
+                      // 배정담당자는 현재 로그인 사용자 (assignee_name, assignee_id, assignee_department)
+                      assignee_name: currentUser?.name || '시스템관리자',
+                      assignee_id: currentUser?.id || null,
+                      assignee_department: currentUser?.department || '시스템관리팀'
+                    };
+                    
+                    const response = await apiClient.put(`/service-requests/${selectedWorkRequest?.id}`, updateData);
+                    
+                    if (response.success) {
+                      alert('재배정이 완료되었습니다.');
+                      setShowServiceReassignmentModal(false);
+                      // 상태 초기화
+                      setReassignmentDepartment('');
+                      setReassignmentTechnician('');
+                      setReassignmentOpinion('');
+                      setReassignmentServiceType(serviceTypes[0]?.name || '');
+                      // 목록 새로고침
+                      await fetchServiceRequests();
+                    } else {
+                      alert('재배정 중 오류가 발생했습니다: ' + response.error);
+                    }
+                  } catch (error) {
+                    console.error('재배정 오류:', error);
+                    alert('재배정 중 오류가 발생했습니다.');
+                  }
                 }}
                 className="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-all duration-200"
               >
@@ -4301,7 +4979,14 @@ function SystemAdminPageContent() {
                 작업정보관리
               </h2>
               <button
-                onClick={() => setShowServiceWorkInfoModal(false)}
+                onClick={async () => {
+                  // 서비스작업List관리 프레임을 DB에서 최신 데이터로 새로고침
+                  console.log('X 버튼 클릭 - 서비스작업List 새로고침');
+                  await fetchServiceRequests();
+                  
+                  // 모달 닫기
+                  setShowServiceWorkInfoModal(false);
+                }}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <Icon name="close" size={24} />
@@ -4410,25 +5095,30 @@ function SystemAdminPageContent() {
                       <div className="space-y-2">
                     <div>
                           <span className="text-sm font-medium text-gray-600">배정 일시 :</span>
-                          <span className="text-sm text-gray-800 ml-2">{selectedWorkRequest.assignDate} {selectedWorkRequest.assignTime || ''}</span>
+                          <span className="text-sm text-gray-800 ml-2">
+                            {selectedWorkRequest.assignDate && selectedWorkRequest.assignTime 
+                              ? `${selectedWorkRequest.assignDate} ${selectedWorkRequest.assignTime}`
+                              : selectedWorkRequest.assignDate || '-'
+                            }
+                          </span>
                     </div>
                     <div>
                           <span className="text-sm font-medium text-gray-600">배정 담당자 :</span>
-                          <span className="text-sm text-gray-800 ml-2">{selectedWorkRequest.assignee || '이배정'}</span>
+                          <span className="text-sm text-gray-800 ml-2">{selectedWorkRequest.assignee || '-'}</span>
                     </div>
                     <div>
                           <span className="text-sm font-medium text-gray-600">서비스 조치 유형 → </span>
-                          <span className="text-sm text-gray-800 ml-2">{selectedWorkRequest.serviceType || '문제'}</span>
+                          <span className="text-sm text-gray-800 ml-2">{selectedWorkRequest.serviceType || '-'}</span>
                     </div>
-                      <div>
+                    <div>
                            <span className="text-sm font-medium text-gray-600">조치 담당자 :</span>
-                           <span className="text-sm text-gray-800 ml-2">{selectedWorkRequest.assignee || '-'}</span>
-                      </div>
+                           <span className="text-sm text-gray-800 ml-2">{selectedWorkRequest.technician || '-'}</span>
+                    </div>
                       </div>
                     </div>
 
                     {/* 예정 조율 일시 */}
-                    <div className={`px-4 py-0 rounded-lg border-2 ${(serviceWorkCurrentStage === '예정' || serviceWorkCurrentStage === '완료' || serviceWorkCurrentStage === '미결') ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
+                    <div className={`px-4 py-0 rounded-lg border-2 ${isFieldEnabled('scheduledDate') ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
                       <div className="flex items-center gap-4">
                       <div className="flex-1">
                           <label className="block text-sm font-medium text-gray-600 mb-2">예정 조율 일시</label>
@@ -4440,32 +5130,19 @@ function SystemAdminPageContent() {
                               console.log('예정조율일시 입력 변경:', e.target.value);
                               setServiceWorkScheduledDate(e.target.value);
                             }}
-                            disabled={serviceWorkCurrentStage !== '예정' && serviceWorkCurrentStage !== '완료' && serviceWorkCurrentStage !== '미결'}
+                            disabled={!isFieldEnabled('scheduledDate')}
                             className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                              (serviceWorkCurrentStage !== '예정' && serviceWorkCurrentStage !== '완료' && serviceWorkCurrentStage !== '미결') ? 'bg-gray-100 cursor-not-allowed' : ''
+                              !isFieldEnabled('scheduledDate') ? 'bg-gray-100 cursor-not-allowed' : ''
                             }`}
                             onFocus={() => console.log('예정조율일시 입력 필드 포커스, 현재 값:', serviceWorkScheduledDate)}
                         />
                       </div>
-                        {serviceWorkCurrentStage === '예정' && (
+                        {isFieldEnabled('scheduledDate') && (
                           <div className="flex items-center gap-2">
                             <Icon name="calendar" className="w-5 h-5 text-gray-400" />
                             <button
-                              onClick={() => {
-                                if (serviceWorkScheduledDate) {
-                                  setServiceWorkCurrentStage('작업')
-                                  // 작업시작일시에 현재 시점 자동 설정 (한국 시간)
-                                  const now = new Date()
-                                  const kstOffset = 9 * 60 // 한국은 UTC+9
-                                  const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000))
-                                  const formattedNow = kstTime.toISOString().slice(0, 16)
-                                  setServiceWorkStartDate(formattedNow)
-                                  alert('예정조율일시가 등록되었습니다. 작업 단계로 진행합니다.')
-                                } else {
-                                  alert('예정조율일시를 입력해주세요.')
-                                }
-                              }}
-                              disabled={!serviceWorkScheduledDate}
+                              onClick={handleStageProgression}
+                              disabled={!canProceedToNextStage()}
                               className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
                                 serviceWorkScheduledDate
                                   ? 'bg-blue-500 hover:bg-blue-600 text-white'
@@ -4480,7 +5157,7 @@ function SystemAdminPageContent() {
                     </div>
 
                     {/* 작업 시작 일시 */}
-                    <div className={`px-4 py-0 rounded-lg border-2 ${(serviceWorkCurrentStage === '작업' || serviceWorkCurrentStage === '완료' || serviceWorkCurrentStage === '미결') ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
+                    <div className={`px-4 py-0 rounded-lg border-2 ${isFieldEnabled('workStartDate') ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
                       <div className="flex items-center gap-4">
                         <div className="flex-1">
                           <label className="block text-sm font-medium text-gray-600 mb-2">작업 시작 일시</label>
@@ -4489,31 +5166,18 @@ function SystemAdminPageContent() {
                         type="datetime-local"
                             value={serviceWorkStartDate}
                             onChange={(e) => setServiceWorkStartDate(e.target.value)}
-                            disabled={serviceWorkCurrentStage !== '작업' && serviceWorkCurrentStage !== '완료' && serviceWorkCurrentStage !== '미결'}
+                            disabled={!isFieldEnabled('workStartDate')}
                             className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                              (serviceWorkCurrentStage !== '작업' && serviceWorkCurrentStage !== '완료' && serviceWorkCurrentStage !== '미결') ? 'bg-gray-100 cursor-not-allowed' : ''
+                              !isFieldEnabled('workStartDate') ? 'bg-gray-100 cursor-not-allowed' : ''
                             }`}
-                        />
+                      />
                     </div>
-                        {serviceWorkCurrentStage === '작업' && (
+                        {isFieldEnabled('workStartDate') && (
                           <div className="flex items-center gap-2">
                             <Icon name="calendar" className="w-5 h-5 text-gray-400" />
                             <button
-                          onClick={() => {
-                                if (serviceWorkStartDate) {
-                                  setServiceWorkCurrentStage('완료')
-                                  // 작업완료일시에 현재 시점 자동 설정 (한국 시간)
-                                  const now = new Date()
-                                  const kstOffset = 9 * 60 // 한국은 UTC+9
-                                  const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000))
-                                  const formattedNow = kstTime.toISOString().slice(0, 16)
-                                  setServiceWorkCompleteDate(formattedNow)
-                                  alert('작업이 시작되었습니다. 완료 단계로 진행합니다.')
-                                } else {
-                                  alert('작업시작일시를 입력해주세요.')
-                                }
-                              }}
-                              disabled={!serviceWorkStartDate}
+                              onClick={handleStageProgression}
+                              disabled={!canProceedToNextStage()}
                               className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
                                 serviceWorkStartDate
                                   ? 'bg-blue-500 hover:bg-blue-600 text-white'
@@ -4528,62 +5192,55 @@ function SystemAdminPageContent() {
                   </div>
 
                     {/* 작업 내역 및 완료 일시 */}
-                    <div className={`px-4 py-0 rounded-lg border-2 ${(serviceWorkCurrentStage === '완료' || serviceWorkCurrentStage === '미결') ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
+                    <div className={`px-4 py-0 rounded-lg border-2 ${(isFieldEnabled('workContent') || isFieldEnabled('workCompleteDate')) ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
                       <div className="space-y-0">
                     <div>
                           <label className="block text-sm font-medium text-gray-600 mb-2">작업 내역</label>
+                      <div className="flex gap-2">
                       <textarea
-                        key={`work-content-${selectedWorkRequest?.id || 'new'}`}
-                        value={serviceWorkContent}
+                          key={`work-content-${selectedWorkRequest?.id || 'new'}`}
+                            value={serviceWorkContent}
                             onChange={(e) => setServiceWorkContent(e.target.value)}
-                            disabled={serviceWorkCurrentStage !== '완료' && serviceWorkCurrentStage !== '미결'}
-                            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                              (serviceWorkCurrentStage !== '완료' && serviceWorkCurrentStage !== '미결') ? 'bg-gray-100 cursor-not-allowed' : ''
+                          disabled={!isFieldEnabled('workContent')}
+                          className={`flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                            !isFieldEnabled('workContent') ? 'bg-gray-100 cursor-not-allowed' : ''
                             }`}
                         rows={3}
                             placeholder="작업 내용 입력"
                           />
+                        {isFieldEnabled('workContent') && (
+                          <button
+                            onClick={handleStageProgression}
+                            disabled={!canProceedToNextStage()}
+                            className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                              serviceWorkContent && serviceWorkCompleteDate
+                                ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            }`}
+                          >
+                            처리
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div>
                           <label className="block text-sm font-medium text-gray-600 mb-2">작업 완료 일시</label>
                       <input
-                        key={`work-complete-${selectedWorkRequest?.id || 'new'}`}
+                         key={`work-complete-${selectedWorkRequest?.id || 'new'}`}
                         type="datetime-local"
                             value={serviceWorkCompleteDate}
                             onChange={(e) => setServiceWorkCompleteDate(e.target.value)}
-                            disabled={serviceWorkCurrentStage !== '완료' && serviceWorkCurrentStage !== '미결'}
+                         disabled={!isFieldEnabled('workCompleteDate')}
                             className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                              (serviceWorkCurrentStage !== '완료' && serviceWorkCurrentStage !== '미결') ? 'bg-gray-100 cursor-not-allowed' : ''
+                           !isFieldEnabled('workCompleteDate') ? 'bg-gray-100 cursor-not-allowed' : ''
                             }`}
-                        />
+                      />
                     </div>
-                        {serviceWorkCurrentStage === '완료' && (
-                          <div className="flex justify-end">
-                            <button
-                              onClick={() => {
-                                if (serviceWorkContent && serviceWorkCompleteDate) {
-                                  setServiceWorkCurrentStage('미결')
-                                  alert('작업이 완료되었습니다. 미결 처리 단계로 진행합니다.')
-                                } else {
-                                  alert('작업내역과 작업완료일시를 모두 입력해주세요.')
-                                }
-                              }}
-                              disabled={!serviceWorkContent || !serviceWorkCompleteDate}
-                              className={`px-6 py-2 rounded-lg font-medium transition-all duration-200 ${
-                                serviceWorkContent && serviceWorkCompleteDate
-                                  ? 'bg-blue-500 hover:bg-blue-600 text-white'
-                                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                              }`}
-                            >
-                              처리
-                            </button>
-                          </div>
-                        )}
                       </div>
                     </div>
                     
                     {/* 문제 사항 */}
-                    <div className={`px-4 py-0 rounded-lg border-2 ${serviceWorkCurrentStage === '미결' ? 'border-orange-300 bg-orange-50' : 'border-gray-200 bg-gray-50'}`}>
+                    <div className={`px-4 py-0 rounded-lg border-2 ${(isFieldEnabled('problemIssue') || isFieldEnabled('isUnresolved')) ? 'border-orange-300 bg-orange-50' : 'border-gray-200 bg-gray-50'}`}>
                       <div className="flex items-start gap-4">
                         <div className="flex-1">
                           <label className="block text-sm font-medium text-gray-600 mb-2">문제 사항</label>
@@ -4591,25 +5248,18 @@ function SystemAdminPageContent() {
                         key={`problem-issue-${selectedWorkRequest?.id || 'new'}`}
                             value={serviceWorkProblemIssue}
                             onChange={(e) => setServiceWorkProblemIssue(e.target.value)}
-                            disabled={serviceWorkCurrentStage !== '미결'}
+                            disabled={!isFieldEnabled('problemIssue')}
                             className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 ${
-                              serviceWorkCurrentStage !== '미결' ? 'bg-gray-100 cursor-not-allowed' : ''
+                              !isFieldEnabled('problemIssue') ? 'bg-gray-100 cursor-not-allowed' : ''
                             }`}
                         rows={3}
                             placeholder="작업 중 발견 된 문제점 입력"
                           />
                     </div>
-                        {serviceWorkCurrentStage === '미결' && (
+                        {(isFieldEnabled('problemIssue') || isFieldEnabled('isUnresolved')) && (
                           <div className="flex items-start gap-2">
                             <button
-                              onClick={() => {
-                                if (serviceWorkProblemIssue) {
-                                  alert('미결 처리가 완료되었습니다.')
-                                  setServiceWorkCurrentStage('미결완료')
-                                } else {
-                                  alert('문제사항을 입력해주세요.')
-                                }
-                              }}
+                              onClick={handleStageProgression}
                               className="px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-pink-500 hover:bg-pink-600 text-white"
                             >
                               등재
@@ -4624,11 +5274,11 @@ function SystemAdminPageContent() {
                           id="serviceWorkUnresolved"
                           checked={serviceWorkIsUnresolved}
                           onChange={(e) => setServiceWorkIsUnresolved(e.target.checked)}
-                          disabled={serviceWorkCurrentStage !== '미결'}
-                          className={`mr-2 ${serviceWorkCurrentStage !== '미결' ? 'cursor-not-allowed' : ''}`}
+                          disabled={!isFieldEnabled('isUnresolved')}
+                          className={`mr-2 ${!isFieldEnabled('isUnresolved') ? 'cursor-not-allowed' : ''}`}
                         />
                         <label htmlFor="serviceWorkUnresolved" className={`text-sm font-medium ${
-                          serviceWorkCurrentStage !== '미결' ? 'text-gray-400' : 'text-gray-700'
+                          !isFieldEnabled('isUnresolved') ? 'text-gray-400' : 'text-gray-700'
                         }`}>
                           미결 완료
                         </label>
@@ -4642,64 +5292,60 @@ function SystemAdminPageContent() {
               </div>
 
               {/* 모달 하단 버튼 */}
-            <div className="flex gap-3 py-4 px-6 border-t border-gray-200">
+            <div className="flex justify-between py-4 px-6 border-t border-gray-200">
+              {/* 나가기 버튼 */}
                 <button
-                  onClick={() => setShowServiceWorkInfoModal(false)}
+                onClick={async () => {
+                  // 서비스작업List관리 프레임을 DB에서 최신 데이터로 새로고침
+                  console.log('나가기 버튼 클릭 - 서비스작업List 새로고침');
+                  await fetchServiceRequests();
+                  
+                  // 모달 닫기
+                  setShowServiceWorkInfoModal(false);
+                }}
                 className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
                 >
-                  취소
+                나가기
                 </button>
+              
+              {/* 작업 전체 수정 버튼 - 완료/미결 단계에서만 표시 */}
+              {(selectedWorkRequest?.stage === '완료' || selectedWorkRequest?.stage === '미결') && (
                 <button
                   onClick={async () => {
-                    if (selectedWorkRequest) {
+                    // stage_id를 "확인"으로 변경
                       try {
-                        // 작업정보 데이터 준비
                         const updateData = {
-                          scheduled_date: serviceWorkScheduledDate || null,
-                          work_start_date: serviceWorkStartDate || null,
-                          work_content: serviceWorkContent || null,
-                          work_complete_date: serviceWorkCompleteDate || null,
-                          problem_issue: serviceWorkProblemIssue || null,
-                          is_unresolved: serviceWorkIsUnresolved || false,
-                          current_work_stage: serviceWorkCurrentStage
-                        };
+                        stage: '확인'
+                      };
 
-                        console.log('수정할 데이터:', updateData);
-                        console.log('현재 상태 변수들:', {
-                          serviceWorkScheduledDate,
-                          serviceWorkStartDate,
-                          serviceWorkContent,
-                          serviceWorkCompleteDate,
-                          serviceWorkProblemIssue,
-                          serviceWorkIsUnresolved,
-                          serviceWorkCurrentStage
-                        });
+                      console.log('작업 전체 수정 - stage를 확인으로 변경:', updateData);
 
-                        // API 호출하여 DB 업데이트
-                        const response = await apiClient.updateServiceRequest(
-                          parseInt(selectedWorkRequest.id), 
-                          updateData
-                        );
+                      const response = await apiClient.put(`/service-requests/${selectedWorkRequest?.id}`, updateData);
 
                         if (response.success) {
-                          alert('작업정보가 성공적으로 저장되었습니다.');
-                          // 데이터 새로고침
+                        // selectedWorkRequest 업데이트
+                        setSelectedWorkRequest(prev => prev ? { ...prev, stage: '확인' } : null);
+                        
+                        // 알림 메시지
+                        alert('예정조율일시부터 단계적으로 다시 작업하세요!');
+                        
+                        // 서비스작업List 새로고침
                           await fetchServiceRequests();
-                          // 모달 닫기
-                          setShowServiceWorkInfoModal(false);
+                        
+                        // 모달은 그대로 유지 - 닫지 않음
                         } else {
-                          alert('작업정보 저장에 실패했습니다: ' + (response.message || '알 수 없는 오류'));
+                        alert('작업 전체 수정 중 오류가 발생했습니다: ' + response.error);
                         }
                       } catch (error) {
-                        console.error('작업정보 저장 오류:', error);
-                        alert('작업정보 저장 중 오류가 발생했습니다.');
-                      }
+                      console.error('작업 전체 수정 오류:', error);
+                      alert('작업 전체 수정 중 오류가 발생했습니다.');
                     }
                   }}
-                className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
+                  className="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
                 >
-                  수정완료
+                  작업 전체 수정
                 </button>
+              )}
             </div>
           </div>
         </div>
@@ -4755,7 +5401,7 @@ function SystemAdminPageContent() {
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="user" size={14} className="mr-1" />
                         신청자 : <span className="text-sm ml-1">{selectedWorkRequest.requester} ({selectedWorkRequest.department})</span>
-                      </span>                      
+                                </span>
                     </div>
                     
                     <div>
@@ -4823,15 +5469,20 @@ function SystemAdminPageContent() {
                       <div className="space-y-2">
                     <div>
                           <span className="text-sm font-medium text-gray-600">배정 일시 :</span>
-                          <span className="text-sm ml-2">{selectedWorkRequest.assignDate} {selectedWorkRequest.assignTime || ''}</span>
+                          <span className="text-sm ml-2">
+                            {selectedWorkRequest.assignDate && selectedWorkRequest.assignTime 
+                              ? `${selectedWorkRequest.assignDate} ${selectedWorkRequest.assignTime}`
+                              : selectedWorkRequest.assignDate || '-'
+                            }
+                          </span>
                     </div>
                     <div>
                           <span className="text-sm font-medium text-gray-600">배정 담당자 :</span>
-                          <span className="text-sm ml-2">{selectedWorkRequest.assignee || '이배정'}</span>
+                          <span className="text-sm ml-2">{selectedWorkRequest.assignee || '-'}</span>
                     </div>
                     <div>
                           <span className="text-sm font-medium text-gray-600">배정 의견 :</span>
-                          <span className="text-sm ml-2">{selectedWorkRequest.assignmentOpinion || '업무에 적합하여 배정'}</span>
+                          <span className="text-sm ml-2">{selectedWorkRequest.assignmentOpinion || '-'}</span>
                     </div>
                     <div>
                           <span className="text-sm font-medium text-gray-600">서비스 조치 유형 →</span>
@@ -4839,7 +5490,7 @@ function SystemAdminPageContent() {
                     </div>
                     <div>
                           <span className="text-sm font-medium text-gray-600">조치 담당자 :</span>
-                          <span className="text-sm ml-2">{selectedWorkRequest.assignee || '-'}</span>
+                          <span className="text-sm ml-2">{selectedWorkRequest.technician || '-'}</span>
                     </div>
                       </div>
                     </div>
@@ -4849,7 +5500,7 @@ function SystemAdminPageContent() {
                       <div className="space-y-2">
                     <div>
                           <span className="text-sm font-medium text-gray-600">예정 조율 일시 :</span>
-                          <span className="text-sm ml-2">{selectedWorkRequest.scheduled_date || '2025.08.31 15:00'}</span>
+                          <span className="text-sm ml-2">{formatDateTimeForDisplay(selectedWorkRequest.scheduledDate)}</span>
                     </div>
                       </div>
                     </div>
@@ -4859,7 +5510,7 @@ function SystemAdminPageContent() {
                       <div className="space-y-2">
                     <div>
                           <span className="text-sm font-medium text-gray-600">작업 시작 일시 :</span>
-                          <span className="text-sm ml-2">{selectedWorkRequest.workStartDate || '2025.09.01 15:00'}</span>
+                          <span className="text-sm ml-2">{formatDateTimeForDisplay(selectedWorkRequest.workStartDate)}</span>
                     </div>
                       </div>
                     </div>
@@ -4870,12 +5521,12 @@ function SystemAdminPageContent() {
                     <div>
                           <span className="text-sm font-medium text-gray-600">작업 내역</span>
                           <div className="text-sm mt-1 p-2 bg-white rounded border text-gray-700 min-h-16 max-h-32 overflow-y-auto whitespace-pre-wrap">
-                            {selectedWorkRequest.workContent || '작업 내용 수정'}
+                            {selectedWorkRequest.workContent || '-'}
                           </div>
                     </div>
                     <div>
                           <span className="text-sm font-medium text-gray-600">작업 완료 일시 :</span>
-                          <span className="text-sm ml-2">{selectedWorkRequest.workCompleteDate || '2025.08.31 15:00'}</span>
+                          <span className="text-sm ml-2">{formatDateTimeForDisplay(selectedWorkRequest.workCompleteDate)}</span>
                     </div>
                       </div>
                     </div>
@@ -4886,7 +5537,7 @@ function SystemAdminPageContent() {
                     <div>
                           <span className="text-sm font-medium text-gray-600">문제 사항 </span>
                           <div className="text-sm mt-1 p-2 bg-white rounded border text-gray-700 min-h-16 max-h-32 overflow-y-auto whitespace-pre-wrap">
-                            {selectedWorkRequest.problemIssue || '작업 중 발견된 문제점 수정'}
+                            {selectedWorkRequest.problemIssue || '-'}
                           </div>
                     </div>
                     <div className="flex items-center">
@@ -4927,11 +5578,33 @@ function SystemAdminPageContent() {
                   취소
                 </button>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     if (confirm('정말로 삭제하시겠습니까?')) {
+                      try {
+                        console.log('서비스 요청 삭제 시작:', selectedWorkRequest?.id);
+                        
+                        const response = await apiClient.deleteServiceRequest(Number(selectedWorkRequest?.id));
+                        
+                        if (response.success) {
+                          console.log('서비스 요청 삭제 성공');
+                          
+                          // 삭제 모달 닫기
                       setShowServiceWorkDeleteModal(false);
-                    setShowServiceWorkDeleteCompleteModal(true);
-                      // 삭제 완료 로직
+                          setSelectedWorkRequest(null);
+                          
+                          // 서비스 요청 목록 새로고침
+                          await fetchServiceRequests();
+                          
+                          // 알림창으로 삭제 완료 메시지 표시
+                          alert('작업정보가 성공적으로 삭제되었습니다.');
+                        } else {
+                          console.error('서비스 요청 삭제 실패:', response.error);
+                          alert('삭제 중 오류가 발생했습니다: ' + (response.error || '알 수 없는 오류'));
+                        }
+                      } catch (error) {
+                        console.error('서비스 요청 삭제 오류:', error);
+                        alert('삭제 중 오류가 발생했습니다.');
+                      }
                     }
                   }}
                 className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
@@ -4982,44 +5655,6 @@ function SystemAdminPageContent() {
         </div>
       )}
 
-      {/* 작업정보삭제 완료 모달 */}
-      {showServiceWorkDeleteCompleteModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-            {/* 모달 헤더 */}
-            <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200" style={{paddingTop: '30px'}}>
-              <h2 className="text-xl font-bold text-gray-800 flex items-center">
-                <Icon name="check-circle" size={24} className="mr-2 text-green-600" />
-                삭제 완료
-              </h2>
-              <button
-                onClick={() => setShowServiceWorkDeleteCompleteModal(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <Icon name="close" size={24} />
-              </button>
-            </div>
-
-            {/* 모달 내용 */}
-            <div className="py-6 px-6 text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Icon name="check-circle" size={32} className="text-green-600" />
-              </div>
-              <p className="text-gray-600 mb-6">작업정보가 성공적으로 삭제되었습니다.</p>
-            </div>
-
-            {/* 모달 하단 버튼 */}
-            <div className="flex justify-end py-4 px-6 border-t border-gray-200">
-              <button
-                onClick={() => setShowServiceWorkDeleteCompleteModal(false)}
-                className="bg-gray-800 hover:bg-gray-900 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200 button-smooth"
-              >
-                확인
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* 자주하는 질문 관리 프레임 - 시스템관리에서는 제거됨 */}
       {false && (
@@ -5804,20 +6439,7 @@ function SystemAdminPageContent() {
               {/* 페이지네이션 */}
               {(() => {
                 // 동일한 데이터와 필터링 로직 사용
-                const inquiries = [
-                  { id: '1', inquiryDate: '2025.08.31 14:00', title: '모니터 전원 문의', inquirer: '홍길순', answerDate: '2025.08.31 15:00', answerer: '이배정' },
-                  { id: '2', inquiryDate: '2025.08.31 13:00', title: '네트워크 문의', inquirer: '김영자', answerDate: '', answerer: '' },
-                  { id: '3', inquiryDate: '2025.08.31 12:00', title: '프린터 드라이버 업데이트', inquirer: '이영희', answerDate: '', answerer: '' },
-                  { id: '4', inquiryDate: '2025.08.31 11:00', title: '이메일 문의', inquirer: '박달자', answerDate: '2025.08.31 12:00', answerer: '이배정' },
-                  { id: '5', inquiryDate: '2025.08.31 10:00', title: '소프트웨어 설치 요청', inquirer: '최민수', answerDate: '', answerer: '' },
-                  { id: '6', inquiryDate: '2025.08.31 09:30', title: '키보드 고장 문의', inquirer: '정수진', answerDate: '2025.08.31 10:30', answerer: '김기술' },
-                  { id: '7', inquiryDate: '2025.08.31 09:00', title: '웹사이트 접속 불가', inquirer: '강지훈', answerDate: '', answerer: '' },
-                  { id: '8', inquiryDate: '2025.08.30 16:30', title: '마우스 반응 지연', inquirer: '윤서연', answerDate: '2025.08.30 17:00', answerer: '이배정' },
-                  { id: '9', inquiryDate: '2025.08.30 15:00', title: '폴더 권한 문의', inquirer: '송현우', answerDate: '', answerer: '' },
-                  { id: '10', inquiryDate: '2025.08.30 14:00', title: '인쇄 대기열 오류', inquirer: '임지영', answerDate: '2025.08.30 14:30', answerer: '김기술' },
-                  { id: '11', inquiryDate: '2025.08.30 13:00', title: '시스템 업데이트 문의', inquirer: '박준호', answerDate: '', answerer: '' },
-                  { id: '12', inquiryDate: '2025.08.30 12:00', title: '백업 시스템 문의', inquirer: '한소영', answerDate: '2025.08.30 12:30', answerer: '이배정' }
-                ];
+                const inquiries: any[] = []; // 실제 데이터로 교체 필요
                 
                 let filteredInquiries = inquiries;
                 if (showUnansweredOnly) {

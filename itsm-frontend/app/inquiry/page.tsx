@@ -341,7 +341,7 @@ export default function InquiryPage() {
                 <button
                   onClick={handleWriteInquiry}
                   className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-colors"
-                  style={{ fontFamily: 'var(--figma-font-family)' }}
+                  style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }}
                 >
                   문의 글쓰기
                 </button>
@@ -352,7 +352,7 @@ export default function InquiryPage() {
                       ? 'bg-blue-500 text-white shadow-md transform scale-95' 
                       : 'bg-blue-100 text-blue-700 hover:bg-blue-200 hover:shadow-sm'
                   }`}
-                  style={{ fontFamily: 'var(--figma-font-family)' }}
+                  style={{ fontFamily: 'Inter, system-ui, -apple-system, sans-serif' }}
                 >
                   {showMyPostsOnly ? '전체글 보기' : '작성글만 보기'}
                 </button>

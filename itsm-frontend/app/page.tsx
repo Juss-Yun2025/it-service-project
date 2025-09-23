@@ -1,21 +1,21 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { FigmaButton } from "@/components/figma/FigmaButton";
-import { FigmaCard } from "@/components/figma/FigmaCard";
+// import { Button } from "@/components/ui/button"; // 사용되지 않음
+// import { FigmaButton } from "@/components/figma/FigmaButton"; // 삭제됨
+// import { FigmaCard } from "@/components/figma/FigmaCard"; // 삭제됨
 import { useState, useEffect } from "react";
 import { getPermissionLevelName, getRolePermissionLevel } from '@/lib/auth'
 import { useRouter } from 'next/navigation'
 import Icon from '@/components/ui/Icon'
 import { apiClient, LoginRequest } from '@/lib/api'
-import { PermissionGuard, RoleGuard, usePermissions, useRoles } from '@/components/PermissionGuard'
+// import { PermissionGuard, RoleGuard, usePermissions, useRoles } from '@/components/PermissionGuard' // 사용되지 않음
 import { 
   MessageSquare, 
   BarChart3, 
   FileText, 
   HelpCircle, 
-  Coffee, 
-  Cookie,
+  // Coffee, // 사용되지 않음
+  // Cookie, // 사용되지 않음
   Laptop,
   LogIn
 } from 'lucide-react'
@@ -588,7 +588,7 @@ export default function Home() {
       {/* 로그인 모달 - 반응형 */}
       {showLoginModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 modal-enter">
-          <FigmaCard className="w-full max-w-md mx-0 smooth-hover">
+          <div className="w-full max-w-md mx-0 smooth-hover bg-white border border-gray-200 rounded-lg p-6 transition-all duration-200">
             <div className="p-4 sm:p-6 lg:p-8">
               <div className="text-center mb-4 sm:mb-6">
                 <h2 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">
@@ -676,13 +676,12 @@ export default function Home() {
                 )}
 
                 <div className="flex space-x-2 sm:space-x-3 pt-3 sm:pt-4">
-                  <FigmaButton
-                    variant="secondary"
+                  <button
                     onClick={handleCloseModal}
-                    className="flex-1 text-sm sm:text-base"
+                    className="flex-1 text-sm sm:text-base bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-4 rounded-lg transition-all duration-300 ease-out focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
                   >
                     취소
-                  </FigmaButton>
+                  </button>
                   <button
                     type="button"
                     onClick={handleLogin}
@@ -722,14 +721,14 @@ export default function Home() {
                 <div className="break-all">• 일반사용자: user@itsm.com / user123</div>
               </div>
             </div>
-          </FigmaCard>
+          </div>
         </div>
       )}
 
       {/* 회원가입 모달 */}
       {showSignupModal && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 modal-enter">
-          <FigmaCard className="w-full max-w-lg mx-0 smooth-hover">
+          <div className="w-full max-w-lg mx-0 smooth-hover bg-white border border-gray-200 rounded-lg p-6 transition-all duration-200">
             <div className="p-4 sm:p-6 lg:p-8">
               {/* 헤더 */}
               <div className="flex items-center justify-between mb-4 sm:mb-6">
@@ -937,14 +936,14 @@ export default function Home() {
                 </button>
               </form>
             </div>
-          </FigmaCard>
+          </div>
         </div>
       )}
 
       {/* 로그인된 사용자 정보 - 반응형 */}
       {isLoggedIn && currentUser && (
         <div className="fixed top-2 right-2 sm:top-4 sm:right-4 z-40">
-          <FigmaCard className="p-2 sm:p-4">
+          <div className="p-2 sm:p-4 bg-white border border-gray-200 rounded-lg transition-all duration-200">
             <div className="flex items-center space-x-2 sm:space-x-3">
               <div className="w-6 h-6 sm:w-8 sm:h-8 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
                 <span className="text-white text-xs sm:text-sm font-medium">
@@ -955,17 +954,15 @@ export default function Home() {
                 <p className="text-sm font-medium text-gray-800 truncate">{currentUser.name}</p>
                 <p className="text-xs text-gray-600 truncate">{getPermissionLevelName(getRolePermissionLevel(currentUser.role))}</p>
               </div>
-              <FigmaButton
+              <button
                 onClick={handleLogout}
-                variant="error"
-                size="sm"
-                className="ml-1 sm:ml-2 text-xs sm:text-sm"
+                className="ml-1 sm:ml-2 text-xs sm:text-sm bg-red-500 hover:bg-red-600 text-white font-medium py-1.5 px-3 rounded-lg transition-all duration-300 ease-out focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
               >
                 <span className="hidden sm:inline">로그아웃</span>
                 <span className="sm:hidden">로그아웃</span>
-              </FigmaButton>
+              </button>
             </div>
-          </FigmaCard>
+          </div>
         </div>
       )}
     </div>

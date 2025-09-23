@@ -1,6 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
-@import "../lib/figma-tokens.css";
+/* @import "../lib/figma-tokens.css"; */ /* 피그마 관련 파일 삭제됨 */
 
 @custom-variant dark (&:is(.dark *));
 

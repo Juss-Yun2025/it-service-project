@@ -20,7 +20,7 @@ interface FAQ {
 export default function FAQPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedFAQ, setSelectedFAQ] = useState<FAQ | null>(null)
-  const [isManager, setIsManager] = useState(false) // 관리매니저 권한 확인
+  // const [isManager, setIsManager] = useState(false) // 관리매니저 권한 확인 (사용되지 않음)
   const router = useRouter()
 
   // Figma 디자인에 맞춘 FAQ 데이터

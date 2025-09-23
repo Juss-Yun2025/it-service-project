@@ -1,7 +1,7 @@
 "use client"
 
 import TechnicianAssignment from '@/components/TechnicianAssignment'
-import PermissionGuard from '@/components/PermissionGuard'
+import { PermissionGuard } from '@/components/PermissionGuard'
 import { useSearchParams } from 'next/navigation'
 
 export default function TechnicianAssignmentPage() {

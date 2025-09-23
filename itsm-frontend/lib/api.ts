@@ -140,7 +140,17 @@ export interface ServiceRequest {
   work_complete_date?: string;
   problem_issue?: string;
   is_unresolved?: boolean;
-  current_work_stage?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Stage {
+  id: number;
+  name: string;
+  description: string;
+  color: string;
+  is_active: boolean;
+  progress_name: string;
   created_at: string;
   updated_at: string;
 }
@@ -179,7 +189,6 @@ export interface ServiceRequestUpdateRequest {
   work_complete_date?: string;
   problem_issue?: string;
   is_unresolved?: boolean;
-  current_work_stage?: string;
   previous_assign_date?: string;
   previous_assignee?: string;
   previous_assignment_opinion?: string;
@@ -191,7 +200,6 @@ export interface ServiceRequestUpdateRequest {
   work_complete_date?: string;
   problem_issue?: string;
   is_unresolved?: boolean;
-  current_work_stage?: string;
 }
 
 export interface ServiceRequestListParams {
@@ -812,6 +820,53 @@ class ApiClient {
   // 서비스 유형 삭제
   async deleteServiceType(id: number): Promise<ApiResponse<void>> {
     return this.request<void>(`/api/service-types/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
+  // ===== 단계 관리 API =====
+  
+  // 모든 단계 조회
+  async getStages(): Promise<ApiResponse<Stage[]>> {
+    return this.request<Stage[]>('/api/stages');
+  }
+
+  // 특정 단계 조회
+  async getStage(id: number): Promise<ApiResponse<Stage>> {
+    return this.request<Stage>(`/api/stages/${id}`);
+  }
+
+  // 다음 단계 조회
+  async getNextStage(currentStageId: number): Promise<ApiResponse<Stage | null>> {
+    return this.request<Stage | null>(`/api/stages/next/${currentStageId}`);
+  }
+
+  // 단계명으로 진행명 조회
+  async getProgressByStageName(stageName: string): Promise<ApiResponse<string>> {
+    return this.request<string>(`/api/stages/progress/${stageName}`);
+  }
+
+  // ===== 범용 HTTP 메서드 =====
+  
+  // PUT 요청
+  async put<T = any>(url: string, data?: any): Promise<ApiResponse<T>> {
+    return this.request<T>(`/api${url}`, {
+      method: 'PUT',
+      body: data ? JSON.stringify(data) : undefined
+    });
+  }
+
+  // POST 요청
+  async post<T = any>(url: string, data?: any): Promise<ApiResponse<T>> {
+    return this.request<T>(`/api${url}`, {
+      method: 'POST',
+      body: data ? JSON.stringify(data) : undefined
+    });
+  }
+
+  // DELETE 요청
+  async delete<T = any>(url: string): Promise<ApiResponse<T>> {
+    return this.request<T>(`/api${url}`, {
       method: 'DELETE'
     });
   }

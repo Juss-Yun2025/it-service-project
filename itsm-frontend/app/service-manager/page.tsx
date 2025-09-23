@@ -96,14 +96,14 @@ export default function ServiceManagerPage() {
   const [showFAQEditModal, setShowFAQEditModal] = useState(false)
   const [showFAQAddModal, setShowFAQAddModal] = useState(false)
   const [showFAQCompleteModal, setShowFAQCompleteModal] = useState(false)
-  const [selectedFAQ, setSelectedFAQ] = useState<any>(null)
+  const [selectedFAQ, setSelectedFAQ] = useState<{id: number; question: string; answer: string; category: string} | null>(null)
   
   // 일반문의 List 관리 관련 상태
   const [showGeneralInquiryList, setShowGeneralInquiryList] = useState(false)
   const [showGeneralInquiryReplyModal, setShowGeneralInquiryReplyModal] = useState(false)
   const [showGeneralInquiryEditModal, setShowGeneralInquiryEditModal] = useState(false)
   const [showGeneralInquiryDeleteModal, setShowGeneralInquiryDeleteModal] = useState(false)
-  const [selectedInquiry, setSelectedInquiry] = useState<any>(null)
+  const [selectedInquiry, setSelectedInquiry] = useState<{id: number; title: string; content: string; status: string} | null>(null)
   const [generalInquiryCurrentPage, setGeneralInquiryCurrentPage] = useState(1)
   const [generalInquirySearchStartDate, setGeneralInquirySearchStartDate] = useState(() => {
     const oneWeekAgo = new Date()
@@ -1367,7 +1367,7 @@ export default function ServiceManagerPage() {
                             const failedAngle = (chartData.failed / total) * 180
                             
                             // 호 그리기 함수
-                            const createArc = (startAngle, endAngle, color, strokeWidth = 48) => {
+                            const createArc = (startAngle: number, endAngle: number, color: string, strokeWidth: number = 48) => {
                               const start = polarToCartesian(centerX, centerY, radius, endAngle)
                               const end = polarToCartesian(centerX, centerY, radius, startAngle)
                               const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1"
@@ -1388,7 +1388,7 @@ export default function ServiceManagerPage() {
                             }
                             
                             // 극좌표를 직교좌표로 변환 (180도 회전)
-                            const polarToCartesian = (centerX, centerY, radius, angleInDegrees) => {
+                            const polarToCartesian = (centerX: number, centerY: number, radius: number, angleInDegrees: number) => {
                               const angleInRadians = (angleInDegrees + 90) * Math.PI / 180.0
                               return {
                                 x: centerX + (radius * Math.cos(angleInRadians)),
