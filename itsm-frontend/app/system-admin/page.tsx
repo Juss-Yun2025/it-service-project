@@ -698,6 +698,22 @@ function SystemAdminPageContent() {
     const today = new Date();
     return today.toISOString().split('T')[0];
   })
+  
+  // 서비스 집계 현황용 별도 상태 변수 (시스템 작업 리스트와 분리)
+  const [aggregationSelectedDepartment, setAggregationSelectedDepartment] = useState('전체')
+  const [aggregationStartDate, setAggregationStartDate] = useState(() => {
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    return oneMonthAgo.toISOString().split('T')[0];
+  })
+  const [aggregationEndDate, setAggregationEndDate] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  })
+  
+  // 서비스 집계 현황용 별도 데이터 (서비스 작업 List와 완전 분리)
+  const [aggregationServiceRequests, setAggregationServiceRequests] = useState<ServiceRequest[]>([])
+  const [aggregationLoading, setAggregationLoading] = useState(false)
   const [inquirySelectedDepartment, setInquirySelectedDepartment] = useState('')
   const [inquiryCurrentDepartment, setInquiryCurrentDepartment] = useState('전체 부서')
   const [inquiryStartDate, setInquiryStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 7)).toISOString().split('T')[0])
@@ -830,10 +846,43 @@ function SystemAdminPageContent() {
     }
   };
 
+  // 서비스 집계 현황용 별도 데이터 가져오기 (서비스 작업 List와 완전 분리)
+  const fetchAggregationServiceRequests = async () => {
+    setAggregationLoading(true);
+    try {
+      const params = {
+        startDate: aggregationStartDate,
+        endDate: aggregationEndDate,
+        department: aggregationSelectedDepartment !== '전체' ? aggregationSelectedDepartment : undefined,
+        showIncompleteOnly: false, // 집계 현황에서는 모든 상태 포함
+        page: 1,
+        limit: 1000 // 집계용이므로 충분한 데이터 가져오기
+      };
+
+      const response = await apiClient.getServiceRequests(params);
+      if (response.success && response.data) {
+        // API 응답 데이터를 프론트엔드 형식으로 변환
+        const transformedData = response.data.map((item: any) => mapServiceRequestData(item));
+        setAggregationServiceRequests(transformedData);
+      } else {
+        console.error('Failed to fetch aggregation service requests:', response.error);
+      }
+    } catch (error) {
+      console.error('Error fetching aggregation service requests:', error);
+    } finally {
+      setAggregationLoading(false);
+    }
+  };
+
   // 서비스 요청 데이터 가져오기 (검색 조건 변경 시마다)
   useEffect(() => {
     fetchServiceRequests();
   }, [serviceWorkSearchStartDate, serviceWorkSearchEndDate, serviceWorkSelectedDepartment, showServiceIncompleteOnly, serviceRequestsPagination.page]);
+
+  // 서비스 집계 현황용 데이터 가져오기 (집계 현황 검색 조건 변경 시마다)
+  useEffect(() => {
+    fetchAggregationServiceRequests();
+  }, [aggregationStartDate, aggregationEndDate, aggregationSelectedDepartment]);
 
   // 권한 목록 로드
   useEffect(() => {
@@ -1264,9 +1313,9 @@ function SystemAdminPageContent() {
     setShowInfoModal(true)
   }
 
-  // 차트 데이터 업데이트 함수
+  // 차트 데이터 업데이트 함수 (집계 현황용 별도 데이터 사용)
   const updateChartData = useCallback(() => {
-    // 실제 서비스 요청 데이터를 기반으로 부서별 통계 계산
+    // 집계 현황용 별도 데이터를 기반으로 부서별 통계 계산
     const departmentData: { [key: string]: { received: number, assigned: number, working: number, completed: number, failed: number } } = {};
     
     // 전체 부서 초기화
@@ -1277,18 +1326,8 @@ function SystemAdminPageContent() {
       departmentData[dept.name] = { received: 0, assigned: 0, working: 0, completed: 0, failed: 0 };
     });
     
-    // 날짜 필터링을 위한 시작일과 종료일 설정
-    const filterStartDate = new Date(startDate + 'T00:00:00');
-    const filterEndDate = new Date(endDate + 'T23:59:59');
-    
-    // 실제 서비스 요청 데이터를 기반으로 통계 계산 (날짜 필터링 적용)
-    serviceRequests.forEach(request => {
-      // 날짜 필터링: 신청일 기준
-      const requestDate = new Date(request.requestDate + 'T00:00:00');
-      if (requestDate < filterStartDate || requestDate > filterEndDate) {
-        return; // 날짜 범위를 벗어나면 제외
-      }
-      
+    // 집계 현황용 별도 데이터를 기반으로 통계 계산
+    aggregationServiceRequests.forEach(request => {
       const deptName = request.department || '';
       
       // 전체 통계 업데이트
@@ -1318,26 +1357,26 @@ function SystemAdminPageContent() {
       }
     });
     
-    // 선택된 부서 또는 전체 부서 데이터 사용
-    const selectedDept = selectedDepartment === '전체' ? '전체' : selectedDepartment;
+    // 선택된 부서 또는 전체 부서 데이터 사용 (집계 현황용 별도 변수 사용)
+    const selectedDept = aggregationSelectedDepartment === '전체' ? '전체' : aggregationSelectedDepartment;
     const data = departmentData[selectedDept] || departmentData['전체'] || { received: 0, assigned: 0, working: 0, completed: 0, failed: 0 };
     
-    // 실제 데이터를 그대로 사용 (가중치 제거)
+    // 실제 데이터를 그대로 사용 (가중치 제거) - NaN 방지
     setChartData({
-      received: data.received || 0,
-      assigned: data.assigned || 0,
-      working: data.working || 0,
-      completed: data.completed || 0,
-      failed: data.failed || 0
+      received: Math.max(0, data.received || 0),
+      assigned: Math.max(0, data.assigned || 0),
+      working: Math.max(0, data.working || 0),
+      completed: Math.max(0, data.completed || 0),
+      failed: Math.max(0, data.failed || 0)
     })
-  }, [serviceRequests, departments, selectedDepartment, startDate, endDate])
+  }, [aggregationServiceRequests, departments, aggregationSelectedDepartment])
 
-  // 서비스 요청 데이터나 부서 데이터가 변경될 때 차트 데이터 업데이트
+  // 집계 현황용 별도 데이터가 변경될 때 차트 데이터 업데이트 (서비스 작업 List와 완전 분리)
   useEffect(() => {
-    if (serviceRequests.length > 0 && departments.length > 0) {
+    if (aggregationServiceRequests.length > 0 && departments.length > 0) {
       updateChartData()
     }
-  }, [serviceRequests, departments, updateChartData])
+  }, [aggregationServiceRequests, departments, updateChartData])
 
   // 부서 데이터가 변경될 때 일반문의 데이터 업데이트
   useEffect(() => {
@@ -1380,10 +1419,7 @@ function SystemAdminPageContent() {
     setInquiryData(newData)
   }
 
-  // 부서나 날짜 변경 시 차트 데이터 업데이트
-  useEffect(() => {
-    updateChartData()
-  }, [selectedDepartment, startDate, endDate, updateChartData])
+  // 집계 현황 검색 조건 변경 시 별도 데이터 가져오기 (이미 fetchAggregationServiceRequests useEffect에서 처리됨)
 
   // 일반문의현황 부서나 날짜 변경 시 데이터 업데이트
   useEffect(() => {
@@ -1587,9 +1623,9 @@ function SystemAdminPageContent() {
                     {/* 부서 선택 */}
                     <div className="mb-4">
                       <select
-                        value={selectedDepartment}
+                        value={aggregationSelectedDepartment}
                         onChange={(e) => {
-                          setSelectedDepartment(e.target.value)
+                          setAggregationSelectedDepartment(e.target.value)
                           setCurrentDepartment(e.target.value || 'IT팀')
                         }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
@@ -1610,15 +1646,15 @@ function SystemAdminPageContent() {
                       <div className="flex items-center space-x-1">
                         <input
                           type="date"
-                          value={startDate}
-                          onChange={(e) => setStartDate(e.target.value)}
+                          value={aggregationStartDate}
+                          onChange={(e) => setAggregationStartDate(e.target.value)}
                           className="w-full px-2 py-2 border border-gray-300 rounded-lg text-xs"
                         />
                         <span className="text-gray-500 text-sm">~</span>
                         <input
                           type="date"
-                          value={endDate}
-                          onChange={(e) => setEndDate(e.target.value)}
+                          value={aggregationEndDate}
+                          onChange={(e) => setAggregationEndDate(e.target.value)}
                           className="w-full px-2 py-2 border border-gray-300 rounded-lg text-xs"
                         />
                       </div>
@@ -1634,17 +1670,37 @@ function SystemAdminPageContent() {
                             const centerX = 150
                             const centerY = 100
                             
-                            // 각 섹션의 각도 계산 (180도 반원)
-                            const receivedAngle = (chartData.received / total) * 180
-                            const assignedAngle = (chartData.assigned / total) * 180
-                            const workingAngle = (chartData.working / total) * 180
-                            const completedAngle = (chartData.completed / total) * 180
-                            const failedAngle = (chartData.failed / total) * 180
+                            // total이 0이면 빈 차트 표시
+                            if (total === 0) {
+                              return (
+                                <text x={centerX} y={centerY} textAnchor="middle" className="text-gray-500 text-sm">
+                                  데이터 없음
+                                </text>
+                              )
+                            }
+                            
+                            // 각 섹션의 각도 계산 (180도 반원) - NaN 방지
+                            const receivedAngle = total > 0 ? (chartData.received / total) * 180 : 0
+                            const assignedAngle = total > 0 ? (chartData.assigned / total) * 180 : 0
+                            const workingAngle = total > 0 ? (chartData.working / total) * 180 : 0
+                            const completedAngle = total > 0 ? (chartData.completed / total) * 180 : 0
+                            const failedAngle = total > 0 ? (chartData.failed / total) * 180 : 0
                             
                             // 호 그리기 함수
                             const createArc = (startAngle, endAngle, color, strokeWidth = 48) => {
+                              // 각도가 유효하지 않으면 빈 path 반환
+                              if (!isFinite(startAngle) || !isFinite(endAngle) || startAngle === endAngle) {
+                                return null
+                              }
+                              
                               const start = polarToCartesian(centerX, centerY, radius, endAngle)
                               const end = polarToCartesian(centerX, centerY, radius, startAngle)
+                              
+                              // 좌표가 유효하지 않으면 빈 path 반환
+                              if (!isFinite(start.x) || !isFinite(start.y) || !isFinite(end.x) || !isFinite(end.y)) {
+                                return null
+                              }
+                              
                               const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1"
                               const d = [
                                 "M", start.x, start.y,
@@ -1664,11 +1720,21 @@ function SystemAdminPageContent() {
                             
                             // 극좌표를 직교좌표로 변환 (180도 회전)
                             const polarToCartesian = (centerX, centerY, radius, angleInDegrees) => {
-                              const angleInRadians = (angleInDegrees + 90) * Math.PI / 180.0
-                              return {
-                                x: centerX + (radius * Math.cos(angleInRadians)),
-                                y: centerY + (radius * Math.sin(angleInRadians))
+                              // 각도가 유효하지 않으면 기본값 반환
+                              if (!isFinite(angleInDegrees)) {
+                                return { x: centerX, y: centerY }
                               }
+                              
+                              const angleInRadians = (angleInDegrees + 90) * Math.PI / 180.0
+                              const x = centerX + (radius * Math.cos(angleInRadians))
+                              const y = centerY + (radius * Math.sin(angleInRadians))
+                              
+                              // 계산 결과가 유효하지 않으면 기본값 반환
+                              if (!isFinite(x) || !isFinite(y)) {
+                                return { x: centerX, y: centerY }
+                              }
+                              
+                              return { x, y }
                             }
                             
                             let currentAngle = 0
@@ -1902,9 +1968,9 @@ function SystemAdminPageContent() {
                       </select>
                     </div>
                     
-                    {/* 미결완료조회 토글 - 우측 끝 배치 */}
+                    {/* 진행중...조회 토글 - 우측 끝 배치 */}
                     <div className="flex items-center space-x-3">
-                      <span className="text-sm font-medium text-gray-700">미결완료조회</span>
+                      <span className="text-sm font-medium text-gray-700">진행중...조회</span>
                       <button
                         onClick={() => setShowServiceIncompleteOnly(!showServiceIncompleteOnly)}
                         className={`w-8 h-4 rounded-full transition-colors ${
