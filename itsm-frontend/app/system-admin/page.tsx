@@ -400,7 +400,7 @@ function SystemAdminPageContent() {
     // 현재일 (실제 운영 시에는 이 값 사용)
     return new Date().toISOString().split('T')[0]
   })
-  const [showServiceIncompleteOnly, setShowServiceIncompleteOnly] = useState(false)
+  const [serviceWorkSelectedStage, setServiceWorkSelectedStage] = useState('전체')
   const [serviceWorkSelectedDepartment, setServiceWorkSelectedDepartment] = useState('전체')
   const [serviceWorkCurrentPage, setServiceWorkCurrentPage] = useState(1)
   
@@ -441,6 +441,7 @@ function SystemAdminPageContent() {
       setStagesLoading(true);
       const response = await apiClient.getStages();
       if (response.success && response.data) {
+        console.log('Stages 로드됨:', response.data);
         setStages(response.data);
       }
     } catch (error) {
@@ -776,7 +777,7 @@ function SystemAdminPageContent() {
   // 검색 조건 변경 시 페이지 리셋
   useEffect(() => {
     setServiceWorkCurrentPage(1)
-  }, [serviceWorkSearchStartDate, serviceWorkSearchEndDate, showServiceIncompleteOnly, serviceWorkSelectedDepartment])
+  }, [serviceWorkSearchStartDate, serviceWorkSearchEndDate, serviceWorkSelectedStage, serviceWorkSelectedDepartment])
 
   // 서비스현황 리포트 검색 조건 변경 시 페이지 리셋
   useEffect(() => {
@@ -816,10 +817,12 @@ function SystemAdminPageContent() {
         startDate: serviceWorkSearchStartDate,
         endDate: serviceWorkSearchEndDate,
         department: serviceWorkSelectedDepartment !== '전체' ? serviceWorkSelectedDepartment : undefined,
-        showIncompleteOnly: showServiceIncompleteOnly,
+        stage: serviceWorkSelectedStage !== '전체' ? serviceWorkSelectedStage : undefined,
         page: serviceRequestsPagination.page,
         limit: serviceRequestsPagination.limit
       };
+      
+      console.log('API 호출 파라미터:', params);
       
       const response = await apiClient.getServiceRequests(params);
       if (response.success && response.data) {
@@ -877,7 +880,7 @@ function SystemAdminPageContent() {
   // 서비스 요청 데이터 가져오기 (검색 조건 변경 시마다)
   useEffect(() => {
     fetchServiceRequests();
-  }, [serviceWorkSearchStartDate, serviceWorkSearchEndDate, serviceWorkSelectedDepartment, showServiceIncompleteOnly, serviceRequestsPagination.page]);
+  }, [serviceWorkSearchStartDate, serviceWorkSearchEndDate, serviceWorkSelectedDepartment, serviceWorkSelectedStage, serviceRequestsPagination.page]);
 
   // 서비스 집계 현황용 데이터 가져오기 (집계 현황 검색 조건 변경 시마다)
   useEffect(() => {
@@ -1138,8 +1141,14 @@ function SystemAdminPageContent() {
       return false;
     }
     
-    // 미완료 조회 필터링
-    if (showServiceIncompleteOnly && request.stage === '완료') {
+    // 단계 필터링
+    if (serviceWorkSelectedStage !== '전체' && request.stage !== serviceWorkSelectedStage) {
+      console.log('단계 필터링:', {
+        selectedStage: serviceWorkSelectedStage,
+        requestStage: request.stage,
+        requestNumber: request.requestNumber,
+        match: request.stage === serviceWorkSelectedStage
+      });
       return false;
     }
     
@@ -1968,19 +1977,25 @@ function SystemAdminPageContent() {
                       </select>
                     </div>
                     
-                    {/* 진행중...조회 토글 - 우측 끝 배치 */}
+                    {/* 단계 선택 드롭다운 - 우측 끝 배치 */}
                     <div className="flex items-center space-x-3">
-                      <span className="text-sm font-medium text-gray-700">진행중...조회</span>
-                      <button
-                        onClick={() => setShowServiceIncompleteOnly(!showServiceIncompleteOnly)}
-                        className={`w-8 h-4 rounded-full transition-colors ${
-                          showServiceIncompleteOnly ? 'bg-green-500' : 'bg-gray-400'
-                        }`}
+                      <span className="text-sm font-medium text-gray-700">단계</span>
+                      <select
+                        value={serviceWorkSelectedStage}
+                        onChange={(e) => {
+                          console.log('단계 선택 변경:', e.target.value);
+                          setServiceWorkSelectedStage(e.target.value);
+                        }}
+                        className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
+                        disabled={stagesLoading}
                       >
-                        <div className={`w-3 h-3 bg-white rounded-full transition-transform ${
-                          showServiceIncompleteOnly ? 'translate-x-4' : 'translate-x-0.5'
-                        }`} />
-                </button>
+                        <option value="전체">전체</option>
+                        {stages.map((stage) => (
+                          <option key={stage.id} value={stage.name}>
+                            {stage.name}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 </div>
