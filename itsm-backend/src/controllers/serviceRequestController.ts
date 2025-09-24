@@ -33,6 +33,7 @@ export interface ServiceRequest {
   previous_assignment_opinion?: string;
   rejection_date?: string;
   rejection_opinion?: string;
+  rejection_name?: string;
   scheduled_date?: string;
   work_start_date?: string;
   work_content?: string;
@@ -73,8 +74,8 @@ export const getAllServiceRequests = async (req: Request, res: Response): Promis
              sr.technician_name, sr.technician_department, sr.content, sr.contact,
              sr.location, sr.actual_contact, sr.actual_requester_name, sr.actual_requester_department,
              st.name as service_type, TO_CHAR(sr.completion_date, 'YYYY-MM-DD') as completion_date,
-             sr.assignment_opinion, TO_CHAR(sr.previous_assign_date, 'YYYY-MM-DD') as previous_assign_date, sr.previous_assignee,
-             sr.previous_assignment_opinion, TO_CHAR(sr.rejection_date, 'YYYY-MM-DD') as rejection_date, sr.rejection_opinion,
+             sr.assignment_opinion, TO_CHAR(sr.previous_assign_date, 'YYYY-MM-DD"T"HH24:MI:SS') as previous_assign_date, sr.previous_assignee,
+             sr.previous_assignment_opinion, TO_CHAR(sr.rejection_date, 'YYYY-MM-DD"T"HH24:MI:SS') as rejection_date, sr.rejection_opinion, sr.rejection_name,
              TO_CHAR(sr.scheduled_date, 'YYYY-MM-DD"T"HH24:MI') as scheduled_date, TO_CHAR(sr.work_start_date, 'YYYY-MM-DD"T"HH24:MI') as work_start_date, sr.work_content,
              TO_CHAR(sr.work_complete_date, 'YYYY-MM-DD"T"HH24:MI') as work_complete_date, sr.problem_issue, sr.is_unresolved,
              s.name as stage, sr.stage_id, sr.assign_time, TO_CHAR(sr.assign_date, 'YYYY-MM-DD"T"HH24:MI') as assign_date,
@@ -507,6 +508,12 @@ export const updateServiceRequest = async (req: Request, res: Response): Promise
     
     paramCount++;
     values.push(id);
+
+    // assignee_opinion을 assignment_opinion으로 변환
+    if (updateData.assignee_opinion !== undefined) {
+      updateData.assignment_opinion = updateData.assignee_opinion;
+      delete updateData.assignee_opinion;
+    }
 
     const query = `
       UPDATE service_requests 

@@ -86,6 +86,7 @@ const startServer = async () => {
     // Connect to database
     await db.connect();
     
+    
     // Start listening
     app.listen(PORT, () => {
       console.log(`🚀 ITSM Backend API Server running on port ${PORT}`);

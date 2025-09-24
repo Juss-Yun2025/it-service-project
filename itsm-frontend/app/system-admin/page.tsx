@@ -33,13 +33,14 @@ interface ServiceRequest {
   actualRequesterDepartment?: string
   serviceType: string
   completionDate?: string
-  // 배정 관련 필드들
+  // 배정 관련 필드들 (백엔드 응답과 매칭)
   assignmentOpinion?: string
   previousAssignDate?: string
   previousAssignee?: string
   previousAssignmentOpinion?: string
   rejectionDate?: string
   rejectionOpinion?: string
+  rejectionName?: string
   // 작업정보등록 관련 필드들
   scheduledDate?: string
   workStartDate?: string
@@ -55,6 +56,51 @@ interface PendingWork {
   technician: string
   lastWeekPending: number
   longTermPending: number
+}
+
+// 공통 서비스 요청 데이터 매핑 함수
+const mapServiceRequestData = (rawData: any): ServiceRequest => {
+  return {
+    id: rawData.id?.toString() || '',
+    requestNumber: rawData.request_number || '',
+    title: rawData.title || '',
+    currentStatus: rawData.current_status || '',
+    requestDate: rawData.request_date || '',
+    requestTime: rawData.request_time || '',
+    requester: rawData.requester_name || '',
+    department: rawData.requester_department || '',
+    stage: rawData.stage || '',
+    assignTime: rawData.assign_time || '',
+    assignDate: rawData.assign_date || '',
+    assignee: rawData.assignee_name || '',
+    assigneeDepartment: rawData.assignee_department || '',
+    technician: rawData.technician_name || '',
+    technicianDepartment: rawData.technician_department || '',
+    content: rawData.content || '',
+    contact: rawData.contact || '',
+    location: rawData.location || '',
+    actualRequester: rawData.actual_requester_name || '',
+    actualContact: rawData.actual_contact || '',
+    actualRequesterDepartment: rawData.actual_requester_department || '',
+    serviceType: rawData.service_type || '',
+    completionDate: rawData.completion_date || '',
+    // 이전 배정 정보 필드들 추가
+    assignmentOpinion: rawData.assignment_opinion || '',
+    previousAssignDate: rawData.previous_assign_date || '',
+    previousAssignee: rawData.previous_assignee || '',
+    previousAssignmentOpinion: rawData.previous_assignment_opinion || '',
+    rejectionDate: rawData.rejection_date || '',
+    rejectionOpinion: rawData.rejection_opinion || '',
+    rejectionName: rawData.rejection_name || '',
+    // 작업정보등록 관련 필드들
+    scheduledDate: rawData.scheduled_date || '',
+    workStartDate: rawData.work_start_date || '',
+    workContent: rawData.work_content || '',
+    workCompleteDate: rawData.work_complete_date || '',
+    problemIssue: rawData.problem_issue || '',
+    isUnresolved: rawData.is_unresolved || false,
+    stageId: rawData.stage_id || 0
+  }
 }
 
 function SystemAdminPageContent() {
@@ -761,41 +807,8 @@ function SystemAdminPageContent() {
       
       const response = await apiClient.getServiceRequests(params);
       if (response.success && response.data) {
-        // API 응답 데이터를 프론트엔드 형식으로 변환
-        const transformedData = response.data.map((item: ServiceRequest) => ({
-          id: item.id.toString(),
-          requestNumber: item.request_number,
-          title: item.title,
-          currentStatus: item.current_status,
-          requestDate: item.request_date || '',
-          requestTime: item.request_time ? item.request_time.substring(0, 5) : null,
-          requester: item.requester_name,
-          department: item.requester_department,
-          stage: item.stage,
-          assignTime: item.assign_time ? item.assign_time.substring(0, 5) : null,
-          assignDate: item.assign_date ? item.assign_date.substring(0, 10) : '',
-          assignee: item.assignee_name || '',
-          assigneeDepartment: item.assignee_department || '',
-          technician: item.technician_name || '',
-          technicianDepartment: item.technician_department || '',
-          content: item.content,
-          contact: item.contact || '',
-          location: item.location || '',
-          serviceType: item.service_type,
-          completionDate: item.completion_date || '',
-          assignmentOpinion: item.assignment_opinion || '',
-          workContent: item.work_content || '',
-          actualRequester: item.actual_requester_name || '',
-          actualContact: item.actual_contact || '',
-          actualRequesterDepartment: item.actual_requester_department || '',
-          problemIssue: item.problem_issue || '',
-          isUnresolved: item.is_unresolved || false,
-          stageId: item.stage_id,
-          // 작업정보등록 관련 필드들 추가
-          scheduledDate: item.scheduled_date || '',
-          workStartDate: item.work_start_date || '',
-          workCompleteDate: item.work_complete_date || ''
-        }));
+        // API 응답 데이터를 프론트엔드 형식으로 변환 (mapServiceRequestData 함수 사용)
+        const transformedData = response.data.map((item: any) => mapServiceRequestData(item));
         
         setServiceRequests(transformedData);
         
@@ -4518,7 +4531,7 @@ function SystemAdminPageContent() {
                         </div>
                   
                   <div className="space-y-0">
-                      <div>
+                    <div>
                         <label className="block text-sm font-medium text-gray-600 mb-1">조치 소속</label>
                         <select 
                           value={assignmentDepartment}
@@ -4529,8 +4542,8 @@ function SystemAdminPageContent() {
                           {departments.map(dept => (
                             <option key={dept.id} value={dept.name}>{dept.name}</option>
                           ))}
-                        </select>
-                      </div>
+                      </select>
+                        </div>
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-1">조치 담당자</label>
@@ -4617,6 +4630,12 @@ function SystemAdminPageContent() {
                       currentUser = JSON.parse(userStr);
                     }
                     
+                    // 사용자 정보가 없으면 오류 처리
+                    if (!currentUser) {
+                      alert('로그인 정보를 찾을 수 없습니다. 다시 로그인해주세요.');
+                      return;
+                    }
+                    
                     const updateData = {
                       stage: '배정',
                       // 조치소속은 technician_department에 저장
@@ -4632,9 +4651,9 @@ function SystemAdminPageContent() {
                       assign_date: new Date().toISOString(), // YYYY-MM-DDTHH:MM:SS.sssZ 형식
                       assign_time: new Date().toTimeString().split(' ')[0].substring(0, 5), // HH:MM 형식
                       // 배정담당자는 현재 로그인 사용자 (assignee_name, assignee_id, assignee_department)
-                      assignee_name: currentUser?.name || '시스템관리자',
-                      assignee_id: currentUser?.id || null,
-                      assignee_department: currentUser?.department || '시스템관리팀'
+                      assignee_name: currentUser.name,
+                      assignee_id: currentUser.id,
+                      assignee_department: currentUser.department
                     };
                     
                     const response = await apiClient.put(`/service-requests/${selectedWorkRequest?.id}`, updateData);
@@ -4811,7 +4830,7 @@ function SystemAdminPageContent() {
                     </div>
                     
                     <div>
-                      <label className="block text-sm font-medium text-gray-600 mb-1">재배정의견</label>
+                      <label className="block text-sm font-medium text-gray-600 mb-1">재 배정 의견</label>
                       <textarea 
                         value={reassignmentOpinion}
                         onChange={(e) => setReassignmentOpinion(e.target.value)}
@@ -4823,7 +4842,7 @@ function SystemAdminPageContent() {
                     <div>
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="calendar" size={14} className="mr-1" />
-                        재배정일시(현재): 
+                        재 배정 일시(현재): 
                       </span>
                       <span className="text-sm ml-5">
                         {new Date().toLocaleString('ko-KR', { 
@@ -4838,7 +4857,11 @@ function SystemAdminPageContent() {
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-1">서비스 조치 유형</label>
-                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <select 
+                        value={reassignmentServiceType}
+                        onChange={(e) => setReassignmentServiceType(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
                         {serviceTypes.map(type => (
                           <option key={type.id} value={type.name}>{type.name}</option>
                         ))}
@@ -4851,38 +4874,55 @@ function SystemAdminPageContent() {
                       
                       <div className="space-y-0">
                         <div>
-                          <span className="text-xs font-medium text-gray-500">전) 배정일시: </span>
+                          <span className="text-xs font-medium text-gray-500">전) 배정 일시 : </span>
                           <span className="text-xs ml-2">
-                            {selectedWorkRequest.assignDate && selectedWorkRequest.assignTime 
-                              ? `${selectedWorkRequest.assignDate} ${selectedWorkRequest.assignTime}`
-                              : '-'
-                            }
+                            {(() => {
+                              const dateStr = (selectedWorkRequest as any)?.previous_assign_date || selectedWorkRequest.previousAssignDate;
+                              if (!dateStr) return '-';
+                              const date = new Date(dateStr);
+                              return date.toISOString().slice(0, 16).replace('T', ' ');
+                            })()}
                           </span>
                         </div>
                         
                         <div>
-                          <span className="text-xs font-medium text-gray-500">전) 배정담당자: </span>
+                          <span className="text-xs font-medium text-gray-500">전) 배정 담당자 : </span>
                           <span className="text-xs ml-2">
-                            {selectedWorkRequest.assignee && selectedWorkRequest.assigneeDepartment
-                              ? `${selectedWorkRequest.assignee} (${selectedWorkRequest.assigneeDepartment})`
-                              : '-'
-                            }
+                            {(selectedWorkRequest as any)?.previous_assignee || selectedWorkRequest.previousAssignee || '-'}
                           </span>
                         </div>
                         
                         <div>
-                          <span className="text-xs font-medium text-gray-500">전) 배정의견: </span>
-                          <span className="text-xs ml-2">{selectedWorkRequest.assignmentOpinion || '-'}</span>
+                          <span className="text-xs font-medium text-gray-500">전) 배정 의견 : </span>
+                          <span className="text-xs ml-2">
+                            {(selectedWorkRequest as any)?.previous_assignment_opinion || selectedWorkRequest.previousAssignmentOpinion || '-'}
+                          </span>
                         </div>
                         
                         <div>
-                          <span className="text-xs font-medium text-gray-500">전) 조치담당자: </span>
-                          <span className="text-xs ml-2">{selectedWorkRequest.technician || '-'}</span>
+                          <span className="text-xs font-medium text-gray-500">전) 조치담당자(반려) : </span>
+                          <span className="text-xs ml-2">
+                            {(selectedWorkRequest as any)?.rejection_name || selectedWorkRequest.rejectionName || '-'}
+                          </span>
                         </div>
                         
                         <div>
-                          <span className="text-xs font-medium text-red-600">반려의견: </span>
-                          <span className="text-xs ml-2 text-red-600">{selectedWorkRequest.rejectionOpinion || '-'}</span>
+                          <span className="text-xs font-medium text-red-600">반려 의견 : </span>
+                          <span className="text-xs ml-2 text-red-600">
+                            {(selectedWorkRequest as any)?.rejection_opinion || selectedWorkRequest.rejectionOpinion || '-'}
+                          </span>
+                        </div>
+                        
+                        <div>
+                          <span className="text-xs font-medium text-gray-500">반려 일시 : </span>
+                          <span className="text-xs ml-2">
+                            {(() => {
+                              const dateStr = (selectedWorkRequest as any)?.rejection_date || selectedWorkRequest.rejectionDate;
+                              if (!dateStr) return '-';
+                              const date = new Date(dateStr);
+                              return date.toISOString().slice(0, 16).replace('T', ' ');
+                            })()}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -4919,24 +4959,43 @@ function SystemAdminPageContent() {
                       currentUser = JSON.parse(userStr);
                     }
                     
+                    // 사용자 정보가 없으면 오류 처리
+                    if (!currentUser) {
+                      alert('로그인 정보를 찾을 수 없습니다. 다시 로그인해주세요.');
+                      return;
+                    }
+                    
+                    // 재배정(3)에서 배정(2)으로 돌아가기
                     const updateData = {
-                      stage: '재배정',
+                      stage_id: 2, // 배정 단계 ID 직접 사용
+                      // stage_id는 백엔드에서 stage 이름으로 자동 변환됨
+                      
+                      // 배정담당자 정보 (재배정하기를 클릭한 현재 로그인 사용자)
+                      assignee_id: currentUser.id,
+                      assignee_name: currentUser.name,
+                      assignee_department: currentUser.department,
+                      
+                      // 배정 일시 (현재시점 기준)
+                      assign_date: new Date().toISOString().replace('T', ' ').substring(0, 19), // YYYY-MM-DD HH:mm:ss 형식
+                      assign_time: new Date().toTimeString().split(' ')[0].substring(0, 5), // HH:MM 형식
+                      
                       // 조치소속은 technician_department에 저장
                       technician_department: reassignmentDepartment,
                       // 조치자는 technician_name과 technician_id에 저장
                       technician_name: reassignmentTechnician,
                       technician_id: technicianId,
-                      // 배정의견은 assignment_opinion에 저장
+                      // 재배정의견은 assignment_opinion에 저장
                       assignment_opinion: reassignmentOpinion,
-                      // 서비스 타입
+                      // 서비스 타입 (service_type_id로 저장)
                       service_type: reassignmentServiceType,
-                      // 배정일시는 현재시점 기준 assign_date(날짜+시간)와 assign_time(시간만)에 저장
-                      assign_date: new Date().toISOString(), // YYYY-MM-DDTHH:MM:SS.sssZ 형식
-                      assign_time: new Date().toTimeString().split(' ')[0].substring(0, 5), // HH:MM 형식
-                      // 배정담당자는 현재 로그인 사용자 (assignee_name, assignee_id, assignee_department)
-                      assignee_name: currentUser?.name || '시스템관리자',
-                      assignee_id: currentUser?.id || null,
-                      assignee_department: currentUser?.department || '시스템관리팀'
+                      // 이전 배정 정보 저장
+                      previous_assign_date: selectedWorkRequest.assignDate || null,
+                      previous_assignee: selectedWorkRequest.assignee || null,
+                      previous_assignment_opinion: selectedWorkRequest.assignmentOpinion || null,
+                      // 반려 정보 저장
+                      rejection_name: selectedWorkRequest.technician || null,
+                      rejection_date: selectedWorkRequest.rejectionDate || null,
+                      rejection_opinion: selectedWorkRequest.rejectionOpinion || null
                     };
                     
                     const response = await apiClient.put(`/service-requests/${selectedWorkRequest?.id}`, updateData);
