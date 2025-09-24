@@ -36,12 +36,13 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     
     // Get user roles from user_roles table
     const roleResult = await db.query(
-      'SELECT r.name FROM roles r JOIN user_roles ur ON r.id = ur.role_id WHERE ur.user_id = $1',
+      'SELECT r.id as role_id, r.name FROM roles r JOIN user_roles ur ON r.id = ur.role_id WHERE ur.user_id = $1',
       [user.id]
     );
     
     const userRoles = roleResult.rows.map(row => row.name);
     const primaryRole = userRoles[0] || '일반사용자'; // 기본 역할
+    const primaryRoleId = roleResult.rows[0]?.role_id || 2; // 기본 role_id (일반사용자)
     
     console.log('User found:', { 
       id: user.id, 
@@ -92,7 +93,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         token,
         user: {
           ...userWithoutPassword,
-          role: primaryRole
+          role: primaryRole,
+          role_id: primaryRoleId
         }
       },
       message: 'Login successful'

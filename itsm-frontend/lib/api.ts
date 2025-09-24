@@ -870,6 +870,11 @@ class ApiClient {
       method: 'DELETE'
     });
   }
+
+  // 모든 역할 조회
+  async getRoles(): Promise<ApiResponse<Role[]>> {
+    return this.request<Role[]>('/api/roles');
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);

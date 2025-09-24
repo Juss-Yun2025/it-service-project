@@ -62,10 +62,21 @@ export const getAllServiceRequests = async (req: Request, res: Response): Promis
       startDate, 
       endDate, 
       department, 
+      stage,
       showIncompleteOnly,
       page = 1,
       limit = 10
     } = req.query;
+    
+    console.log('서비스 요청 검색 파라미터:', {
+      startDate,
+      endDate,
+      department,
+      stage,
+      showIncompleteOnly,
+      page,
+      limit
+    });
 
     let query = `
       SELECT sr.id, sr.request_number, sr.title, cs.name as current_status,
@@ -101,6 +112,7 @@ export const getAllServiceRequests = async (req: Request, res: Response): Promis
       paramCount++;
       query += ` AND sr.request_date <= $${paramCount}`;
       queryParams.push(endDate);
+      console.log('날짜 필터링 적용:', startDate, '~', endDate);
     }
 
     // 부서 필터 (조치담당자 부서 기준)
@@ -108,11 +120,22 @@ export const getAllServiceRequests = async (req: Request, res: Response): Promis
       paramCount++;
       query += ` AND sr.technician_department = $${paramCount}`;
       queryParams.push(department);
+      console.log('부서 필터링 적용:', department);
     }
 
-    // 미완료 조회 필터
+    // 단계 필터링
+    if (stage) {
+      paramCount++;
+      query += ` AND s.name = $${paramCount}`;
+      queryParams.push(stage);
+      console.log('단계 필터링 적용:', stage);
+      console.log('단계 필터링 쿼리 조건:', `s.name = $${paramCount}`);
+    }
+
+    // 진행중..조회 필터 (stage_id가 7=완료, 8=미결을 제외한 모든 것)
     if (showIncompleteOnly === 'true') {
-      query += ` AND sr.stage != '완료'`;
+      query += ` AND sr.stage_id NOT IN (7, 8)`;
+      console.log('진행중..조회 필터링 적용: 완료/미결 제외');
     }
 
     // 정렬
@@ -128,7 +151,15 @@ export const getAllServiceRequests = async (req: Request, res: Response): Promis
     query += ` OFFSET $${paramCount}`;
     queryParams.push(offset);
 
+    console.log('최종 쿼리:', query);
+    console.log('쿼리 파라미터:', queryParams);
+    
     const result = await db.query<ServiceRequest>(query, queryParams);
+    console.log('쿼리 결과 개수:', result.rows.length);
+    console.log('쿼리 결과 단계별 분포:', result.rows.reduce((acc, row) => {
+      acc[row.stage] = (acc[row.stage] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>));
 
     // 총 개수 조회
     let countQuery = `
@@ -159,8 +190,15 @@ export const getAllServiceRequests = async (req: Request, res: Response): Promis
       countParams.push(department);
     }
 
+    if (stage) {
+      countParamCount++;
+      countQuery += ` AND s.name = $${countParamCount}`;
+      countParams.push(stage);
+      console.log('카운트 쿼리 단계 필터링 적용:', stage);
+    }
+
     if (showIncompleteOnly === 'true') {
-      countQuery += ` AND sr.stage != '완료'`;
+      countQuery += ` AND sr.stage_id NOT IN (7, 8)`;
     }
 
     const countResult = await db.query<{total: string}>(countQuery, countParams);
