@@ -1,5 +1,5 @@
 import express from 'express';
-import { getAllUsers, getUserById, updateUser, deleteUser, resetUserPassword } from '../controllers/userController';
+import { getAllUsers, getUserById, updateUser, deleteUser, resetUserPassword, changeUserPassword } from '../controllers/userController';
 import { authenticateToken, requireAdmin } from '../middleware/auth';
 import { validateRequired } from '../middleware/validation';
 
@@ -22,5 +22,8 @@ router.delete('/:id', requireAdmin, deleteUser);
 
 // Reset user password (admin only)
 router.post('/:id/reset-password', requireAdmin, resetUserPassword);
+
+// Change user password (user can change their own password)
+router.post('/:id/change-password', validateRequired(['currentPassword', 'newPassword']), changeUserPassword);
 
 export default router;

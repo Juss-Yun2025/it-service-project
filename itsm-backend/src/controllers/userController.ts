@@ -14,6 +14,7 @@ export const getAllUsers = async (req: Request, res: Response): Promise<void> =>
       status,
       department,
       role,
+      roleId,
       startDate,
       endDate,
       sortBy = 'created_at',
@@ -58,6 +59,16 @@ export const getAllUsers = async (req: Request, res: Response): Promise<void> =>
         WHERE ur.user_id = u.id AND r.name = $${paramIndex} AND r.is_active = true
       )`);
       queryParams.push(role);
+      paramIndex++;
+    }
+
+    // roleId 필터는 user_roles 테이블을 통해 처리 (role보다 우선)
+    if (roleId) {
+      whereConditions.push(`EXISTS (
+        SELECT 1 FROM user_roles ur 
+        WHERE ur.user_id = u.id AND ur.role_id = $${paramIndex}
+      )`);
+      queryParams.push(roleId);
       paramIndex++;
     }
 
@@ -194,14 +205,27 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
 
       return;}
 
-    // Update user
-    const result = await db.query<User>(
-      `UPDATE users 
-       SET name = $1, department = $2, position = $3, phone = $4, status = $5, updated_at = CURRENT_TIMESTAMP
-       WHERE id = $6
-       RETURNING id, email, name, department, position, phone, status, created_at, updated_at, last_login`,
-      [name, department, position, phone, status, id]
-    );
+    // Update user - status가 제공되지 않으면 기존 값 유지
+    let updateQuery;
+    let queryParams;
+    
+    if (status !== undefined && status !== null) {
+      // status가 제공된 경우
+      updateQuery = `UPDATE users 
+                     SET name = $1, department = $2, position = $3, phone = $4, status = $5, updated_at = CURRENT_TIMESTAMP
+                     WHERE id = $6
+                     RETURNING id, email, name, department, position, phone, status, created_at, updated_at, last_login`;
+      queryParams = [name, department, position, phone, status, id];
+    } else {
+      // status가 제공되지 않은 경우 - 기존 status 유지
+      updateQuery = `UPDATE users 
+                     SET name = $1, department = $2, position = $3, phone = $4, updated_at = CURRENT_TIMESTAMP
+                     WHERE id = $5
+                     RETURNING id, email, name, department, position, phone, status, created_at, updated_at, last_login`;
+      queryParams = [name, department, position, phone, id];
+    }
+    
+    const result = await db.query<User>(updateQuery, queryParams);
 
     // 권한 업데이트 (role이 제공된 경우)
     if (role) {
@@ -330,5 +354,88 @@ export const resetUserPassword = async (req: Request, res: Response): Promise<vo
     } as ApiResponse);
   
 
-    return;}
+  return;}
+};
+
+// 사용자 비밀번호 변경 (현재 비밀번호 확인 후 변경)
+export const changeUserPassword = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { currentPassword, newPassword } = req.body;
+
+    // 입력값 검증
+    if (!currentPassword || !newPassword) {
+      res.status(400).json({
+        success: false,
+        message: '현재 비밀번호와 새 비밀번호를 모두 입력해주세요.'
+      } as ApiResponse);
+      return;
+    }
+
+    // 새 비밀번호 강도 검증
+    if (newPassword.length < 8) {
+      res.status(400).json({
+        success: false,
+        message: '새 비밀번호는 8자 이상이어야 합니다.'
+      } as ApiResponse);
+      return;
+    }
+
+    // 영문, 숫자, 특수문자 포함 검증
+    const passwordRegex = /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]).{8,}$/;
+    if (!passwordRegex.test(newPassword)) {
+      res.status(400).json({
+        success: false,
+        message: '새 비밀번호는 영문, 숫자, 특수문자를 포함해야 합니다.'
+      } as ApiResponse);
+      return;
+    }
+
+    // 사용자 존재 확인 및 현재 비밀번호 검증
+    const user = await db.query<User>(
+      'SELECT id, password_hash FROM users WHERE id = $1',
+      [id]
+    );
+
+    if (user.rows.length === 0) {
+      res.status(404).json({
+        success: false,
+        message: '사용자를 찾을 수 없습니다.'
+      } as ApiResponse);
+      return;
+    }
+
+    // 현재 비밀번호 확인
+    const bcrypt = require('bcrypt');
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.rows[0].password_hash);
+    
+    if (!isCurrentPasswordValid) {
+      res.status(400).json({
+        success: false,
+        message: '현재 비밀번호가 올바르지 않습니다.'
+      } as ApiResponse);
+      return;
+    }
+
+    // 새 비밀번호 해시화
+    const hashedNewPassword = await hashPassword(newPassword);
+
+    // 비밀번호 업데이트
+    await db.query(
+      'UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+      [hashedNewPassword, id]
+    );
+
+    res.status(200).json({
+      success: true,
+      message: '비밀번호가 성공적으로 변경되었습니다.'
+    } as ApiResponse);
+
+  } catch (error) {
+    console.error('Change user password error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    } as ApiResponse);
+  }
 };

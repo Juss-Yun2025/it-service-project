@@ -507,6 +507,13 @@ class ApiClient {
     });
   }
 
+  async changeUserPassword(id: string, currentPassword: string, newPassword: string): Promise<ApiResponse<void>> {
+    return this.request<void>(`/api/users/${id}/change-password`, {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+  }
+
   // 현재 사용자 정보 가져오기
   getCurrentUser(): User | null {
     if (typeof window !== 'undefined') {
