@@ -5,9 +5,9 @@ import { db } from '../config/database';
 export const getStages = async (req: Request, res: Response): Promise<void> => {
   try {
     const result = await db.query(`
-      SELECT id, name, description, sort_order, created_at, updated_at
+      SELECT id, name, description, created_at, updated_at
       FROM stages
-      ORDER BY sort_order ASC, id ASC
+      ORDER BY id ASC
     `);
 
     res.json({
@@ -29,7 +29,7 @@ export const getStage = async (req: Request, res: Response): Promise<void> => {
     const { id } = req.params;
     
     const result = await db.query(`
-      SELECT id, name, description, sort_order, created_at, updated_at
+      SELECT id, name, description, created_at, updated_at
       FROM stages
       WHERE id = $1
     `, [id]);
@@ -69,10 +69,10 @@ export const createStage = async (req: Request, res: Response): Promise<void> =>
     }
 
     const result = await db.query(`
-      INSERT INTO stages (name, description, sort_order, created_at, updated_at)
-      VALUES ($1, $2, $3, NOW(), NOW())
-      RETURNING id, name, description, sort_order, created_at, updated_at
-    `, [name, description || null, sort_order || null]);
+      INSERT INTO stages (name, description, created_at, updated_at)
+      VALUES ($1, $2, NOW(), NOW())
+      RETURNING id, name, description, created_at, updated_at
+    `, [name, description || null]);
 
     res.status(201).json({
       success: true,
@@ -97,11 +97,10 @@ export const updateStage = async (req: Request, res: Response): Promise<void> =>
       UPDATE stages 
       SET name = COALESCE($1, name),
           description = COALESCE($2, description),
-          sort_order = COALESCE($3, sort_order),
           updated_at = NOW()
-      WHERE id = $4
-      RETURNING id, name, description, sort_order, created_at, updated_at
-    `, [name, description, sort_order, id]);
+      WHERE id = $3
+      RETURNING id, name, description, created_at, updated_at
+    `, [name, description, id]);
 
     if (result.rows.length === 0) {
       res.status(404).json({

@@ -234,6 +234,21 @@ function SystemAdminPageContent() {
   useEffect(() => {
     fetchDepartments()
     fetchServiceTypes()
+    
+    // 로그인한 사용자 정보 가져오기
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const currentUser = JSON.parse(userStr);
+      setManagerInfo({
+        name: currentUser.name || '',
+        email: currentUser.email || '',
+        fullName: currentUser.name || '',
+        position: currentUser.position || '',
+        department: currentUser.department || '',
+        phone: currentUser.phone || '',
+        createDate: currentUser.created_at || ''
+      });
+    }
   }, [])
 
 
