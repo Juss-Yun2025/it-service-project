@@ -74,7 +74,7 @@ export const getGeneralInquiries = async (req: Request, res: Response): Promise<
       department,
       startDate,
       endDate,
-      sortBy = 'inquiry_date',
+      sortBy = 'created_at',
       sortOrder = 'DESC',
       unansweredOnly = false
     } = req.query as any;
@@ -116,7 +116,7 @@ export const getGeneralInquiries = async (req: Request, res: Response): Promise<
 
     // Unanswered only filter
     if (unansweredOnly === true || unansweredOnly === 'true') {
-      whereConditions.push(`status = $${paramIndex}`);
+      whereConditions.push(`gi.status = $${paramIndex}`);
       queryParams.push('pending');
       paramIndex++;
     }
@@ -129,7 +129,7 @@ export const getGeneralInquiries = async (req: Request, res: Response): Promise<
     }
 
     if (status) {
-      whereConditions.push(`status = $${paramIndex}`);
+      whereConditions.push(`gi.status = $${paramIndex}`);
       queryParams.push(status);
       paramIndex++;
     }
@@ -141,13 +141,13 @@ export const getGeneralInquiries = async (req: Request, res: Response): Promise<
     }
 
     if (startDate) {
-      whereConditions.push(`inquiry_date >= $${paramIndex}`);
+      whereConditions.push(`gi.created_at >= $${paramIndex}`);
       queryParams.push(startDate);
       paramIndex++;
     }
 
     if (endDate) {
-      whereConditions.push(`inquiry_date <= $${paramIndex}`);
+      whereConditions.push(`gi.created_at <= $${paramIndex}`);
       queryParams.push(endDate);
       paramIndex++;
     }
@@ -156,7 +156,7 @@ export const getGeneralInquiries = async (req: Request, res: Response): Promise<
 
     // Get total count
     const countResult = await db.query(
-      `SELECT COUNT(*) FROM general_inquiries WHERE ${whereClause}`,
+      `SELECT COUNT(*) FROM general_inquiries gi WHERE ${whereClause}`,
       queryParams
     );
     const total = parseInt(countResult.rows[0].count);
@@ -165,10 +165,15 @@ export const getGeneralInquiries = async (req: Request, res: Response): Promise<
     const inquiriesResult = await db.query<GeneralInquiry>(
       `SELECT gi.*, 
               u1.name as requester_name,
-              u2.name as answerer_name
+              u2.name as answerer_name,
+              gi.answer as answer_content,
+              gi.answered_at as answer_date,
+              gi.answered_by as answerer_id,
+              gi.created_at as inquiry_date,
+              gi.department as requester_department
        FROM general_inquiries gi
        LEFT JOIN users u1 ON gi.requester_id = u1.id
-       LEFT JOIN users u2 ON gi.answerer_id = u2.id
+       LEFT JOIN users u2 ON gi.answered_by = u2.id
        WHERE ${whereClause}
        ORDER BY gi.${sortBy} ${sortOrder}
        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
@@ -407,9 +412,9 @@ export const answerGeneralInquiry = async (req: Request, res: Response): Promise
     // Update inquiry with answer
     const result = await db.query<GeneralInquiry>(
       `UPDATE general_inquiries 
-       SET answer_content = $1, 
-           answer_date = CURRENT_TIMESTAMP,
-           answerer_id = $2,
+       SET answer = $1, 
+           answered_at = CURRENT_TIMESTAMP,
+           answered_by = $2,
            status = $3,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $4

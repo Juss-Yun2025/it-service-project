@@ -126,6 +126,54 @@ export interface ServiceType {
   updated_at?: string;
 }
 
+// ===== 일반문의 관련 인터페이스 =====
+export interface GeneralInquiry {
+  id: string;
+  inquiry_number: string;
+  title: string;
+  content: string;
+  requester_id: string;
+  requester_name: string;
+  requester_department: string;
+  status: 'pending' | 'answered' | 'closed';
+  inquiry_date: string;
+  answer_content?: string;
+  answer_date?: string;
+  answerer_id?: string;
+  answerer_name?: string;
+  is_secret?: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GeneralInquiryCreateRequest {
+  title: string;
+  content: string;
+}
+
+export interface GeneralInquiryUpdateRequest {
+  title?: string;
+  content?: string;
+  answer_content?: string;
+}
+
+export interface GeneralInquiryListParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  status?: string;
+  department?: string;
+  startDate?: string;
+  endDate?: string;
+  unansweredOnly?: boolean;
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
+}
+
+export interface GeneralInquiryAnswerRequest {
+  answer_content: string;
+}
+
 // ===== 서비스 요청 관련 인터페이스 =====
 
 export interface ServiceRequest {
@@ -838,6 +886,65 @@ class ApiClient {
   // 모든 역할 조회
   async getRoles(): Promise<ApiResponse<Role[]>> {
     return this.request<Role[]>('/api/roles');
+  }
+
+  // ===== 일반문의 관련 API =====
+
+  // 모든 일반문의 조회
+  async getInquiries(params?: GeneralInquiryListParams): Promise<ApiResponse<GeneralInquiry[]>> {
+    const queryParams = new URLSearchParams();
+    
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.department) queryParams.append('department', params.department);
+    if (params?.startDate) queryParams.append('startDate', params.startDate);
+    if (params?.endDate) queryParams.append('endDate', params.endDate);
+    if (params?.unansweredOnly !== undefined) queryParams.append('unansweredOnly', params.unansweredOnly.toString());
+    if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+    if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+    
+    const queryString = queryParams.toString();
+    const url = queryString ? `/api/inquiries?${queryString}` : '/api/inquiries';
+    
+    return this.request<GeneralInquiry[]>(url);
+  }
+
+  // 특정 일반문의 조회
+  async getInquiry(id: string): Promise<ApiResponse<GeneralInquiry>> {
+    return this.request<GeneralInquiry>(`/api/inquiries/${id}`);
+  }
+
+  // 일반문의 생성
+  async createInquiry(data: GeneralInquiryCreateRequest): Promise<ApiResponse<GeneralInquiry>> {
+    return this.request<GeneralInquiry>('/api/inquiries', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  // 일반문의 수정
+  async updateInquiry(id: string, data: GeneralInquiryUpdateRequest): Promise<ApiResponse<GeneralInquiry>> {
+    return this.request<GeneralInquiry>(`/api/inquiries/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+
+  // 일반문의 삭제
+  async deleteInquiry(id: string): Promise<ApiResponse<void>> {
+    return this.request<void>(`/api/inquiries/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
+  // 일반문의 답변하기
+  async answerInquiry(id: string, data: GeneralInquiryAnswerRequest): Promise<ApiResponse<GeneralInquiry>> {
+    return this.request<GeneralInquiry>(`/api/inquiries/${id}/answer`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
   }
 }
 

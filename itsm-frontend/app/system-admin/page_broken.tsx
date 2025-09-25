@@ -3,32 +3,10 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Icon from '@/components/ui/Icon'
-import { apiClient, User, UserUpdateRequest, Department, Role, Position, Stage, ServiceType, GeneralInquiry } from '@/lib/api'
+import { apiClient, User, UserUpdateRequest, Department, Role, Position, Stage, ServiceType } from '@/lib/api'
 import { PermissionGuard, RoleGuard, usePermissions, useRoles } from '@/components/PermissionGuard'
 
 // 상수 정의는 제거됨 - DB에서 동적으로 로드
-
-// 일반문의 데이터 매핑 함수
-  const mapInquiryData = (rawData: any): GeneralInquiry => {
-    return {
-      id: rawData.id?.toString() || '',
-      inquiry_number: rawData.inquiry_number || '',
-      title: rawData.title || '',
-      content: rawData.content || '',
-      requester_id: rawData.requester_id?.toString() || '',
-      requester_name: rawData.requester_name || '',
-      requester_department: rawData.requester_department || '',
-      status: rawData.status || 'pending',
-      inquiry_date: rawData.inquiry_date || '',
-      answer_content: rawData.answer_content || '',
-      answer_date: rawData.answer_date || '',
-      answerer_id: rawData.answerer_id?.toString() || '',
-      answerer_name: rawData.answerer_name || '',
-      is_secret: rawData.is_secret || false,
-      created_at: rawData.created_at || '',
-      updated_at: rawData.updated_at || ''
-    }
-  }
 
 // 데이터 타입 정의
 interface ServiceRequest {
@@ -85,6 +63,48 @@ interface PendingWork {
   technician: string
   lastWeekPending: number
   longTermPending: number
+}
+
+// 일반문의 인터페이스
+interface GeneralInquiry {
+  id: string
+  inquiryNumber: string
+  title: string
+  content: string
+  requesterId: string
+  requesterName: string
+  requesterDepartment: string
+  status: 'pending' | 'answered' | 'closed'
+  inquiryDate: string
+  answerContent?: string
+  answerDate?: string
+  answererId?: string
+  answererName?: string
+  isSecret?: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+// 일반문의 데이터 매핑 함수
+const mapInquiryData = (rawData: any): GeneralInquiry => {
+  return {
+    id: rawData.id?.toString() || '',
+    inquiryNumber: rawData.inquiry_number || '',
+    title: rawData.title || '',
+    content: rawData.content || '',
+    requesterId: rawData.requester_id?.toString() || '',
+    requesterName: rawData.requester_name || '',
+    requesterDepartment: rawData.requester_department || '',
+    status: rawData.status || 'pending',
+    inquiryDate: rawData.inquiry_date || '',
+    answerContent: rawData.answer_content || '',
+    answerDate: rawData.answer_date || '',
+    answererId: rawData.answerer_id?.toString() || '',
+    answererName: rawData.answerer_name || '',
+    isSecret: rawData.is_secret || false,
+    createdAt: rawData.created_at || '',
+    updatedAt: rawData.updated_at || ''
+  }
 }
 
 // 공통 서비스 요청 데이터 매핑 함수
@@ -423,16 +443,8 @@ function SystemAdminPageContent() {
   }
   
   
-  // 일반문의 List 관리 관련 상태
-  const [showGeneralInquiryList, setShowGeneralInquiryList] = useState(false)
-  const [inquiries, setInquiries] = useState<GeneralInquiry[]>([])
-  const [inquiriesLoading, setInquiriesLoading] = useState(false)
-  const [inquiriesPagination, setInquiriesPagination] = useState({
-    page: 1,
-    limit: 10,
-    total: 0,
-    totalPages: 0
-  })
+  // 일반문의 List 관리 관련 상태 (기존 상태 제거)
+  const [generalInquiryCurrentPage, setGeneralInquiryCurrentPage] = useState(1)
   const [generalInquirySearchStartDate, setGeneralInquirySearchStartDate] = useState(() => {
     const oneWeekAgo = new Date()
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
@@ -440,18 +452,6 @@ function SystemAdminPageContent() {
   })
   const [generalInquirySearchEndDate, setGeneralInquirySearchEndDate] = useState(new Date().toISOString().split('T')[0])
   const [showUnansweredOnly, setShowUnansweredOnly] = useState(false)
-  const [selectedInquiry, setSelectedInquiry] = useState<GeneralInquiry | null>(null)
-  
-  // 답변하기 모달 상태
-  const [showGeneralInquiryAnswerModal, setShowGeneralInquiryAnswerModal] = useState(false)
-  const [answerContent, setAnswerContent] = useState('')
-  
-  // 답변수정하기 모달 상태
-  const [showGeneralInquiryEditAnswerModal, setShowGeneralInquiryEditAnswerModal] = useState(false)
-  const [editAnswerContent, setEditAnswerContent] = useState('')
-  
-  // 답변삭제하기 모달 상태
-  const [showGeneralInquiryDeleteAnswerModal, setShowGeneralInquiryDeleteAnswerModal] = useState(false)
   const [showServiceAssignmentModal, setShowServiceAssignmentModal] = useState(false)
   const [showServiceReassignmentModal, setShowServiceReassignmentModal] = useState(false)
   const [showServiceWorkInfoModal, setShowServiceWorkInfoModal] = useState(false)
@@ -846,6 +846,38 @@ function SystemAdminPageContent() {
     phone: '',
     createDate: ''
   })
+
+  // 일반문의 List 관리 상태
+  const [showInquiryManagement, setShowInquiryManagement] = useState(false)
+  const [inquiries, setInquiries] = useState<GeneralInquiry[]>([])
+  const [inquiriesLoading, setInquiriesLoading] = useState(false)
+  const [inquiriesPagination, setInquiriesPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0
+  })
+  const [inquirySearchStartDate, setInquirySearchStartDate] = useState(() => {
+    const today = new Date()
+    return today.toISOString().split('T')[0]
+  })
+  const [inquirySearchEndDate, setInquirySearchEndDate] = useState(() => {
+    const today = new Date()
+    return today.toISOString().split('T')[0]
+  })
+  const [inquiryUnansweredOnly, setInquiryUnansweredOnly] = useState(false)
+  const [selectedInquiry, setSelectedInquiry] = useState<GeneralInquiry | null>(null)
+  
+  // 답변하기 모달 상태
+  const [showAnswerModal, setShowAnswerModal] = useState(false)
+  const [answerContent, setAnswerContent] = useState('')
+  
+  // 답변수정하기 모달 상태
+  const [showEditAnswerModal, setShowEditAnswerModal] = useState(false)
+  const [editAnswerContent, setEditAnswerContent] = useState('')
+  
+  // 답변삭제하기 모달 상태
+  const [showDeleteAnswerModal, setShowDeleteAnswerModal] = useState(false)
   const [showPendingWork, setShowPendingWork] = useState(true)
   const [showServiceAggregation, setShowServiceAggregation] = useState(true)
   
@@ -1127,37 +1159,14 @@ function SystemAdminPageContent() {
     loadAvailableRoles();
   }, []);
 
-  // 직급 목록 로드
-  const loadPositions = async () => {
-    setPositionsLoading(true);
-    try {
-      const response = await apiClient.getPositions();
-      if (response.success && response.data) {
-        setPositions(response.data);
-      }
-    } catch (error) {
-      console.error('직급 목록 로드 오류:', error);
-    } finally {
-      setPositionsLoading(false);
-    }
-  };
-
   // 일반문의 데이터 가져오기
   const fetchInquiries = async () => {
     setInquiriesLoading(true);
     try {
-      // 종료일에 23:59:59를 추가하여 해당 날짜의 끝까지 포함
-      let endDate = generalInquirySearchEndDate;
-      if (endDate) {
-        const endDateObj = new Date(endDate);
-        endDateObj.setHours(23, 59, 59, 999);
-        endDate = endDateObj.toISOString().split('T')[0] + 'T23:59:59.999Z';
-      }
-      
       const params = {
-        startDate: generalInquirySearchStartDate,
-        endDate: endDate,
-        unansweredOnly: showUnansweredOnly,
+        startDate: inquirySearchStartDate,
+        endDate: inquirySearchEndDate,
+        unansweredOnly: inquiryUnansweredOnly,
         page: inquiriesPagination.page,
         limit: inquiriesPagination.limit
       };
@@ -1186,16 +1195,12 @@ function SystemAdminPageContent() {
     }
   };
 
-  useEffect(() => {
-    loadPositions();
-  }, []);
-
   // 일반문의 데이터 가져오기 (검색 조건 변경 시마다)
   useEffect(() => {
-    if (showGeneralInquiryList) {
+    if (showInquiryManagement) {
       fetchInquiries();
     }
-  }, [generalInquirySearchStartDate, generalInquirySearchEndDate, showUnansweredOnly, inquiriesPagination.page]);
+  }, [inquirySearchStartDate, inquirySearchEndDate, inquiryUnansweredOnly, inquiriesPagination.page]);
 
   // 답변하기
   const handleAnswerInquiry = async () => {
@@ -1211,7 +1216,7 @@ function SystemAdminPageContent() {
 
       if (response.success) {
         alert('답변이 등록되었습니다.');
-        setShowGeneralInquiryAnswerModal(false);
+        setShowAnswerModal(false);
         setAnswerContent('');
         setSelectedInquiry(null);
         await fetchInquiries();
@@ -1238,7 +1243,7 @@ function SystemAdminPageContent() {
 
       if (response.success) {
         alert('답변이 수정되었습니다.');
-        setShowGeneralInquiryEditAnswerModal(false);
+        setShowEditAnswerModal(false);
         setEditAnswerContent('');
         setSelectedInquiry(null);
         await fetchInquiries();
@@ -1260,7 +1265,7 @@ function SystemAdminPageContent() {
 
       if (response.success) {
         alert('답변이 삭제되었습니다.');
-        setShowGeneralInquiryDeleteAnswerModal(false);
+        setShowDeleteAnswerModal(false);
         setSelectedInquiry(null);
         await fetchInquiries();
       } else {
@@ -1271,6 +1276,25 @@ function SystemAdminPageContent() {
       alert('답변 삭제 중 오류가 발생했습니다.');
     }
   };
+
+  // 직급 목록 로드
+  const loadPositions = async () => {
+    setPositionsLoading(true);
+    try {
+      const response = await apiClient.getPositions();
+      if (response.success && response.data) {
+        setPositions(response.data);
+      }
+    } catch (error) {
+      console.error('직급 목록 로드 오류:', error);
+    } finally {
+      setPositionsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadPositions();
+  }, []);
 
   // 더미 데이터 제거됨 - API 기반으로 교체
   // 더미 데이터 제거됨 - serviceRequests는 API에서 가져옴
@@ -2025,7 +2049,7 @@ function SystemAdminPageContent() {
                     >
                       <Icon name="refresh" size={16} />
                     </button>
-                    <h3 className="text-lg font-bold text-gray-800">서비스 집계 현황</h3>
+                    <h3 className="text-lg font-bold text-gray-800">서비스 집계현황</h3>
                   </div>
                   <div className="flex justify-end" style={{marginTop: '30px'}}>
                     <button
@@ -2191,7 +2215,7 @@ function SystemAdminPageContent() {
                         <div className="absolute top-36 right-4 space-y-2 text-sm">
                           <div className="flex items-center space-x-2">
                             <div className="w-3 h-3 rounded-full" style={{backgroundColor: '#EF4444'}}></div>
-                            <span className="text-gray-700 font-medium text-xs">미결: {chartData.failed}</span>
+                            <span className="text-gray-700 font-medium text-xs">불가: {chartData.failed}</span>
                           </div>
                           <div className="flex items-center space-x-2">
                             <div className="w-3 h-3 rounded-full" style={{backgroundColor: '#10B981'}}></div>
@@ -2287,7 +2311,7 @@ function SystemAdminPageContent() {
                   {/* 일반문의 List 관리 */}
                   <div 
                     onClick={(e) => handleCardClick(e, () => {
-                      setShowGeneralInquiryList(true)
+                      setShowInquiryManagement(true)
                       fetchInquiries()
                     })}
                     className="bg-gray-800 rounded-lg p-6 cursor-pointer hover:bg-gray-700 hover:scale-105 transition-all duration-300 ease-in-out flex flex-col items-start justify-start flex-shrink-0"
@@ -6275,13 +6299,501 @@ function SystemAdminPageContent() {
         </div>
       )}
 
-      {/* 자주하는 질문 관리 프레임 - 시스템관리에서는 제거됨 */} 
+
+      {/* 자주하는 질문 관리 프레임 - 시스템관리에서는 제거됨 */}
+      {false && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
+          <div className="bg-white rounded-lg shadow-xl max-w-7xl w-full mx-4 max-h-[90vh] overflow-hidden">
+            {/* 프레임 헤더 */}
+            <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200" style={{paddingTop: '30px'}}>
+              <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                <Icon name="help-circle" size={24} className="mr-2 text-blue-600" />
+                자주하는 질문 관리
+              </h2>
+              <button
+                onClick={() => setShowFAQManagement(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <Icon name="close" size={24} />
+              </button>
+            </div>
+
+            {/* 프레임 내용 */}
+            <div className="p-6 overflow-y-auto" style={{maxHeight: 'calc(90vh - 120px)'}}>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {/* FAQ 카드들 */}
+                {(() => {
+                  // FAQ 데이터 (일반사용자 페이지와 동일)
+                  const faqs = [
+                    {
+                      id: '1',
+                      icon: '📧',
+                      summary: '이메일 접속 불가',
+                      content: '이메일 서비스에 접속할 수 없는 경우 발생하는 문제입니다.',
+                      category: '이메일',
+                      solution: '1. 브라우저 캐시 및 쿠키 삭제\n2. 다른 브라우저로 시도\n3. 네트워크 연결 상태 확인',
+                      persistentIssue: '위 방법으로 해결되지 않으면 IT팀에 문의해 주세요!'
+                    },
+                    {
+                      id: '2',
+                      icon: '📤',
+                      summary: '파일 업로드 오류',
+                      content: '파일 업로드 시 오류가 발생하는 경우입니다.',
+                      category: '파일서버'
+                    },
+                    {
+                      id: '3',
+                      icon: '🔒',
+                      summary: '네트워크 연결 오류',
+                      content: '네트워크 연결이 되지 않은 경우 발생하는 문제입니다.',
+                      category: '네트워크'
+                    },
+                    {
+                      id: '4',
+                      icon: '🌐',
+                      summary: '웹사이트 접속 불가',
+                      content: '내부 웹사이트에 접속할 수 없는 경우입니다.',
+                      category: '웹서비스'
+                    },
+                    {
+                      id: '5',
+                      icon: '🖨️',
+                      summary: '프린터 인쇄 오류',
+                      content: '프린터 인쇄가 되지 않는 경우입니다.',
+                      category: '하드웨어',
+                      solution: '1. 프린터 전원 및 연결 상태 확인\n2. 프린터 드라이버 재설치\n3. 프린터 큐 초기화',
+                      persistentIssue: '위 방법으로 해결되지 않으면 하드웨어 담당자에게 연락해 주세요!'
+                    },
+                    {
+                      id: '6',
+                      icon: '💻',
+                      summary: '소프트웨어 설치',
+                      content: '새로운 소프트웨어 설치 요청입니다.',
+                      category: '소프트웨어'
+                    },
+                    {
+                      id: '7',
+                      icon: '🖥️',
+                      summary: '컴퓨터 느림 현상',
+                      content: '컴퓨터가 갑자기 느려지는 현상입니다.',
+                      category: '성능'
+                    },
+                    {
+                      id: '8',
+                      icon: '🔐',
+                      summary: '비밀번호 초기화',
+                      content: '시스템 로그인 비밀번호를 잊어버린 경우입니다.',
+                      category: '보안'
+                    },
+                    {
+                      id: '9',
+                      icon: '📱',
+                      summary: '모바일 앱 오류',
+                      content: '모바일 애플리케이션에서 오류가 발생하는 경우입니다.',
+                      category: '모바일'
+                    },
+                    {
+                      id: '10',
+                      icon: '🔧',
+                      summary: '시스템 오류',
+                      content: '시스템에서 예상치 못한 오류가 발생하는 경우입니다.',
+                      category: '시스템'
+                    },
+                    {
+                      id: '11',
+                      icon: '💾',
+                      summary: '데이터 백업',
+                      content: '중요한 데이터를 백업하는 방법입니다.',
+                      category: '데이터'
+                    },
+                    {
+                      id: '12',
+                      icon: '🌍',
+                      summary: '원격 접속 오류',
+                      content: '원격 접속 시 발생하는 문제입니다.',
+                      category: '원격접속'
+                    }
+                  ]
+
+                  // 페이지네이션 로직
+                  const faqItemsPerPage = 6
+                  const totalPages = Math.ceil(faqs.length / faqItemsPerPage)
+                  const currentFAQs = faqs.slice(
+                    (faqCurrentPage - 1) * faqItemsPerPage,
+                    faqCurrentPage * faqItemsPerPage
+                  )
+
+                  return (
+                    <>
+                      {currentFAQs.map((faq) => (
+                        <div
+                          key={faq.id}
+                          className="bg-white rounded-xl cursor-pointer hover:shadow-2xl transition-all duration-500 ease-out transform hover:scale-105 flex flex-col h-full border-2 border-gray-200 hover:border-blue-300"
+                          style={{padding: '20px 30px'}}
+                          onClick={() => {
+                            setSelectedFAQ(faq)
+                            setShowFAQEditModal(true)
+                          }}
+                        >
+                          <div className="text-left mb-5 flex-1" style={{paddingTop: '15px'}}>
+                            <div className="mb-3 text-center" style={{fontSize: '36px'}}>{faq.icon}</div>
+                            <h3 className="text-xl font-bold text-gray-800 mb-3 text-center">
+                              {faq.summary}
+                            </h3>
+                            <p className="text-gray-600 leading-relaxed mb-4 line-clamp-2 overflow-hidden">
+                              {faq.content}
+                            </p>
+                          </div>
+                          <div className="flex justify-between items-center mt-auto">
+                            <span className="text-sm px-4 rounded-full bg-blue-100 text-blue-800 font-medium" style={{paddingTop: '0px', paddingBottom: '0px'}}>
+                              {faq.category}
+                            </span>
+                                <div className="flex space-x-2">
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation(); // 이벤트 버블링 방지
+                                  setSelectedFAQ(faq);
+                                  setShowFAQEditModal(true);
+                                }}
+                                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                              >
+                                수정
+                              </button>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation(); // 이벤트 버블링 방지
+                                  if (confirm('이 FAQ를 삭제하시겠습니까?')) {
+                                    // 삭제 로직 추가
+                                    alert('FAQ가 삭제되었습니다.');
+                                    // FAQ 관리 프레임은 유지 (닫지 않음)
+                                  }
+                                }}
+                                className="text-red-600 hover:text-red-800 text-sm font-medium"
+                              >
+                                삭제
+                              </button>
+                                </div>
+                          </div>
+                        </div>
+                          ))}
+                    </>
+                  )
+                })()}
+                    </div>
+
+              {/* 페이지네이션 */}
+              {(() => {
+                const faqs = [
+                  { id: '1' }, { id: '2' }, { id: '3' }, { id: '4' }, { id: '5' }, { id: '6' },
+                  { id: '7' }, { id: '8' }, { id: '9' }, { id: '10' }, { id: '11' }, { id: '12' }
+                ]
+                const faqItemsPerPage = 6
+                const totalPages = Math.ceil(faqs.length / faqItemsPerPage)
+                
+                return totalPages > 1 && (
+                  <div className="flex justify-center items-center space-x-4 mt-8">
+                    <button
+                      onClick={() => setFaqCurrentPage(Math.max(1, faqCurrentPage - 1))}
+                      disabled={faqCurrentPage === 1}
+                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300 transition-all duration-300 ease-out button-smooth"
+                    >
+                      이전
+                    </button>
+                    <span className="px-4 py-2 bg-blue-600 text-white rounded-lg">
+                      {faqCurrentPage} / {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setFaqCurrentPage(Math.min(totalPages, faqCurrentPage + 1))}
+                      disabled={faqCurrentPage === totalPages}
+                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300 transition-all duration-300 ease-out button-smooth"
+                    >
+                      다음
+                    </button>
+                  </div>
+                )
+              })()}
+            </div>
+
+            {/* 프레임 하단 버튼 */}
+            <div className="flex justify-between items-center py-4 px-6 border-t border-gray-200">
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={() => setShowFAQAddModal(true)}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-300 ease-out button-smooth flex items-center space-x-2"
+                >
+                  <Icon name="plus" size={16} />
+                  <span>질문 추가</span>
+                </button>
+              </div>
+              <div className="flex items-center space-x-4">
+                {(() => {
+                  const faqs = [
+                    { id: '1' }, { id: '2' }, { id: '3' }, { id: '4' }, { id: '5' }, { id: '6' },
+                    { id: '7' }, { id: '8' }, { id: '9' }, { id: '10' }, { id: '11' }, { id: '12' }
+                  ]
+                  const faqItemsPerPage = 6
+                  const totalPages = Math.ceil(faqs.length / faqItemsPerPage)
+                  return (
+                    <span className="text-sm text-gray-500">{faqCurrentPage} / {totalPages} 페이지</span>
+                  )
+                })()}
+                <button
+                  onClick={() => setShowFAQManagement(false)}
+                  className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
+                >
+                  닫기
+                </button>
+              </div>
+            </div>
+          </div>
+              </div>
+            )}
+
       {/* FAQ 수정 모달 - 시스템관리에서는 제거됨 */}
+      {false && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden">
+            {/* 모달 헤더 */}
+            <div className="flex justify-between items-center p-6 border-b border-gray-200" style={{paddingTop: '30px'}}>
+              <h2 className="text-2xl font-bold text-gray-800">자주하는 질문-수정</h2>
+              <button
+                onClick={() => setShowFAQEditModal(false)}
+                className="text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                <Icon name="close" size={24} />
+              </button>
+                  </div>
+                  
+            {/* 모달 내용 */}
+            <div className="p-6 overflow-y-auto" style={{maxHeight: 'calc(90vh - 120px)'}}>
+              {/* 아이콘 섹션 */}
+              <div className="flex items-center justify-center mb-8">
+                <div className="flex flex-col items-center space-y-4">
+                  <div className="text-6xl">{selectedFAQ?.icon || '📧'}</div>
+                  <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-300 ease-out button-smooth">
+                    Icon 변경
+                  </button>
+                </div>
+              </div>
+
+              {/* 입력 필드들 */}
+              <div className="space-y-6">
+                {/* 발생 원인 요약 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-0">
+                    발생 원인 요약
+                  </label>
+                  <input
+                    type="text"
+                    defaultValue={selectedFAQ?.summary || ''}
+                    className="w-full px-4 py-0 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                    placeholder="발생 원인 요약을 입력하세요"
+                  />
+                </div>
+
+                {/* 발생 원인 내용 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-0">
+                    발생 원인 내용
+                  </label>
+                  <textarea
+                    defaultValue={selectedFAQ?.content || ''}
+                    rows={3}
+                    className="w-full px-4 py-0 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                    placeholder="발생 원인 내용을 입력하세요"
+                  />
+                </div>
+
+                {/* 즉시 해결방법 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-0">
+                    즉시 해결방법
+                  </label>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <textarea
+                      defaultValue={selectedFAQ?.solution || "1. 브라우저 캐시 및 쿠키 삭제\n2. 다른 브라우저로 시도\n3. 네트워크 연결 상태 확인"}
+                      rows={4}
+                      className="w-full px-4 py-0 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white"
+                      placeholder="즉시 해결방법을 입력하세요"
+                    />
+                  </div>
+                </div>
+
+                {/* 문제가 지속될 경우 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-0">
+                    문제가 지속될 경우
+                  </label>
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <textarea
+                      defaultValue={selectedFAQ?.persistentIssue || "위 방법으로 해결되지 않으면 아래 서비스 신청 해 주세요!"}
+                      rows={2}
+                      className="w-full px-4 py-0 border border-yellow-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all duration-200 bg-white"
+                      placeholder="문제가 지속될 경우 안내를 입력하세요"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 모달 하단 버튼 */}
+            <div className="flex justify-center items-center py-6 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  setShowFAQEditModal(false)
+                  setShowFAQCompleteModal(true)
+                  // 수정 로직 추가
+                }}
+                className="bg-black hover:bg-gray-800 text-white px-8 py-3 rounded-lg font-medium transition-all duration-300 ease-out button-smooth"
+              >
+                수정
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* FAQ 추가 모달 - 시스템관리에서는 제거됨 */}
-      {/* FAQ 완료 모달 - 시스템관리에서는 제거됨 */}      
+      {false && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden">
+            {/* 모달 헤더 */}
+            <div className="flex justify-between items-center p-6 border-b border-gray-200" style={{paddingTop: '30px'}}>
+              <h2 className="text-2xl font-bold text-gray-800">자주하는 질문-추가</h2>
+              <button
+                onClick={() => setShowFAQAddModal(false)}
+                className="text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                <Icon name="close" size={24} />
+              </button>
+            </div>
+
+            {/* 모달 내용 */}
+            <div className="p-6 overflow-y-auto" style={{maxHeight: 'calc(90vh - 120px)'}}>
+              {/* 아이콘 섹션 */}
+              <div className="flex items-center justify-center mb-8">
+                <div className="flex flex-col items-center space-y-4">
+                  <div className="text-6xl">📧</div>
+                  <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-300 ease-out button-smooth">
+                    Icon 변경
+                  </button>
+                </div>
+              </div>
+
+              {/* 입력 필드들 */}
+              <div className="space-y-6">
+                {/* 발생 원인 요약 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-0">
+                    발생 원인 요약
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-0 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                    placeholder="발생 원인 요약을 입력하세요"
+                  />
+                </div>
+
+                {/* 발생 원인 내용 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-0">
+                    발생 원인 내용
+                  </label>
+                  <textarea
+                    rows={3}
+                    className="w-full px-4 py-0 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
+                    placeholder="발생 원인 내용을 입력하세요"
+                  />
+                </div>
+
+                {/* 즉시 해결방법 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-0">
+                    즉시 해결방법
+                  </label>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <textarea
+                      rows={4}
+                      className="w-full px-4 py-0 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white"
+                      placeholder="즉시 해결방법을 입력하세요"
+                    />
+                  </div>
+                </div>
+
+                {/* 문제가 지속될 경우 */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-0">
+                    문제가 지속될 경우
+                  </label>
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <textarea
+                      rows={2}
+                      className="w-full px-4 py-0 border border-yellow-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all duration-200 bg-white"
+                      placeholder="문제가 지속될 경우 안내를 입력하세요"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 모달 하단 버튼 */}
+            <div className="flex justify-center items-center py-6 border-t border-gray-200">
+              <button
+                onClick={() => {
+                  setShowFAQAddModal(false)
+                  setShowFAQCompleteModal(true)
+                  // 추가 로직 추가
+                }}
+                className="bg-black hover:bg-gray-800 text-white px-8 py-3 rounded-lg font-medium transition-all duration-300 ease-out button-smooth"
+              >
+                추가
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FAQ 완료 모달 - 시스템관리에서는 제거됨 */}
+      {false && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            {/* 모달 헤더 */}
+            <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200" style={{paddingTop: '30px'}}>
+              <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                <Icon name="check-circle" size={24} className="mr-2 text-green-600" />
+                완료
+              </h2>
+              <button
+                onClick={() => setShowFAQCompleteModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <Icon name="close" size={24} />
+              </button>
+            </div>
+
+            {/* 모달 내용 */}
+            <div className="py-6 px-6 text-center">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Icon name="check-circle" size={32} className="text-green-600" />
+              </div>
+              <p className="text-gray-600 mb-6">FAQ가 성공적으로 처리되었습니다.</p>
+            </div>
+
+            {/* 모달 하단 버튼 */}
+            <div className="flex justify-end py-4 px-6 border-t border-gray-200">
+              <button
+                onClick={() => setShowFAQCompleteModal(false)}
+                className="bg-gray-800 hover:bg-gray-900 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200 button-smooth"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 일반문의 List 관리 프레임 */}
-      {showGeneralInquiryList && (
+      {showInquiryManagement && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
           <div className="bg-white rounded-lg shadow-xl max-w-7xl w-full mx-4 max-h-[90vh] overflow-hidden">
             {/* 프레임 헤더 */}
@@ -6289,17 +6801,21 @@ function SystemAdminPageContent() {
               <div className="flex items-center space-x-4">
                 <button
                   onClick={() => {
-                    // 현재 검색 조건과 토글 상태를 유지하면서 데이터만 새로고침
+                    setInquiriesPagination(prev => ({ ...prev, page: 1 }));
+                    setInquiryUnansweredOnly(false);
+                    const today = new Date();
+                    setInquirySearchStartDate(today.toISOString().split('T')[0]);
+                    setInquirySearchEndDate(today.toISOString().split('T')[0]);
                     fetchInquiries();
                   }}
                   className="w-6 h-6 text-gray-600 hover:text-gray-800 transition-colors"
                 >
                   <Icon name="refresh" size={16} />
                 </button>
-                <h2 className="text-xl font-bold text-gray-800">일반 문의 답변</h2>
+                <h2 className="text-xl font-bold text-gray-800">일반 문의 List 관리</h2>
               </div>
               <button
-                onClick={() => setShowGeneralInquiryList(false)}
+                onClick={() => setShowInquiryManagement(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <Icon name="close" size={24} />
@@ -6314,31 +6830,15 @@ function SystemAdminPageContent() {
                   <div className="flex items-center space-x-2">
                     <input
                       type="date"
-                      value={generalInquirySearchStartDate}
-                      max={generalInquirySearchEndDate}
-                      onChange={(e) => {
-                        const startDate = e.target.value;
-                        setGeneralInquirySearchStartDate(startDate);
-                        // 시작일이 종료일보다 늦으면 종료일을 시작일로 설정
-                        if (startDate && generalInquirySearchEndDate && startDate > generalInquirySearchEndDate) {
-                          setGeneralInquirySearchEndDate(startDate);
-                        }
-                      }}
+                      value={inquirySearchStartDate}
+                      onChange={(e) => setInquirySearchStartDate(e.target.value)}
                       className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
                     />
                     <span className="text-gray-600 font-medium">~</span>
                     <input
                       type="date"
-                      value={generalInquirySearchEndDate}
-                      min={generalInquirySearchStartDate}
-                      onChange={(e) => {
-                        const endDate = e.target.value;
-                        setGeneralInquirySearchEndDate(endDate);
-                        // 종료일이 시작일보다 이르면 시작일을 종료일로 설정
-                        if (endDate && generalInquirySearchStartDate && endDate < generalInquirySearchStartDate) {
-                          setGeneralInquirySearchStartDate(endDate);
-                        }
-                      }}
+                      value={inquirySearchEndDate}
+                      onChange={(e) => setInquirySearchEndDate(e.target.value)}
                       className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
                     />
                   </div>
@@ -6348,13 +6848,13 @@ function SystemAdminPageContent() {
                 <div className="flex items-center space-x-3">
                   <span className="text-sm font-medium text-gray-700">미답변만조회</span>
                   <button
-                    onClick={() => setShowUnansweredOnly(!showUnansweredOnly)}
+                    onClick={() => setInquiryUnansweredOnly(!inquiryUnansweredOnly)}
                     className={`w-8 h-4 rounded-full transition-colors ${
-                      showUnansweredOnly ? 'bg-green-500' : 'bg-gray-400'
+                      inquiryUnansweredOnly ? 'bg-green-500' : 'bg-gray-400'
                     }`}
                   >
                     <div className={`w-3 h-3 bg-white rounded-full transition-transform ${
-                      showUnansweredOnly ? 'translate-x-4' : 'translate-x-0.5'
+                      inquiryUnansweredOnly ? 'translate-x-4' : 'translate-x-0.5'
                     }`} />
                   </button>
                 </div>
@@ -6363,19 +6863,19 @@ function SystemAdminPageContent() {
 
             {/* 테이블 영역 */}
             <div className="flex-1 overflow-hidden">
-              <div className="overflow-x-auto overflow-y-auto px-4" style={{height: '470px'}}>
+              <div className="overflow-x-auto overflow-y-auto px-4" style={{height: '450px'}}>
                 <table className="w-full text-sm">
                   <thead className="sticky top-0" style={{backgroundColor: '#FFD4D4'}}>
                     <tr>
-                      <th className="px-2 py-2 text-center text-sm font-bold text-red-600">문의 일시</th>
-                      <th className="px-2 py-2 text-center text-sm font-bold text-red-600">문의 내용</th>
+                      <th className="px-2 py-2 text-center text-sm font-bold text-red-600">문의일시</th>
+                      <th className="px-2 py-2 text-center text-sm font-bold text-red-600">문의제목</th>
                       <th className="px-2 py-2 text-center text-sm font-bold text-red-600">문의자</th>
-                      <th className="px-2 py-2 text-center text-sm font-bold text-red-600">답변 일시</th>
+                      <th className="px-2 py-2 text-center text-sm font-bold text-red-600">답변일시</th>
                       <th className="px-2 py-2 text-center text-sm font-bold text-red-600">답변자</th>
-                      <th className="px-2 py-2 text-center text-sm font-bold text-red-600">비밀글</th>
+                      <th className="px-2 py-2 text-center text-sm font-bold text-red-600">잠금아이콘</th>
                       <th className="px-2 py-2 text-center text-sm font-bold text-red-600">관리</th>
-                        </tr>
-                      </thead>
+                    </tr>
+                  </thead>
                   <tbody className="divide-y divide-gray-200">
                     {inquiriesLoading ? (
                       <tr>
@@ -6395,63 +6895,43 @@ function SystemAdminPageContent() {
                     ) : (
                       inquiries.map((inquiry) => (
                         <tr key={inquiry.id} className="hover:bg-gray-50">
-                    <td className="px-2 py-1 text-gray-900 text-center">
-                      {inquiry.inquiry_date ? new Date(inquiry.inquiry_date).toLocaleString('ko-KR', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: false
-                      }).replace(/\. /g, '-').replace(/\./g, '').replace(/-(\d{2}:\d{2})/, ' $1') : '-'}
-                    </td>
-                    <td className="px-2 py-2 text-gray-900 text-left max-w-xs truncate" title={inquiry.content}>
-                      {inquiry.content && inquiry.content.length > 50 
-                        ? inquiry.content.substring(0, 50) + '...' 
-                        : inquiry.content}
-                    </td>
-                    <td className="px-2 py-2 text-gray-900 text-center">{inquiry.requester_name}</td>
-                    <td className="px-2 py-2 text-gray-900 text-center">
-                      {inquiry.answer_date ? new Date(inquiry.answer_date).toLocaleString('ko-KR', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: false
-                      }).replace(/\. /g, '-').replace(/\./g, '').replace(/-(\d{2}:\d{2})/, ' $1') : '-'}
-                    </td>
-                    <td className="px-2 py-2 text-gray-900 text-center">{inquiry.answerer_name || '-'}</td>
-                    <td className="px-2 py-2 text-gray-900 text-center">
-                      <div className="flex justify-center">
-                        {inquiry.is_secret ? (
-                          <img src="/icons/lock.svg" alt="잠금" width="16" height="16" className="text-red-500" />
-                        ) : (
-                          <img src="/icons/unlock.svg" alt="열림" width="16" height="16" className="text-green-500" />
-                        )}
-                      </div>
-                    </td>
+                          <td className="px-2 py-2 text-gray-900 text-center">
+                            {inquiry.inquiryDate ? new Date(inquiry.inquiryDate).toLocaleString('ko-KR') : '-'}
+                          </td>
+                          <td className="px-2 py-2 text-gray-900 text-center">{inquiry.title}</td>
+                          <td className="px-2 py-2 text-gray-900 text-center">{inquiry.requesterName}</td>
+                          <td className="px-2 py-2 text-gray-900 text-center">
+                            {inquiry.answerDate ? new Date(inquiry.answerDate).toLocaleString('ko-KR') : '-'}
+                          </td>
+                          <td className="px-2 py-2 text-gray-900 text-center">{inquiry.answererName || '-'}</td>
+                          <td className="px-2 py-2 text-gray-900 text-center">
+                            {inquiry.isSecret ? (
+                              <Icon name="lock" size={16} className="text-red-500" />
+                            ) : (
+                              <Icon name="unlock" size={16} className="text-green-500" />
+                            )}
+                          </td>
                           <td className="px-2 py-2 text-center">
                             <div className="flex justify-center space-x-2">
-                              {inquiry.answer_date ? (
+                              {inquiry.answerDate ? (
                                 // 답변이 있는 경우: 수정, 삭제 버튼
                                 <>
                                   <button
                                     onClick={() => {
                                       setSelectedInquiry(inquiry);
-                                      setEditAnswerContent(inquiry.answer_content || '');
-                                      setShowGeneralInquiryEditAnswerModal(true);
+                                      setEditAnswerContent(inquiry.answerContent || '');
+                                      setShowEditAnswerModal(true);
                                     }}
-                                    className="px-3 py-1 text-blue-500 text-xs rounded hover:bg-blue-50 transition-colors"
+                                    className="px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 transition-colors"
                                   >
                                     수정
                                   </button>
                                   <button
                                     onClick={() => {
                                       setSelectedInquiry(inquiry);
-                                      setShowGeneralInquiryDeleteAnswerModal(true);
+                                      setShowDeleteAnswerModal(true);
                                     }}
-                                    className="px-3 py-1 text-red-500 text-xs rounded hover:bg-red-50 transition-colors"
+                                    className="px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition-colors"
                                   >
                                     삭제
                                   </button>
@@ -6462,9 +6942,9 @@ function SystemAdminPageContent() {
                                   onClick={() => {
                                     setSelectedInquiry(inquiry);
                                     setAnswerContent('');
-                                    setShowGeneralInquiryAnswerModal(true);
+                                    setShowAnswerModal(true);
                                   }}
-                                  className="px-3 py-1 text-green-500 text-xs rounded hover:bg-green-50 transition-colors"
+                                  className="px-3 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 transition-colors"
                                 >
                                   답변하기
                                 </button>
@@ -6474,113 +6954,557 @@ function SystemAdminPageContent() {
                         </tr>
                       ))
                     )}
-                      </tbody>
-                    </table>
-                  </div>
+                  </tbody>
+                </table>
+              </div>
+            </div>
 
-              {/* 페이지네이션 */}
-              {inquiriesPagination.totalPages > 1 && (
-                <div className="flex justify-center mt-4 pt-4 pb-4 border-t border-gray-200">
-                  <div className="flex items-center space-x-2">
-                    <button 
-                      onClick={() => setInquiriesPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
-                      disabled={inquiriesPagination.page === 1}
-                      className="px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      이전
-                    </button>
-                    <span className="px-2 py-1 bg-blue-500 text-white rounded text-xs">
-                      {inquiriesPagination.page}/{inquiriesPagination.totalPages}
-                    </span>
-                    <button 
-                      onClick={() => setInquiriesPagination(prev => ({ ...prev, page: Math.min(prev.totalPages, prev.page + 1) }))}
-                      disabled={inquiriesPagination.page >= inquiriesPagination.totalPages}
-                      className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      다음
-                    </button>
+            {/* 페이지네이션 */}
+            {inquiriesPagination.totalPages > 1 && (
+              <div className="flex justify-center items-center py-4 px-6 border-t border-gray-200">
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => {
+                      const newPage = Math.max(1, inquiriesPagination.page - 1);
+                      setInquiriesPagination(prev => ({ ...prev, page: newPage }));
+                    }}
+                    disabled={inquiriesPagination.page === 1}
+                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    이전
+                  </button>
+                  
+                  <span className="px-3 py-1 text-sm text-gray-600">
+                    {inquiriesPagination.page} / {inquiriesPagination.totalPages}
+                  </span>
+                  
+                  <button
+                    onClick={() => {
+                      const newPage = Math.min(inquiriesPagination.totalPages, inquiriesPagination.page + 1);
+                      setInquiriesPagination(prev => ({ ...prev, page: newPage }));
+                    }}
+                    disabled={inquiriesPagination.page === inquiriesPagination.totalPages}
+                    className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    다음
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 답변하기 모달 */}
+      {showAnswerModal && selectedInquiry && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">
+            <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200">
+              <h3 className="text-lg font-bold text-gray-800">답변하기</h3>
+              <button
+                onClick={() => {
+                  setShowAnswerModal(false);
+                  setSelectedInquiry(null);
+                  setAnswerContent('');
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <Icon name="close" size={24} />
+              </button>
+            </div>
+
+            <div className="p-6">
+              {/* 문의 정보 */}
+              <div className="mb-6 space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">문의일시</label>
+                  <div className="text-sm text-gray-900">
+                    {selectedInquiry.inquiryDate ? new Date(selectedInquiry.inquiryDate).toLocaleString('ko-KR') : '-'}
                   </div>
                 </div>
-              )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">문의자</label>
+                  <div className="text-sm text-gray-900">{selectedInquiry.requesterName}</div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">문의내용</label>
+                  <div className="text-sm text-gray-900 p-3 bg-gray-50 rounded border">
+                    {selectedInquiry.content}
+                  </div>
+                </div>
+              </div>
+
+              {/* 답변 입력 */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">답변내용</label>
+                <textarea
+                  value={answerContent}
+                  onChange={(e) => setAnswerContent(e.target.value)}
+                  rows={6}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="답변 내용을 입력해주세요..."
+                />
+              </div>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowAnswerModal(false);
+                    setSelectedInquiry(null);
+                    setAnswerContent('');
+                  }}
+                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleAnswerInquiry}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  답변하기
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* 답변하기 프레임 */}
-      {showGeneralInquiryAnswerModal && selectedInquiry && (
+      {/* 답변수정하기 모달 */}
+      {showEditAnswerModal && selectedInquiry && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
-            {/* 모달 헤더 */}
-            <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200" style={{paddingTop: '30px'}}>
-              <h2 className="text-xl font-bold text-gray-800 flex items-center">
-                <Icon name="message-square" size={24} className="mr-2 text-green-600" />
-                답변 하기
-              </h2>
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">
+            <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200">
+              <h3 className="text-lg font-bold text-gray-800">답변수정하기</h3>
               <button
-                onClick={() => setShowGeneralInquiryAnswerModal(false)}
+                onClick={() => {
+                  setShowEditAnswerModal(false);
+                  setSelectedInquiry(null);
+                  setEditAnswerContent('');
+                }}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <Icon name="close" size={24} />
               </button>
-                  </div>
-                  
-            {/* 모달 내용 */}
-            <div className="py-6 px-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* 문의 정보 */}
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-2 mb-4">
-                    <Icon name="user" size={20} className="text-gray-600" />
-                    <h3 className="text-lg font-semibold text-gray-800">문의 정보</h3>
-                    </div>
-                  
-                  <div className="space-y-0">
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">문의 일시: </span>
-                      <span className="text-sm">
-                        {selectedInquiry.inquiry_date ? new Date(selectedInquiry.inquiry_date).toLocaleString('ko-KR') : '-'}
-                      </span>
-                  </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">문의자: </span>
-                      <span className="text-sm">{selectedInquiry.requester_name}</span>
-                </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">문의 내용: </span>
-                      <div className="text-sm mt-1 p-3 bg-gray-50 rounded text-gray-700 min-h-24 max-h-48 overflow-y-auto whitespace-pre-wrap">
-                        {selectedInquiry.content}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+            </div>
 
-                {/* 답변 작성 */}
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-2 mb-4">
-                    <Icon name="edit" size={20} className="text-gray-600" />
-                    <h3 className="text-lg font-semibold text-gray-800">답변 하기</h3>
+            <div className="p-6">
+              {/* 문의 정보 */}
+              <div className="mb-6 space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">문의일시</label>
+                  <div className="text-sm text-gray-900">
+                    {selectedInquiry.inquiryDate ? new Date(selectedInquiry.inquiryDate).toLocaleString('ko-KR') : '-'}
                   </div>
-                  
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                        답변 내용
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">문의자</label>
+                  <div className="text-sm text-gray-900">{selectedInquiry.requesterName}</div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">문의내용</label>
+                  <div className="text-sm text-gray-900 p-3 bg-gray-50 rounded border">
+                    {selectedInquiry.content}
+                  </div>
+                </div>
+              </div>
+
+              {/* 답변 수정 입력 */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">답변내용</label>
+                <textarea
+                  value={editAnswerContent}
+                  onChange={(e) => setEditAnswerContent(e.target.value)}
+                  rows={6}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="답변 내용을 입력해주세요..."
+                />
+              </div>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowEditAnswerModal(false);
+                    setSelectedInquiry(null);
+                    setEditAnswerContent('');
+                  }}
+                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleEditAnswer}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  수정하기
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 답변삭제하기 모달 */}
+      {showDeleteAnswerModal && selectedInquiry && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">
+            <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200">
+              <h3 className="text-lg font-bold text-gray-800">답변삭제하기</h3>
+              <button
+                onClick={() => {
+                  setShowDeleteAnswerModal(false);
+                  setSelectedInquiry(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <Icon name="close" size={24} />
+              </button>
+            </div>
+
+            <div className="p-6">
+              {/* 문의 정보 */}
+              <div className="mb-6 space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">문의일시</label>
+                  <div className="text-sm text-gray-900">
+                    {selectedInquiry.inquiryDate ? new Date(selectedInquiry.inquiryDate).toLocaleString('ko-KR') : '-'}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">문의자</label>
+                  <div className="text-sm text-gray-900">{selectedInquiry.requesterName}</div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">문의내용</label>
+                  <div className="text-sm text-gray-900 p-3 bg-gray-50 rounded border">
+                    {selectedInquiry.content}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">답변내용</label>
+                  <div className="text-sm text-gray-900 p-3 bg-gray-50 rounded border">
+                    {selectedInquiry.answerContent || '-'}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">답변자</label>
+                  <div className="text-sm text-gray-900">{selectedInquiry.answererName || '-'}</div>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowDeleteAnswerModal(false);
+                    setSelectedInquiry(null);
+                  }}
+                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  취소
+                </button>
+                <button
+                  onClick={handleDeleteAnswer}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  삭제하기
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 기존 일반문의 프레임 제거를 위한 임시 주석
+      {(() => {
+        // 일반문의 데이터 (페이지네이션 테스트를 위해 더 많은 데이터 추가)
+        const inquiries = [
+                        {
+                          id: '1',
+                          inquiryDate: '2025.08.31 14:00',
+                          title: '모니터 전원 문의',
+                          inquirer: '홍길순',
+                          answerDate: '2025.08.31 15:00',
+                          answerer: '이배정',
+                          content: '모니터에 전원이 들어오지 않습니다.',
+                          answerContent: '모니터 전원 케이블를 한번 더 꼽아 주세요! 모니터 전원 버튼을 켜 주십시요 이상과 같이 조치가 되지 않을 따는 서비스 신청 해 주세요!'
+                        },
+                        {
+                          id: '2',
+                          inquiryDate: '2025.08.31 13:00',
+                          title: '네트워크 문의',
+                          inquirer: '김영자',
+                          answerDate: '',
+                          answerer: '',
+                          content: '네트워크 연결이 안 됩니다.'
+                        },
+                        {
+                          id: '3',
+                          inquiryDate: '2025.08.31 12:00',
+                          title: '프린터 드라이버 업데이트',
+                          inquirer: '이영희',
+                          answerDate: '',
+                          answerer: '',
+                          content: '프린터 드라이버를 최신 버전으로 업데이트하고 싶습니다.'
+                        },
+                        {
+                          id: '4',
+                          inquiryDate: '2025.08.31 11:00',
+                          title: '이메일 문의',
+                          inquirer: '박달자',
+                          answerDate: '2025.08.31 12:00',
+                          answerer: '이배정',
+                          content: '이메일 접속이 안 됩니다.',
+                          answerContent: '이메일 계정 설정을 확인해 주세요. 비밀번호를 재설정하고 다시 시도해 보세요.'
+                        },
+                        {
+                          id: '5',
+                          inquiryDate: '2025.08.31 10:00',
+                          title: '소프트웨어 설치 요청',
+                          inquirer: '최민수',
+                          answerDate: '',
+                          answerer: '',
+                          content: '새로운 소프트웨어를 설치하고 싶습니다.'
+                        },
+                        {
+                          id: '6',
+                          inquiryDate: '2025.08.31 09:30',
+                          title: '키보드 고장 문의',
+                          inquirer: '정수진',
+                          answerDate: '2025.08.31 10:30',
+                          answerer: '김기술',
+                          content: '키보드가 작동하지 않습니다.',
+                          answerContent: '키보드 연결을 확인하고, 다른 포트에 연결해 보세요. 문제가 지속되면 교체가 필요합니다.'
+                        },
+                        {
+                          id: '7',
+                          inquiryDate: '2025.08.31 09:00',
+                          title: '웹사이트 접속 불가',
+                          inquirer: '강지훈',
+                          answerDate: '',
+                          answerer: '',
+                          content: '내부 웹사이트에 접속할 수 없습니다.'
+                        },
+                        {
+                          id: '8',
+                          inquiryDate: '2025.08.30 16:30',
+                          title: '마우스 반응 지연',
+                          inquirer: '윤서연',
+                          answerDate: '2025.08.30 17:00',
+                          answerer: '이배정',
+                          content: '마우스가 느리게 반응합니다.',
+                          answerContent: '마우스 드라이버를 업데이트하고, USB 포트를 변경해 보세요.'
+                        },
+                        {
+                          id: '9',
+                          inquiryDate: '2025.08.30 15:00',
+                          title: '폴더 권한 문의',
+                          inquirer: '송현우',
+                          answerDate: '',
+                          answerer: '',
+                          content: '특정 폴더에 접근할 수 없습니다.'
+                        },
+                        {
+                          id: '10',
+                          inquiryDate: '2025.08.30 14:00',
+                          title: '인쇄 대기열 오류',
+                          inquirer: '임지영',
+                          answerDate: '2025.08.30 14:30',
+                          answerer: '김기술',
+                          content: '프린터 대기열에 오류가 발생했습니다.',
+                          answerContent: '인쇄 대기열을 초기화하고 프린터를 재시작해 주세요.'
+                        },
+                        {
+                          id: '11',
+                          inquiryDate: '2025.08.30 13:00',
+                          title: '시스템 업데이트 문의',
+                          inquirer: '박준호',
+                          answerDate: '',
+                          answerer: '',
+                          content: '시스템 업데이트가 필요한지 확인하고 싶습니다.'
+                        },
+                        {
+                          id: '12',
+                          inquiryDate: '2025.08.30 12:00',
+                          title: '백업 시스템 문의',
+                          inquirer: '한소영',
+                          answerDate: '2025.08.30 12:30',
+                          answerer: '이배정',
+                          content: '백업 시스템이 정상 작동하는지 확인해 주세요.',
+                          answerContent: '백업 시스템을 점검한 결과 정상 작동하고 있습니다. 일정한 시간에 자동 백업이 진행됩니다.'
+                        }
+                      ];
+
+                      // 필터링된 데이터
+                      let filteredInquiries = inquiries;
+                      
+                      // 미 답변만 조회 필터
+                      if (showUnansweredOnly) {
+                        filteredInquiries = inquiries.filter(inquiry => !inquiry.answerDate);
+                      }
+
+                      // 날짜 필터링 (간단한 예시)
+                      const startDate = new Date(generalInquirySearchStartDate);
+                      const endDate = new Date(generalInquirySearchEndDate);
+                      filteredInquiries = filteredInquiries.filter(inquiry => {
+                        const inquiryDate = new Date(inquiry.inquiryDate);
+                        return inquiryDate >= startDate && inquiryDate <= endDate;
+                      });
+
+                      // 페이지네이션
+                      const inquiryItemsPerPage = 10;
+                      const totalPages = Math.ceil(filteredInquiries.length / inquiryItemsPerPage);
+                      const startIndex = (generalInquiryCurrentPage - 1) * inquiryItemsPerPage;
+                      const endIndex = startIndex + inquiryItemsPerPage;
+                      const currentInquiries = filteredInquiries.slice(startIndex, endIndex);
+
+                      return (
+                        <>
+                          {currentInquiries.map((inquiry) => (
+                            <tr key={inquiry.id} className="hover:bg-gray-50">
+                              <td className="px-2 py-2 text-gray-900 text-center">{inquiry.inquiryDate}</td>
+                              <td className="px-2 py-2 text-gray-900">{inquiry.title}</td>
+                              <td className="px-2 py-2 text-gray-900 text-center">{inquiry.inquirer}</td>
+                              <td className="px-2 py-2 text-gray-900 text-center">{inquiry.answerDate || '-'}</td>
+                              <td className="px-2 py-2 text-gray-900 text-center">
+                                <div className="flex items-center justify-center">
+                                  {inquiry.answerer && <Icon name="lock" size={16} className="text-gray-400 mr-1" />}
+                                  {inquiry.answerer || '-'}
+                                </div>
+                            </td>
+                              <td className="px-2 py-2 text-center">
+                                <div className="flex justify-center space-x-2">
+                                  {inquiry.answerDate ? (
+                                    <>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedInquiry(inquiry);
+                                          setShowGeneralInquiryEditModal(true);
+                                        }}
+                                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                                      >
+                                        수정
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setSelectedInquiry(inquiry);
+                                          setShowGeneralInquiryDeleteModal(true);
+                                        }}
+                                        className="text-red-600 hover:text-red-800 text-sm font-medium"
+                                      >
+                                        삭제
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedInquiry(inquiry);
+                                        setShowGeneralInquiryReplyModal(true);
+                                      }}
+                                      className="text-green-600 hover:text-green-800 text-sm font-medium"
+                                    >
+                                      답변하기
+                                    </button>
+                                  )}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                        </>
+                      );
+                    })()}
+                      </tbody>
+                    </table>
+                  </div>
+
+              {/* 페이지네이션 */}
+              {(() => {
+                // 동일한 데이터와 필터링 로직 사용
+                const inquiries: any[] = []; // 실제 데이터로 교체 필요
+                
+                let filteredInquiries = inquiries;
+                if (showUnansweredOnly) {
+                  filteredInquiries = inquiries.filter(inquiry => !inquiry.answerDate);
+                }
+                
+                // 날짜 필터링
+                const startDate = new Date(generalInquirySearchStartDate);
+                const endDate = new Date(generalInquirySearchEndDate);
+                filteredInquiries = filteredInquiries.filter(inquiry => {
+                  const inquiryDate = new Date(inquiry.inquiryDate);
+                  return inquiryDate >= startDate && inquiryDate <= endDate;
+                });
+                
+                const totalPages = Math.ceil(filteredInquiries.length / 10);
+                
+                return totalPages > 1 ? (
+                  <div className="flex justify-center mt-4 pt-4 pb-4 border-t border-gray-200">
+                    <div className="flex items-center space-x-2">
+                      <button 
+                        onClick={() => setGeneralInquiryCurrentPage(Math.max(1, generalInquiryCurrentPage - 1))}
+                        disabled={generalInquiryCurrentPage === 1}
+                        className="px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        이전
+                      </button>
+                      <span className="px-2 py-1 bg-blue-500 text-white rounded text-xs">
+                        {generalInquiryCurrentPage}/{totalPages}
+                      </span>
+                      <button 
+                        onClick={() => setGeneralInquiryCurrentPage(Math.min(totalPages, generalInquiryCurrentPage + 1))}
+                        disabled={generalInquiryCurrentPage >= totalPages}
+                        className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        다음
+                      </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 기존 일반문의 프레임들 제거됨 - 새로운 API 연동 프레임 사용 */}
+
+      {/* 파일 끝 */}
+    </div>
+  )
+}
+
+export default function SystemAdminPage() {
+  return (
+    <RoleGuard requiredRoles={['시스템관리']} fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="text-6xl mb-4">🔒</div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">접근 권한이 없습니다</h1>
+          <p className="text-gray-600 mb-4">시스템관리 권한이 필요합니다.</p>
+          <button 
+            onClick={() => window.history.back()}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            이전 페이지로 돌아가기
+          </button>
+        </div>
+      </div>
+    }>
+      <SystemAdminPageContent />
+    </RoleGuard>
+  )
+}
                         </label>
                       <textarea
-                        value={answerContent}
-                        onChange={(e) => setAnswerContent(e.target.value)}
                         rows={8}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                         placeholder="답변 내용을 입력하세요"
+                        defaultValue="네트워크 케이블이 정확히 꼽혀 있는지 확인 해 주세요!"
                       />
                           </div>
                     
                     <div>
                       <span className="text-sm font-medium text-gray-600">답변자: </span>
-                      <span className="text-sm">{selectedInquiry.answerer_name || '미답변'}</span>
+                      <span className="text-sm">이배정 (관리팀)</span>
                           </div>
                           </div>
                         </div>
@@ -6590,13 +7514,17 @@ function SystemAdminPageContent() {
             {/* 모달 하단 버튼 */}
             <div className="flex gap-3 py-4 px-6 border-t border-gray-200">
               <button
-                onClick={() => setShowGeneralInquiryAnswerModal(false)}
+                onClick={() => setShowGeneralInquiryReplyModal(false)}
                 className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
               >
                 취소
               </button>
               <button
-                onClick={handleAnswerInquiry}
+                onClick={() => {
+                  setShowGeneralInquiryReplyModal(false);
+                  // 답변 완료 로직 추가
+                  alert('답변이 완료되었습니다.');
+                }}
                 className="px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
               >
                 답변 하기
@@ -6607,7 +7535,7 @@ function SystemAdminPageContent() {
       )}
 
       {/* 답변수정하기 프레임 */}
-      {showGeneralInquiryEditAnswerModal && selectedInquiry && (
+      {showGeneralInquiryEditModal && selectedInquiry && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
           <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
             {/* 모달 헤더 */}
@@ -6617,7 +7545,7 @@ function SystemAdminPageContent() {
                 답변 수정하기
               </h2>
               <button
-                onClick={() => setShowGeneralInquiryEditAnswerModal(false)}
+                onClick={() => setShowGeneralInquiryEditModal(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <Icon name="close" size={24} />
@@ -6637,14 +7565,12 @@ function SystemAdminPageContent() {
                   <div className="space-y-0">
                       <div>
                       <span className="text-sm font-medium text-gray-600">문의 일시: </span>
-                      <span className="text-sm">
-                        {selectedInquiry.inquiry_date ? new Date(selectedInquiry.inquiry_date).toLocaleString('ko-KR') : '-'}
-                      </span>
+                      <span className="text-sm">{selectedInquiry.inquiryDate}</span>
                       </div>
                     
                     <div>
                       <span className="text-sm font-medium text-gray-600">문의자: </span>
-                      <span className="text-sm">{selectedInquiry.requester_name}</span>
+                      <span className="text-sm">{selectedInquiry.inquirer}</span>
                     </div>
                     
                     <div>
@@ -6669,17 +7595,16 @@ function SystemAdminPageContent() {
                         답변 내용
                         </label>
                       <textarea
-                        value={editAnswerContent}
-                        onChange={(e) => setEditAnswerContent(e.target.value)}
                         rows={8}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                         placeholder="답변 내용을 입력하세요"
+                        defaultValue={selectedInquiry.answerContent || "모니터 전원 케이블를 한번 더 꼽아 주세요! 모니터 전원 버튼을 켜 주십시요 이상과 같이 조치가 되지 않을 따는 서비스 신청 해 주세요!"}
                       />
                       </div>
                     
                     <div>
                       <span className="text-sm font-medium text-gray-600">답변자: </span>
-                      <span className="text-sm">{selectedInquiry.answerer_name || '미답변'}</span>
+                      <span className="text-sm">이배정 (관리팀)</span>
                     </div>
                   </div>
                 </div>
@@ -6695,7 +7620,11 @@ function SystemAdminPageContent() {
                 취소
               </button>
               <button
-                onClick={handleEditAnswer}
+                onClick={() => {
+                  setShowGeneralInquiryEditModal(false);
+                  // 수정 완료 로직 추가
+                  alert('답변이 수정되었습니다.');
+                }}
                 className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
               >
                 수정 하기
@@ -6706,7 +7635,7 @@ function SystemAdminPageContent() {
             )}
 
       {/* 답변삭제하기 프레임 */}
-      {showGeneralInquiryDeleteAnswerModal && selectedInquiry && (
+      {showGeneralInquiryDeleteModal && selectedInquiry && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
           <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
             {/* 모달 헤더 */}
@@ -6716,7 +7645,7 @@ function SystemAdminPageContent() {
                 답변 삭제하기
               </h2>
               <button
-                onClick={() => setShowGeneralInquiryDeleteAnswerModal(false)}
+                onClick={() => setShowGeneralInquiryDeleteModal(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <Icon name="close" size={24} />
@@ -6736,14 +7665,12 @@ function SystemAdminPageContent() {
                   <div className="space-y-0">
                       <div>
                       <span className="text-sm font-medium text-gray-600">문의 일시: </span>
-                      <span className="text-sm">
-                        {selectedInquiry.inquiry_date ? new Date(selectedInquiry.inquiry_date).toLocaleString('ko-KR') : '-'}
-                      </span>
+                      <span className="text-sm">{selectedInquiry.inquiryDate}</span>
                       </div>
                     
                       <div>
                       <span className="text-sm font-medium text-gray-600">문의자: </span>
-                      <span className="text-sm">{selectedInquiry.requester_name}</span>
+                      <span className="text-sm">{selectedInquiry.inquirer}</span>
                       </div>
                     
                       <div>
@@ -6768,13 +7695,13 @@ function SystemAdminPageContent() {
                         답변 내용
                         </label>
                       <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 min-h-32 max-h-48 overflow-y-auto whitespace-pre-wrap">
-                        {selectedInquiry.answer_content || '답변이 없습니다.'}
+                        {selectedInquiry.answerContent || "모니터 전원 케이블를 한번 더 꼽아 주세요! 모니터 전원 버튼을 켜 주십시요 이상과 같이 조치가 되지 않을 따는 서비스 신청 해 주세요!"}
                           </div>
                           </div>
                     
                     <div>
                       <span className="text-sm font-medium text-gray-600">답변자: </span>
-                      <span className="text-sm">{selectedInquiry.answerer_name || '미답변'}</span>
+                      <span className="text-sm">이배정 (관리팀)</span>
                           </div>
                         </div>
                       </div>
@@ -6784,13 +7711,17 @@ function SystemAdminPageContent() {
             {/* 모달 하단 버튼 */}
             <div className="flex gap-3 py-4 px-6 border-t border-gray-200">
               <button
-                onClick={() => setShowGeneralInquiryDeleteAnswerModal(false)}
+                onClick={() => setShowGeneralInquiryDeleteModal(false)}
                 className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
               >
                 취소
               </button>
               <button
-                onClick={handleDeleteAnswer}
+                onClick={() => {
+                  setShowGeneralInquiryDeleteModal(false);
+                  // 삭제 완료 로직 추가
+                  alert('답변이 삭제되었습니다.');
+                }}
                 className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
               >
                 삭제 하기

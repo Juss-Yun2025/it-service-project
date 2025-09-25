@@ -103,8 +103,12 @@ export const getAllServiceRequests = async (req: Request, res: Response): Promis
       queryParams.push(startDate);
       
       paramCount++;
+      // 종료일을 23:59:59까지 포함하도록 수정
+      const endDateStr = Array.isArray(endDate) ? endDate[0] : endDate;
+      const endDateTime = new Date(endDateStr as string);
+      endDateTime.setHours(23, 59, 59, 999);
       query += ` AND sr.request_date <= $${paramCount}`;
-      queryParams.push(endDate);
+      queryParams.push(endDateTime.toISOString());
     }
 
     // 부서 필터 (조치담당자 부서 기준)

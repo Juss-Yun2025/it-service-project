@@ -1,0 +1,50 @@
+-- 30건의 일반문의 샘플 데이터 삽입 (한글)
+INSERT INTO general_inquiries (
+    inquiry_number, 
+    title, 
+    content, 
+    requester_id, 
+    department, 
+    status, 
+    created_at,
+    answer,
+    answered_at,
+    answered_by,
+    is_secret
+) VALUES 
+-- 답변 완료된 문의 (20건)
+('INQ-2025-001', '시스템 로그인 오류', '오늘 시스템에 로그인이 안됩니다. 비밀번호를 여러 번 바꿔봐도 계속 로그인 오류가 발생합니다.', (SELECT id FROM users WHERE email = 'user1@company.com' LIMIT 1), '영업팀', 'answered', '2025-09-20 09:30:00', '로그인 문제 해결되었습니다. 계정이 일시적으로 잠겼었습니다. 계정을 활성화했으니 다시 시도해보세요.', '2025-09-20 14:15:00', (SELECT id FROM users WHERE email = 'admin@itsm.com' LIMIT 1), false),
+('INQ-2025-002', '프린터 연결 오류', '회의실 프린터가 연결되지 않습니다. 네트워크 설정을 확인해주세요.', (SELECT id FROM users WHERE email = 'user2@company.com' LIMIT 1), '마케팅팀', 'answered', '2025-09-21 10:15:00', '프린터 드라이버를 업데이트하고 네트워크 설정을 재구성했습니다. 이제 정상적으로 작동할 것입니다.', '2025-09-21 16:30:00', (SELECT id FROM users WHERE email = 'service@itsm.com' LIMIT 1), false),
+('INQ-2025-003', '이메일 계정 문제', '이메일을 받지 못하고 있습니다. 외부 이메일이 차단되는 것 같습니다.', (SELECT id FROM users WHERE email = 'user3@company.com' LIMIT 1), '인사팀', 'answered', '2025-09-22 11:00:00', '스팸 필터 설정을 조정했습니다. 이제 외부 이메일을 정상적으로 받을 수 있습니다.', '2025-09-22 15:45:00', (SELECT id FROM users WHERE email = 'admin@itsm.com' LIMIT 1), false),
+('INQ-2025-004', '소프트웨어 설치 요청', '새로운 프로젝트 관리 소프트웨어를 설치해야 합니다. 어떤 절차를 따라야 하나요?', (SELECT id FROM users WHERE email = 'user4@company.com' LIMIT 1), '개발팀', 'answered', '2025-09-23 14:20:00', '소프트웨어 설치 절차를 안내드렸습니다. IT팀에서 직접 설치해드리겠습니다.', '2025-09-23 16:45:00', (SELECT id FROM users WHERE email = 'service@itsm.com' LIMIT 1), false),
+('INQ-2025-005', '비밀번호 초기화', '비밀번호를 잊어버렸습니다. 초기화해주세요.', (SELECT id FROM users WHERE email = 'user5@company.com' LIMIT 1), '재무팀', 'answered', '2025-09-24 09:45:00', '비밀번호를 초기화했습니다. 새 비밀번호를 직접 전달드렸습니다.', '2025-09-24 11:30:00', (SELECT id FROM users WHERE email = 'admin@itsm.com' LIMIT 1), false),
+('INQ-2025-006', '네트워크 속도 문제', '인터넷 속도가 매우 느립니다. 네트워크를 확인해주세요.', (SELECT id FROM users WHERE email = 'user6@company.com' LIMIT 1), '운영팀', 'answered', '2025-09-24 16:30:00', '네트워크 점검을 완료했습니다. 라우터 설정을 최적화하여 속도가 개선되었습니다.', '2025-09-25 10:15:00', (SELECT id FROM users WHERE email = 'service@itsm.com' LIMIT 1), false),
+('INQ-2025-007', '데이터 백업 문의', '중요한 데이터의 백업 방법에 대한 정보가 필요합니다.', (SELECT id FROM users WHERE email = 'user7@company.com' LIMIT 1), '관리부', 'answered', '2025-09-19 15:30:00', '데이터 백업 절차와 정책에 대해 직접 설명드렸습니다.', '2025-09-20 11:00:00', (SELECT id FROM users WHERE email = 'admin@itsm.com' LIMIT 1), true),
+('INQ-2025-008', '회의실 예약 시스템 오류', '회의실 예약 시스템에 오류가 있습니다. 예약을 제대로 할 수 없습니다.', (SELECT id FROM users WHERE email = 'user1@company.com' LIMIT 1), '영업팀', 'answered', '2025-09-18 13:20:00', '회의실 예약 시스템 버그를 수정했습니다. 이제 정상적으로 예약할 수 있습니다.', '2025-09-19 09:30:00', (SELECT id FROM users WHERE email = 'service@itsm.com' LIMIT 1), false),
+('INQ-2025-009', '모니터 화면 깜빡임', '모니터 화면이 계속 깜빡입니다. 눈이 아프고 업무에 지장이 있습니다.', (SELECT id FROM users WHERE email = 'user2@company.com' LIMIT 1), '마케팅팀', 'answered', '2025-09-17 14:45:00', '모니터 케이블을 교체하고 그래픽 드라이버를 업데이트했습니다. 깜빡임 문제가 해결되었습니다.', '2025-09-18 10:20:00', (SELECT id FROM users WHERE email = 'service@itsm.com' LIMIT 1), false),
+('INQ-2025-010', '사무용품 주문 시스템', '사무용품 주문 시스템에 접근할 수 없습니다. 급한 용품이 필요합니다.', (SELECT id FROM users WHERE email = 'user3@company.com' LIMIT 1), '인사팀', 'answered', '2025-09-16 11:30:00', '시스템 접근 문제를 해결했습니다. 전화 주문도 임시로 가능합니다.', '2025-09-16 15:45:00', (SELECT id FROM users WHERE email = 'admin@itsm.com' LIMIT 1), false),
+('INQ-2025-011', '개발 서버 접근 문제', '개발 서버에 SSH로 접근할 수 없습니다. 프로젝트 진행에 차질이 있습니다.', (SELECT id FROM users WHERE email = 'user4@company.com' LIMIT 1), '개발팀', 'answered', '2025-09-15 16:00:00', '서버 방화벽 설정을 조정했습니다. 이제 정상적으로 접근할 수 있습니다.', '2025-09-16 08:30:00', (SELECT id FROM users WHERE email = 'admin@itsm.com' LIMIT 1), false),
+('INQ-2025-012', '재무 시스템 권한 요청', '재무 시스템에 대한 접근 권한이 필요합니다. 승인해주세요.', (SELECT id FROM users WHERE email = 'user5@company.com' LIMIT 1), '재무팀', 'answered', '2025-09-14 10:15:00', '재무 시스템 접근 권한을 부여했습니다. 보안을 위해 제한된 권한으로 설정했습니다.', '2025-09-14 14:20:00', (SELECT id FROM users WHERE email = 'admin@itsm.com' LIMIT 1), false),
+('INQ-2025-013', '운영 시스템 모니터링', '운영 시스템 모니터링 도구 사용법을 배우고 싶습니다.', (SELECT id FROM users WHERE email = 'user6@company.com' LIMIT 1), '운영팀', 'answered', '2025-09-13 15:30:00', '모니터링 도구에 대한 교육 자료를 제공했습니다. 추가 질문이 있으면 연락주세요.', '2025-09-14 09:15:00', (SELECT id FROM users WHERE email = 'service@itsm.com' LIMIT 1), false),
+('INQ-2025-014', '보안 정책 문의', '회사 보안 정책에 대한 자세한 정보를 원합니다.', (SELECT id FROM users WHERE email = 'user7@company.com' LIMIT 1), '관리부', 'answered', '2025-09-12 09:45:00', '보안 정책 문서를 직접 전달드렸습니다. 추가 질문이 있으면 언제든 연락주세요.', '2025-09-12 16:30:00', (SELECT id FROM users WHERE email = 'admin@itsm.com' LIMIT 1), true),
+('INQ-2025-015', '키보드 고장', '키보드가 갑자기 작동하지 않습니다. 교체가 필요합니다.', (SELECT id FROM users WHERE email = 'user8@company.com' LIMIT 1), '관리부', 'answered', '2025-09-11 14:20:00', '새 키보드로 교체했습니다. 이제 정상적으로 사용할 수 있습니다.', '2025-09-12 10:00:00', (SELECT id FROM users WHERE email = 'service@itsm.com' LIMIT 1), false),
+('INQ-2025-016', '웹사이트 접근 오류', '회사 웹사이트에 접근할 수 없습니다. 404 오류가 발생합니다.', (SELECT id FROM users WHERE email = 'user2@company.com' LIMIT 1), '마케팅팀', 'answered', '2025-09-10 08:45:00', '웹 서버 설정 문제를 해결했습니다. 이제 정상적으로 접근할 수 있습니다.', '2025-09-10 12:30:00', (SELECT id FROM users WHERE email = 'service@itsm.com' LIMIT 1), false),
+('INQ-2025-017', '데이터 분석 도구', '데이터 분석 도구 사용법을 배우고 싶습니다.', (SELECT id FROM users WHERE email = 'user3@company.com' LIMIT 1), '인사팀', 'answered', '2025-09-09 14:20:00', '데이터 분석 도구에 대한 교육을 실시했습니다. 추가 질문이 있으면 연락주세요.', '2025-09-10 10:15:00', (SELECT id FROM users WHERE email = 'service@itsm.com' LIMIT 1), false),
+('INQ-2025-018', '코드 저장소 접근', 'Git 저장소에 대한 접근 권한이 필요합니다.', (SELECT id FROM users WHERE email = 'user4@company.com' LIMIT 1), '개발팀', 'answered', '2025-09-08 16:30:00', 'Git 저장소 접근 권한을 부여했습니다. SSH 키 설정도 완료했습니다.', '2025-09-09 09:00:00', (SELECT id FROM users WHERE email = 'admin@itsm.com' LIMIT 1), false),
+('INQ-2025-019', '재무 보고서 생성', '재무 보고서 생성 시스템에 오류가 있습니다.', (SELECT id FROM users WHERE email = 'user5@company.com' LIMIT 1), '재무팀', 'answered', '2025-09-07 11:15:00', '재무 보고서 생성 시스템 버그를 수정했습니다. 이제 정상적으로 작동합니다.', '2025-09-07 16:45:00', (SELECT id FROM users WHERE email = 'service@itsm.com' LIMIT 1), false),
+('INQ-2025-020', '시스템 모니터링', '시스템 모니터링 도구에서 알림이 오지 않습니다.', (SELECT id FROM users WHERE email = 'user6@company.com' LIMIT 1), '운영팀', 'answered', '2025-09-06 13:45:00', '모니터링 도구 알림 설정을 확인하고 수정했습니다. 이제 정상적으로 알림이 전송됩니다.', '2025-09-07 08:30:00', (SELECT id FROM users WHERE email = 'admin@itsm.com' LIMIT 1), false),
+
+-- 답변 대기 중인 문의 (10건)
+('INQ-2025-021', '보안 관련 문의', '시스템 보안 정책에 대해 질문이 있습니다. 직접 연락해주세요.', (SELECT id FROM users WHERE email = 'user7@company.com' LIMIT 1), '관리부', 'pending', '2025-09-25 10:00:00', NULL, NULL, NULL, true),
+('INQ-2025-022', '새 소프트웨어 라이선스', 'Adobe Creative Suite 라이선스를 추가로 구매해야 합니다.', (SELECT id FROM users WHERE email = 'user2@company.com' LIMIT 1), '마케팅팀', 'pending', '2025-09-25 11:30:00', NULL, NULL, NULL, false),
+('INQ-2025-023', '원격 근무 시스템', '원격 근무를 위한 VPN 접근 방법을 알고 싶습니다.', (SELECT id FROM users WHERE email = 'user1@company.com' LIMIT 1), '영업팀', 'pending', '2025-09-25 13:15:00', NULL, NULL, NULL, false),
+('INQ-2025-024', '데이터베이스 백업', '중요한 프로젝트 데이터의 백업이 필요합니다.', (SELECT id FROM users WHERE email = 'user4@company.com' LIMIT 1), '개발팀', 'pending', '2025-09-25 14:45:00', NULL, NULL, NULL, false),
+('INQ-2025-025', '회계 시스템 업데이트', '회계 시스템 업데이트 후 일부 기능이 작동하지 않습니다.', (SELECT id FROM users WHERE email = 'user5@company.com' LIMIT 1), '재무팀', 'pending', '2025-09-25 15:20:00', NULL, NULL, NULL, false),
+('INQ-2025-026', '서버 성능 최적화', '웹 서버 응답 속도가 느려졌습니다. 성능 최적화가 필요합니다.', (SELECT id FROM users WHERE email = 'user6@company.com' LIMIT 1), '운영팀', 'pending', '2025-09-25 16:10:00', NULL, NULL, NULL, false),
+('INQ-2025-027', '모바일 앱 개발 환경', '모바일 앱 개발을 위한 개발 환경 설정이 필요합니다.', (SELECT id FROM users WHERE email = 'user4@company.com' LIMIT 1), '개발팀', 'pending', '2025-09-24 17:30:00', NULL, NULL, NULL, false),
+('INQ-2025-028', '클라우드 저장소 용량', '클라우드 저장소 용량이 부족합니다. 확장이 필요합니다.', (SELECT id FROM users WHERE email = 'user3@company.com' LIMIT 1), '인사팀', 'pending', '2025-09-24 18:00:00', NULL, NULL, NULL, false),
+('INQ-2025-029', '보안 교육 요청', '직원들을 위한 보안 교육을 실시해주세요.', (SELECT id FROM users WHERE email = 'user8@company.com' LIMIT 1), '관리부', 'pending', '2025-09-24 19:15:00', NULL, NULL, NULL, true),
+('INQ-2025-030', '프로젝트 관리 도구', '새로운 프로젝트 관리 도구 도입을 검토하고 있습니다.', (SELECT id FROM users WHERE email = 'user1@company.com' LIMIT 1), '영업팀', 'pending', '2025-09-23 20:30:00', NULL, NULL, NULL, false);
+
+-- 삽입된 데이터 확인
+SELECT inquiry_number, title, department, status, created_at, answered_at, is_secret FROM general_inquiries ORDER BY created_at DESC;
