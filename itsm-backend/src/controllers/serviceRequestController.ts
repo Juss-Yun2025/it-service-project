@@ -689,8 +689,7 @@ export const cancelAssignment = async (req: Request, res: Response) => {
       rejectionName,
       stageId,
       previousAssigneeDate,
-      previousAssignee,
-      previousAssigneeOpinion
+      previousAssignee
     } = req.body;
 
     // 필수 필드 검증
@@ -706,11 +705,11 @@ export const cancelAssignment = async (req: Request, res: Response) => {
       UPDATE service_requests SET
         previous_assign_date = $1,
         previous_assignee = $2,
-        previous_assignment_opinion = $3,
-        rejection_opinion = $4,
-        rejection_date = $5,
-        rejection_name = $6,
-        stage_id = $7,
+        previous_assignment_opinion = assignment_opinion,
+        rejection_opinion = $3,
+        rejection_date = $4,
+        rejection_name = $5,
+        stage_id = $6,
         assign_date = NULL,
         assign_time = NULL,
         assignee_id = NULL,
@@ -721,11 +720,10 @@ export const cancelAssignment = async (req: Request, res: Response) => {
         technician_name = NULL,
         technician_department = NULL,
         updated_at = NOW()
-      WHERE id = $8
+      WHERE id = $7
     `, [
       previousAssigneeDate || null,
       previousAssignee || null,
-      previousAssigneeOpinion || null,
       rejectionOpinion,
       rejectionDate,
       rejectionName,

@@ -445,8 +445,7 @@ function SystemAdminPageContent() {
         rejectionName: currentUser?.name || '', // 현재 로그인 사용자
         stageId: 3, // 재배정
         previousAssigneeDate: request.assignDate,
-        previousAssignee: request.assignee,
-        previousAssigneeOpinion: request.assigneeOpinion || ''
+        previousAssignee: request.assignee
       });
 
       if (response.success) {
@@ -4672,7 +4671,7 @@ function SystemAdminPageContent() {
                     <div className="py-1 mb-5">
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="calendar" size={14} className="mr-1" />
-                        신청 일시 : <span className="text-sm ml-1 text-black">{selectedWorkRequest.requestDate} {selectedWorkRequest.requestTime || ''}</span>
+                        신청 일시 : <span className="text-sm ml-1 text-black">{selectedWorkRequest.requestDate} {formatTimeToHHMM(selectedWorkRequest.requestTime)}</span>
                       </span>
                     </div>
                     
@@ -4941,7 +4940,7 @@ function SystemAdminPageContent() {
                     <div className="py-1 mb-5">
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="calendar" size={14} className="mr-1" />
-                        신청 일시 : <span className="text-sm ml-1 text-black">{selectedWorkRequest.requestDate} {selectedWorkRequest.requestTime || ''}</span>
+                        신청 일시 : <span className="text-sm ml-1 text-black">{selectedWorkRequest.requestDate} {formatTimeToHHMM(selectedWorkRequest.requestTime)}</span>
                       </span>
                     </div>
                     
@@ -4979,7 +4978,7 @@ function SystemAdminPageContent() {
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2 mb-4">
                     <Icon name="settings" size={20} className="text-gray-600" />
-                    <h3 className="text-lg font-semibold text-gray-800">재배정정보</h3>
+                    <h3 className="text-lg font-semibold text-gray-800">재 배정 정보</h3>
                   </div>
                   
                   <div className="space-y-0">
@@ -5062,8 +5061,15 @@ function SystemAdminPageContent() {
                             {(() => {
                               const dateStr = (selectedWorkRequest as any)?.previous_assign_date || selectedWorkRequest.previousAssignDate;
                               if (!dateStr) return '-';
-                              const date = new Date(dateStr);
-                              return date.toISOString().slice(0, 16).replace('T', ' ');
+                              // DB에서 읽은 값 그대로 표시 (YYYY-MM-DD hh:mm 형식)
+                              if (dateStr.includes(' ')) {
+                                // 이미 YYYY-MM-DD HH:mm:ss 형식인 경우 초 제거
+                                return dateStr.substring(0, 16);
+                              } else if (dateStr.includes('T')) {
+                                // ISO 형식인 경우 변환
+                                return dateStr.substring(0, 16).replace('T', ' ');
+                              }
+                              return dateStr;
                             })()}
                           </span>
                         </div>
@@ -5102,8 +5108,15 @@ function SystemAdminPageContent() {
                             {(() => {
                               const dateStr = (selectedWorkRequest as any)?.rejection_date || selectedWorkRequest.rejectionDate;
                               if (!dateStr) return '-';
-                              const date = new Date(dateStr);
-                              return date.toISOString().slice(0, 16).replace('T', ' ');
+                              // DB에서 읽은 값 그대로 표시 (YYYY-MM-DD hh:mm 형식)
+                              if (dateStr.includes(' ')) {
+                                // 이미 YYYY-MM-DD HH:mm:ss 형식인 경우 초 제거
+                                return dateStr.substring(0, 16);
+                              } else if (dateStr.includes('T')) {
+                                // ISO 형식인 경우 변환
+                                return dateStr.substring(0, 16).replace('T', ' ');
+                              }
+                              return dateStr;
                             })()}
                           </span>
                         </div>
@@ -5148,6 +5161,17 @@ function SystemAdminPageContent() {
                       return;
                     }
                     
+                    // 디버깅: selectedWorkRequest 값 확인
+                    console.log('=== 재배정하기 디버깅 ===');
+                    console.log('selectedWorkRequest:', selectedWorkRequest);
+                    console.log('assignDate:', selectedWorkRequest.assignDate);
+                    console.log('assignee:', selectedWorkRequest.assignee);
+                    console.log('assignmentOpinion:', selectedWorkRequest.assignmentOpinion);
+                    console.log('technician:', selectedWorkRequest.technician);
+                    console.log('rejectionName:', selectedWorkRequest.rejectionName);
+                    console.log('rejectionDate:', selectedWorkRequest.rejectionDate);
+                    console.log('rejectionOpinion:', selectedWorkRequest.rejectionOpinion);
+                    
                     // 재배정(3)에서 배정(2)으로 돌아가기
                     const updateData = {
                       stage_id: 2, // 배정 단계 ID 직접 사용
@@ -5170,15 +5194,8 @@ function SystemAdminPageContent() {
                       // 재배정의견은 assignment_opinion에 저장
                       assignment_opinion: reassignmentOpinion,
                       // 서비스 타입 (service_type_id로 저장)
-                      service_type: reassignmentServiceType,
-                      // 이전 배정 정보 저장
-                      previous_assign_date: selectedWorkRequest.assignDate || null,
-                      previous_assignee: selectedWorkRequest.assignee || null,
-                      previous_assignment_opinion: selectedWorkRequest.assignmentOpinion || null,
-                      // 반려 정보 저장
-                      rejection_name: selectedWorkRequest.technician || null,
-                      rejection_date: selectedWorkRequest.rejectionDate || null,
-                      rejection_opinion: selectedWorkRequest.rejectionOpinion || null
+                      service_type: reassignmentServiceType
+                      // previous_assign_date, previous_assignee, previous_assignment_opinion, rejection_name 컬럼은 DB에서 읽어온 그대로 조회만 함 (아무 작업 안함)
                     };
                     
                     const response = await apiClient.put(`/service-requests/${selectedWorkRequest?.id}`, updateData);

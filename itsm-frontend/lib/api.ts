@@ -610,7 +610,6 @@ class ApiClient {
     stageId: number;
     previousAssigneeDate?: string;
     previousAssignee?: string;
-    previousAssigneeOpinion?: string;
   }): Promise<ApiResponse<void>> {
     return this.request<void>('/api/service-requests/cancel-assignment', {
       method: 'POST',
