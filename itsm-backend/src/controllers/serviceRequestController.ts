@@ -678,3 +678,71 @@ export const getNextStage = async (req: Request, res: Response): Promise<void> =
     });
   }
 };
+
+// 배정취소 처리
+export const cancelAssignment = async (req: Request, res: Response) => {
+  try {
+    const {
+      requestId,
+      rejectionOpinion,
+      rejectionDate,
+      rejectionName,
+      stageId,
+      previousAssigneeDate,
+      previousAssignee,
+      previousAssigneeOpinion
+    } = req.body;
+
+    // 필수 필드 검증
+    if (!requestId || !rejectionOpinion || !rejectionDate || !rejectionName || !stageId) {
+      return res.status(400).json({
+        success: false,
+        error: '필수 필드가 누락되었습니다.'
+      });
+    }
+
+    // 배정취소 처리
+    await db.query(`
+      UPDATE service_requests SET
+        previous_assign_date = $1,
+        previous_assignee = $2,
+        previous_assignment_opinion = $3,
+        rejection_opinion = $4,
+        rejection_date = $5,
+        rejection_name = $6,
+        stage_id = $7,
+        assign_date = NULL,
+        assign_time = NULL,
+        assignee_id = NULL,
+        assignee_name = NULL,
+        assignee_department = NULL,
+        assignment_opinion = NULL,
+        technician_id = NULL,
+        technician_name = NULL,
+        technician_department = NULL,
+        updated_at = NOW()
+      WHERE id = $8
+    `, [
+      previousAssigneeDate || null,
+      previousAssignee || null,
+      previousAssigneeOpinion || null,
+      rejectionOpinion,
+      rejectionDate,
+      rejectionName,
+      stageId,
+      requestId
+    ]);
+
+    return res.json({
+      success: true,
+      message: '배정이 취소되었습니다.'
+    });
+
+  } catch (error) {
+    console.error('배정취소 처리 오류:', error);
+    return res.status(500).json({
+      success: false,
+      error: '배정취소 처리 중 오류가 발생했습니다.'
+    });
+  }
+};

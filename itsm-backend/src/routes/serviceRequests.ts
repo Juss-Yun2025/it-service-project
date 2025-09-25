@@ -4,7 +4,8 @@ import {
   getServiceRequestById,
   createServiceRequest,
   updateServiceRequest,
-  deleteServiceRequest
+  deleteServiceRequest,
+  cancelAssignment
 } from '../controllers/serviceRequestController';
 
 const router = express.Router();
@@ -23,5 +24,8 @@ router.put('/:id', updateServiceRequest);
 
 // 서비스 요청 삭제
 router.delete('/:id', deleteServiceRequest);
+
+// 배정취소 처리
+router.post('/cancel-assignment', cancelAssignment);
 
 export default router;

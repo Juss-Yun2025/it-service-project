@@ -601,6 +601,23 @@ class ApiClient {
     });
   }
 
+  // 배정취소 처리
+  async cancelAssignment(data: {
+    requestId: number;
+    rejectionOpinion: string;
+    rejectionDate: string;
+    rejectionName: string;
+    stageId: number;
+    previousAssigneeDate?: string;
+    previousAssignee?: string;
+    previousAssigneeOpinion?: string;
+  }): Promise<ApiResponse<void>> {
+    return this.request<void>('/api/service-requests/cancel-assignment', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
   // ===== 현재상태 관리 API =====
   
   // 모든 현재상태 조회

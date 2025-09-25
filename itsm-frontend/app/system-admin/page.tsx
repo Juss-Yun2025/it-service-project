@@ -414,6 +414,53 @@ function SystemAdminPageContent() {
   // selectedWorkRequest?.stage는 selectedWorkRequest.stage를 사용하므로 별도 상태 변수 불필요
   const [showServiceWorkCompleteModal, setShowServiceWorkCompleteModal] = useState(false)
 
+  // 배정취소 처리 함수
+  const handleAssignmentCancel = async (request: any) => {
+    // 알람창으로 배정취소 의견 입력받기
+    const rejectionOpinion = prompt('배정취소 의견을 입력해주세요:');
+    
+    if (!rejectionOpinion || rejectionOpinion.trim() === '') {
+      alert('배정취소 의견을 입력해주세요.');
+      return;
+    }
+
+    try {
+      // 현재 로그인 사용자 정보 가져오기
+      const userStr = localStorage.getItem('user');
+      let currentUser = null;
+      if (userStr) {
+        currentUser = JSON.parse(userStr);
+      }
+
+      // 한국시간 적용
+      const now = new Date();
+      const kstOffset = 9 * 60; // 한국은 UTC+9
+      const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000));
+      const kstDateTime = kstTime.toISOString().slice(0, 19).replace('T', ' ');
+
+      const response = await apiClient.cancelAssignment({
+        requestId: request.id,
+        rejectionOpinion: rejectionOpinion.trim(),
+        rejectionDate: kstDateTime, // 한국시간 적용
+        rejectionName: currentUser?.name || '', // 현재 로그인 사용자
+        stageId: 3, // 재배정
+        previousAssigneeDate: request.assignDate,
+        previousAssignee: request.assignee,
+        previousAssigneeOpinion: request.assigneeOpinion || ''
+      });
+
+      if (response.success) {
+        alert('배정이 취소되었습니다.');
+        await fetchServiceRequests(); // 목록 새로고침
+      } else {
+        alert('배정취소 중 오류가 발생했습니다: ' + response.error);
+      }
+    } catch (error) {
+      console.error('배정취소 실패:', error);
+      alert('배정취소 중 오류가 발생했습니다.');
+    }
+  };
+
   // 디버깅을 위한 useEffect
   useEffect(() => {
     console.log('serviceWorkScheduledDate 변경됨:', serviceWorkScheduledDate);
@@ -441,7 +488,6 @@ function SystemAdminPageContent() {
       setStagesLoading(true);
       const response = await apiClient.getStages();
       if (response.success && response.data) {
-        console.log('Stages 로드됨:', response.data);
         setStages(response.data);
       }
     } catch (error) {
@@ -492,6 +538,43 @@ function SystemAdminPageContent() {
     } catch (error) {
       console.error('날짜 형식 변환 오류:', error);
       return '-';
+    }
+  };
+
+  // 시간을 hh:mm 형식으로 변환하는 함수
+  const formatTimeToHHMM = (timeString: string | undefined) => {
+    if (!timeString) return '-';
+    
+    try {
+      // 다양한 시간 형식을 처리
+      let date: Date;
+      
+      if (timeString.includes('T')) {
+        // ISO 형식: "2025-01-01T14:30:00" 또는 "2025-01-01T14:30"
+        date = new Date(timeString);
+      } else if (timeString.includes(' ')) {
+        // 날짜와 시간이 공백으로 구분된 형식: "2025-01-01 14:30:00"
+        date = new Date(timeString);
+      } else if (timeString.includes(':')) {
+        // 시간만 있는 형식: "14:30:00" 또는 "14:30"
+        const [hours, minutes] = timeString.split(':');
+        const today = new Date();
+        date = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 
+                       parseInt(hours), parseInt(minutes));
+      } else {
+        return timeString; // 변환할 수 없는 형식은 그대로 반환
+      }
+      
+      if (isNaN(date.getTime())) {
+        return timeString; // 유효하지 않은 날짜는 원본 반환
+      }
+      
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      
+      return `${hours}:${minutes}`;
+    } catch (error) {
+      return timeString; // 오류 발생 시 원본 반환
     }
   };
 
@@ -587,6 +670,7 @@ function SystemAdminPageContent() {
       updated_at: ''
     };
   };
+
 
   // 단계별 진행 처리 함수
   const handleStageProgression = async () => {
@@ -813,16 +897,20 @@ function SystemAdminPageContent() {
   const fetchServiceRequests = async () => {
     setServiceRequestsLoading(true);
     try {
+      // 선택된 단계의 ID 찾기
+      const selectedStageId = serviceWorkSelectedStage !== '전체' 
+        ? stages.find(s => s.name === serviceWorkSelectedStage)?.id 
+        : undefined;
+      
       const params = {
         startDate: serviceWorkSearchStartDate,
         endDate: serviceWorkSearchEndDate,
         department: serviceWorkSelectedDepartment !== '전체' ? serviceWorkSelectedDepartment : undefined,
-        stage: serviceWorkSelectedStage !== '전체' ? serviceWorkSelectedStage : undefined,
+        stage_id: selectedStageId,
         page: serviceRequestsPagination.page,
         limit: serviceRequestsPagination.limit
       };
       
-      console.log('API 호출 파라미터:', params);
       
       const response = await apiClient.getServiceRequests(params);
       if (response.success && response.data) {
@@ -1141,23 +1229,26 @@ function SystemAdminPageContent() {
       return false;
     }
     
-    // 단계 필터링
-    if (serviceWorkSelectedStage !== '전체' && request.stage !== serviceWorkSelectedStage) {
-      console.log('단계 필터링:', {
-        selectedStage: serviceWorkSelectedStage,
-        requestStage: request.stage,
-        requestNumber: request.requestNumber,
-        match: request.stage === serviceWorkSelectedStage
-      });
-      return false;
+    // 단계 필터링 - stage_id와 stage.name 매칭
+    if (serviceWorkSelectedStage !== '전체') {
+      // 선택된 단계의 ID 찾기
+      const selectedStageId = stages.find(s => s.name === serviceWorkSelectedStage)?.id;
+      // 요청의 stage_id 찾기 (request.stage가 이름인 경우)
+      const requestStageId = stages.find(s => s.name === request.stage)?.id;
+      
+      
+      if (selectedStageId !== requestStageId) {
+        return false;
+      }
     }
     
     return true;
   });
+  
 
   // API 기반 페이지네이션
   const serviceWorkTotalPages = serviceRequestsPagination.totalPages;
-  const paginatedServiceRequests = serviceRequests; // API에서 이미 페이지네이션된 데이터
+  const paginatedServiceRequests = filteredServiceRequests; // 필터링된 데이터 사용
   
   
   // 디버깅용 로그 제거됨
@@ -1925,7 +2016,9 @@ function SystemAdminPageContent() {
                 <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200">
                   <div className="flex items-center space-x-4">
                 <button
-                      onClick={() => {/* 새로고침 로직 */}}
+                      onClick={async () => {
+                        await fetchServiceRequests();
+                      }}
                       className="w-6 h-6 text-gray-600 hover:text-gray-800 transition-colors"
                     >
                       <Icon name="refresh" size={16} />
@@ -1983,7 +2076,6 @@ function SystemAdminPageContent() {
                       <select
                         value={serviceWorkSelectedStage}
                         onChange={(e) => {
-                          console.log('단계 선택 변경:', e.target.value);
                           setServiceWorkSelectedStage(e.target.value);
                         }}
                         className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
@@ -2030,7 +2122,7 @@ function SystemAdminPageContent() {
                           paginatedServiceRequests.map((request) => (
                           <tr key={request.id} className="hover:bg-gray-50">
                             <td className="px-2 py-2 text-gray-900 text-center">{request.requestNumber}</td>
-                            <td className="px-2 py-2 text-gray-900 text-center">{request.requestTime || '-'}</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{formatTimeToHHMM(request.requestTime)}</td>
                             <td className="px-2 py-2 text-gray-900">{request.title}</td>
                             <td className="px-2 py-2 text-center">
                               <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -2048,7 +2140,7 @@ function SystemAdminPageContent() {
                             </td>
                             <td className="px-2 py-2 text-gray-900 text-center">{request.requester}</td>
                             <td className="px-2 py-2 text-gray-900 text-center">{request.department}</td>
-                            <td className="px-2 py-2 text-gray-900 text-center">{request.assignTime || '-'}</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{formatTimeToHHMM(request.assignTime)}</td>
                             <td className="px-2 py-2 text-center">
                               <div className="flex items-center justify-center">
                                 {request.stage === '접수' && <Icon name="user" size={16} className="text-blue-600" />}
@@ -2138,8 +2230,18 @@ function SystemAdminPageContent() {
                                   </button>
                                 )}
 
-                                {/* 배정/확인/예정/작업/완료/미결 단계: 조치담당자 확정 - 수정/삭제 버튼 (시스템 관리자 전체 권한) */}
-                                {(request.stage === '배정' || request.stage === '확인' || request.stage === '예정' || 
+                                {/* 배정 단계: 배정취소 버튼만 */}
+                                {request.stage === '배정' && (
+                                  <button
+                                    onClick={() => handleAssignmentCancel(request)}
+                                    className="px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition-colors"
+                                  >
+                                    배정취소
+                                  </button>
+                                )}
+
+                                {/* 확인/예정/작업/완료/미결 단계: 조치담당자 확정 - 수정/삭제 버튼 (시스템 관리자 전체 권한) */}
+                                {(request.stage === '확인' || request.stage === '예정' || 
                                   request.stage === '작업' || request.stage === '완료' || request.stage === '미결') && (
                                   <>
                                     <button
