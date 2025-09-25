@@ -72,6 +72,7 @@ export const getServiceRequests = async (req: Request, res: Response): Promise<v
       search,
       status,
       stage,
+      stage_id,
       department,
       priority,
       startDate,
@@ -132,6 +133,12 @@ export const getServiceRequests = async (req: Request, res: Response): Promise<v
     if (stage) {
       whereConditions.push(`s.name = $${paramIndex}`);
       queryParams.push(stage);
+      paramIndex++;
+    }
+
+    if (stage_id) {
+      whereConditions.push(`sr.stage_id = $${paramIndex}`);
+      queryParams.push(stage_id);
       paramIndex++;
     }
 

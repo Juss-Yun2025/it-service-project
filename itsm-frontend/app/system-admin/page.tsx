@@ -18,6 +18,7 @@ interface ServiceRequest {
   requestTime?: string
   requester: string
   department: string
+  requesterDepartment?: string // 추가
   stage: string
   assignTime?: string
   assignDate?: string
@@ -25,6 +26,12 @@ interface ServiceRequest {
   assigneeDepartment?: string
   technician?: string
   technicianDepartment?: string
+  workStartDate?: string
+  workStartTime?: string
+  workCompleteDate?: string
+  workCompleteTime?: string
+  assignmentHours?: string
+  workHours?: string
   content: string
   contact: string
   location: string
@@ -69,6 +76,7 @@ const mapServiceRequestData = (rawData: any): ServiceRequest => {
     requestTime: rawData.request_time || '',
     requester: rawData.requester_name || '',
     department: rawData.requester_department || '',
+    requesterDepartment: rawData.requester_department || '', // 추가
     stage: rawData.stage || '',
     assignTime: rawData.assign_time || '',
     assignDate: rawData.assign_date || '',
@@ -76,6 +84,10 @@ const mapServiceRequestData = (rawData: any): ServiceRequest => {
     assigneeDepartment: rawData.assignee_department || '',
     technician: rawData.technician_name || '',
     technicianDepartment: rawData.technician_department || '',
+    workStartDate: rawData.work_start_date || '',
+    workStartTime: rawData.work_start_time || '',
+    workCompleteDate: rawData.work_complete_date || '',
+    workCompleteTime: rawData.work_complete_time || '',
     content: rawData.content || '',
     contact: rawData.contact || '',
     location: rawData.location || '',
@@ -267,11 +279,28 @@ function SystemAdminPageContent() {
   // 서비스현황 리포트 관련 상태
   const [showServiceReport, setShowServiceReport] = useState(false)
   const [serviceReportCurrentPage, setServiceReportCurrentPage] = useState(1)
-  const [serviceReportSearchStartDate, setServiceReportSearchStartDate] = useState(new Date().toISOString().split('T')[0])
-  const [serviceReportSearchEndDate, setServiceReportSearchEndDate] = useState(new Date().toISOString().split('T')[0])
+  const [serviceReportSearchStartDate, setServiceReportSearchStartDate] = useState(() => {
+    // 현재일 기준 1주일 전
+    const oneWeekAgo = new Date()
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+    return oneWeekAgo.toISOString().split('T')[0]
+  })
+  const [serviceReportSearchEndDate, setServiceReportSearchEndDate] = useState(() => {
+    // 현재일
+    return new Date().toISOString().split('T')[0]
+  })
   const [serviceReportStatusFilter, setServiceReportStatusFilter] = useState('전체')
   const [serviceReportDepartmentFilter, setServiceReportDepartmentFilter] = useState('전체')
   const [serviceReportStageFilter, setServiceReportStageFilter] = useState('전체')
+  
+  // 서비스현황 리포트 전용 데이터 상태
+  const [serviceReportData, setServiceReportData] = useState<ServiceRequest[]>([])
+  const [serviceReportPagination, setServiceReportPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0
+  })
   
   // 사용자관리 관련 상태
   const [userManagementCurrentPage, setUserManagementCurrentPage] = useState(1)
@@ -867,6 +896,64 @@ function SystemAdminPageContent() {
     setServiceReportCurrentPage(1)
   }, [serviceReportSearchStartDate, serviceReportSearchEndDate, serviceReportStatusFilter, serviceReportDepartmentFilter, serviceReportStageFilter])
 
+  // 서비스현황 리포트가 열릴 때 데이터 가져오기 (서비스현황 리포트 전용)
+  useEffect(() => {
+    if (showServiceReport) {
+      fetchServiceReportData();
+    }
+  }, [showServiceReport])
+
+  // 서비스현황 리포트 검색 조건 변경 시 데이터 가져오기
+  useEffect(() => {
+    if (showServiceReport) {
+      fetchServiceReportData();
+    }
+  }, [serviceReportSearchStartDate, serviceReportSearchEndDate, serviceReportStatusFilter, serviceReportDepartmentFilter, serviceReportStageFilter, serviceReportCurrentPage])
+
+  // 서비스현황 리포트 전용 데이터 가져오기 함수
+  const fetchServiceReportData = async () => {
+    setServiceRequestsLoading(true);
+    try {
+      // 선택된 단계의 ID 찾기
+      const selectedStageId = serviceReportStageFilter !== '전체' 
+        ? stages.find(s => s.name === serviceReportStageFilter)?.id 
+        : undefined;
+      
+      const params = {
+        startDate: serviceReportSearchStartDate,
+        endDate: serviceReportSearchEndDate,
+        department: serviceReportDepartmentFilter !== '전체' ? serviceReportDepartmentFilter : undefined,
+        stage_id: selectedStageId,
+        page: serviceReportCurrentPage,
+        limit: serviceReportItemsPerPage
+      };
+      
+      const response = await apiClient.getServiceRequests(params);
+      
+      if (response.success && response.data) {
+        const transformedData = response.data.map((item: any) => mapServiceRequestData(item));
+        
+        // 서비스현황 리포트 전용 상태에 저장
+        setServiceReportData(transformedData);
+        
+        if (response.pagination) {
+          setServiceReportPagination({
+            page: response.pagination.page,
+            limit: response.pagination.limit,
+            total: response.pagination.total,
+            totalPages: response.pagination.totalPages
+          });
+        }
+      } else {
+        console.error('서비스현황 리포트 데이터 가져오기 실패:', response.error);
+      }
+    } catch (error) {
+      console.error('서비스현황 리포트 데이터 가져오기 오류:', error);
+    } finally {
+      setServiceRequestsLoading(false);
+    }
+  };
+
   // 사용자관리 검색 조건 변경 시 페이지 리셋
   useEffect(() => {
     setUserManagementCurrentPage(1)
@@ -894,42 +981,42 @@ function SystemAdminPageContent() {
 
   // 서비스 요청 데이터 가져오기
   const fetchServiceRequests = async () => {
-    setServiceRequestsLoading(true);
-    try {
-      // 선택된 단계의 ID 찾기
-      const selectedStageId = serviceWorkSelectedStage !== '전체' 
-        ? stages.find(s => s.name === serviceWorkSelectedStage)?.id 
-        : undefined;
-      
-      const params = {
-        startDate: serviceWorkSearchStartDate,
-        endDate: serviceWorkSearchEndDate,
-        department: serviceWorkSelectedDepartment !== '전체' ? serviceWorkSelectedDepartment : undefined,
-        stage_id: selectedStageId,
-        page: serviceRequestsPagination.page,
-        limit: serviceRequestsPagination.limit
-      };
-      
-      
-      const response = await apiClient.getServiceRequests(params);
-      if (response.success && response.data) {
-        // API 응답 데이터를 프론트엔드 형식으로 변환 (mapServiceRequestData 함수 사용)
-        const transformedData = response.data.map((item: any) => mapServiceRequestData(item));
+      setServiceRequestsLoading(true);
+      try {
+        // 선택된 단계의 ID 찾기
+        const selectedStageId = serviceWorkSelectedStage !== '전체' 
+          ? stages.find(s => s.name === serviceWorkSelectedStage)?.id 
+          : undefined;
         
-        setServiceRequests(transformedData);
+        const params = {
+          startDate: serviceWorkSearchStartDate,
+          endDate: serviceWorkSearchEndDate,
+          department: serviceWorkSelectedDepartment !== '전체' ? serviceWorkSelectedDepartment : undefined,
+          stage_id: selectedStageId,
+          page: serviceRequestsPagination.page,
+          limit: serviceRequestsPagination.limit
+        };
         
-        if (response.pagination) {
-          setServiceRequestsPagination({
-            page: response.pagination.page,
-            limit: response.pagination.limit,
-            total: response.pagination.total,
-            totalPages: response.pagination.totalPages
-          });
+        const response = await apiClient.getServiceRequests(params);
+        
+        if (response.success && response.data) {
+          // API 응답 데이터를 프론트엔드 형식으로 변환 (mapServiceRequestData 함수 사용)
+          const transformedData = response.data.map((item: any) => mapServiceRequestData(item));
+          
+          setServiceRequests(transformedData);
+          
+          if (response.pagination) {
+            setServiceRequestsPagination({
+              page: response.pagination.page,
+              limit: response.pagination.limit,
+              total: response.pagination.total,
+              totalPages: response.pagination.totalPages
+            });
+          }
+        } else {
+          console.error('Failed to fetch service requests:', response.error);
         }
-      } else {
-        console.error('Failed to fetch service requests:', response.error);
-      }
-    } catch (error) {
+      } catch (error) {
       console.error('Error fetching service requests:', error);
     } finally {
       setServiceRequestsLoading(false);
@@ -1001,37 +1088,107 @@ function SystemAdminPageContent() {
   // 더미 데이터 제거됨 - API 기반으로 교체
   // 더미 데이터 제거됨 - serviceRequests는 API에서 가져옴
 
-  // 서비스현황 리포트 데이터 생성 (서비스 요청 데이터를 기반으로)
-  const serviceReportData = serviceRequests.map(request => {
-    // 배정(h) 계산: 신청시간 - 배정시간
-    const assignmentHours = request.assignTime && request.requestTime ? 
-      Math.round((new Date(`${request.assignDate} ${request.assignTime}`).getTime() - new Date(`${request.requestDate} ${request.requestTime}`).getTime()) / (1000 * 60 * 60) * 10) / 10 : 0;
+  // 서비스현황 리포트 데이터 생성 (서비스현황 리포트 전용 데이터를 기반으로)
+  const serviceReportDataMapped = serviceReportData.map(request => {
+    // 배정(h) 계산: 배정일시(assign_date) - 신청일시(request_date)
+    let assignmentHours = '-';
+    if (request.assignDate && request.requestDate) {
+      try {
+        // assign_date와 request_date를 정확한 날짜시간으로 변환
+        let assignDateTime: Date;
+        let requestDateTime: Date;
+        
+        // assign_date 처리 (YYYY-MM-DDTHH:MM 형식)
+        if (request.assignDate.includes('T')) {
+          assignDateTime = new Date(request.assignDate);
+        } else {
+          // assign_date가 날짜만 있는 경우, 기본 시간 추가
+          assignDateTime = new Date(`${request.assignDate}T00:00:00`);
+        }
+        
+        // request_date 처리 (YYYY-MM-DD hh:mm:ss 또는 YYYY-MM-DDTHH:MM 형식)
+        if (request.requestDate.includes('T')) {
+          requestDateTime = new Date(request.requestDate);
+        } else if (request.requestDate.includes(' ')) {
+          // YYYY-MM-DD hh:mm:ss 형식
+          requestDateTime = new Date(request.requestDate);
+        } else {
+          // request_date가 날짜만 있는 경우, request_time과 조합
+          const requestTime = request.requestTime || '00:00:00';
+          requestDateTime = new Date(`${request.requestDate}T${requestTime}`);
+        }
+        
+        if (!isNaN(assignDateTime.getTime()) && !isNaN(requestDateTime.getTime())) {
+          const diffMs = assignDateTime.getTime() - requestDateTime.getTime();
+          const diffHours = diffMs / (1000 * 60 * 60);
+          assignmentHours = diffHours >= 0 ? (Math.round(diffHours * 10) / 10).toString() : '-';
+        }
+      } catch (error) {
+        console.error('배정(h) 계산 오류:', error);
+        assignmentHours = '-';
+      }
+    }
     
-    // 작업(h) 계산: 작업시작시간 - 작업완료시간
-    const workHours = 0; // 실제 데이터로 계산 필요
+    // 작업(h) 계산: 작업완료일시(work_complete_date) - 작업시작일시(work_start_date)
+    let workHours = '-';
+    if (request.workCompleteDate && request.workStartDate) {
+      try {
+        const completeDateTime = new Date(request.workCompleteDate);
+        const startDateTime = new Date(request.workStartDate);
+        
+        if (!isNaN(completeDateTime.getTime()) && !isNaN(startDateTime.getTime())) {
+          const diffMs = completeDateTime.getTime() - startDateTime.getTime();
+          const diffHours = diffMs / (1000 * 60 * 60);
+          workHours = diffHours >= 0 ? (Math.round(diffHours * 10) / 10).toString() : '-';
+        }
+      } catch (error) {
+        console.error('작업(h) 계산 오류:', error);
+        workHours = '-';
+      }
+    }
 
     return {
       id: request.id,
       requestNumber: request.requestNumber,
       title: request.title,
+      currentStatus: request.currentStatus,
+      requestDate: request.requestDate,
+      requestTime: request.requestTime,
       requester: request.requester,
-      requesterDepartment: request.department,
+      department: request.department,
+      requesterDepartment: request.requesterDepartment || request.department,
       stage: request.stage,
+      assignTime: request.assignTime,
+      assignDate: request.assignDate,
+      assignee: request.assignee,
+      assigneeDepartment: request.assigneeDepartment,
+      technician: request.technician || '',
+      technicianDepartment: request.technicianDepartment || '',
+      workStartDate: request.workStartDate,
+      workStartTime: request.workStartTime,
+      workCompleteDate: request.workCompleteDate,
+      workCompleteTime: request.workCompleteTime,
       assignmentHours: assignmentHours,
-      serviceType: request.serviceType,
-      assignee: request.assignee || '',
-      assigneeDepartment: request.assigneeDepartment || '',
       workHours: workHours,
+      content: request.content || '',
+      contact: request.contact || '',
+      location: request.location || '',
+      actualRequester: request.actualRequester,
+      actualContact: request.actualContact,
+      actualRequesterDepartment: request.actualRequesterDepartment,
+      serviceType: request.serviceType,
+      completionDate: request.completionDate,
+      // 서비스현황 리포트용 필드들
       requestDateTime: `${request.requestDate} ${request.requestTime || ''}`.trim(),
       assignDateTime: request.assignDate || '',
-      scheduledDateTime: request.scheduled_date || '',
-      workStartDateTime: request.work_start_date || '',
-      workCompleteDateTime: request.work_complete_date || ''
+      scheduledDateTime: request.scheduledDate || '',
+      workStartDateTime: request.workStartDate || '',
+      workCompleteDateTime: request.workCompleteDate || ''
     }
   });
 
   // 서비스현황 리포트 필터링
-  const filteredServiceReports = serviceReportData.filter(report => {
+  const filteredServiceReports = serviceReportDataMapped.filter(report => {
     // 날짜 필터
     if (serviceReportSearchStartDate && serviceReportSearchEndDate) {
       const reportDate = new Date(report.requestDateTime.split(' ')[0].replace(/\./g, '-'));
@@ -1052,20 +1209,19 @@ function SystemAdminPageContent() {
     return true;
   });
 
-  // 서비스현황 리포트 페이지네이션
+  // 디버깅 로그 제거됨
+
+  // 서비스현황 리포트 페이지네이션 (서버 사이드)
   const serviceReportItemsPerPage = 10;
-  const serviceReportTotalPages = Math.ceil(filteredServiceReports.length / serviceReportItemsPerPage);
-  const paginatedServiceReports = filteredServiceReports.slice(
-    (serviceReportCurrentPage - 1) * serviceReportItemsPerPage,
-    serviceReportCurrentPage * serviceReportItemsPerPage
-  );
+  const serviceReportTotalPages = serviceReportPagination.totalPages;
+  const paginatedServiceReports = serviceReportDataMapped;
 
   // 엑셀 다운로드 함수
   const generateServiceReportExcel = async (data: ServiceRequest[]) => {
     const XLSX = await import('xlsx');
     
     // 헤더 정의
-    const headers = ['신청번호', '신청제목', '현재상태', '신청자', '신청소속', '단계', '배정(h)', '서비스유형', '조치담당자', '조치담당자소속', '작업(h)', '신청일시', '배정일', '예상조율일시', '작업시작일시', '작업완료일시'];
+    const headers = ['신청번호', '신청제목', '현재상태', '신청자', '신청소속', '단계', '배정(h)', '서비스유형', '조치자', '조치소속', '작업(h)', '신청일시', '배정일', '예상조율일시', '작업시작일시', '작업완료일시'];
     
     // 데이터 배열 생성
     const excelData = [
@@ -1079,8 +1235,8 @@ function SystemAdminPageContent() {
         report.stage,
         report.assignmentHours,
         report.serviceType,
-        report.assignee,
-        report.assigneeDepartment,
+        report.technician || '-',
+        report.technicianDepartment || '-',
         report.workHours,
         report.requestDateTime,
         report.assignDateTime,
@@ -1103,8 +1259,8 @@ function SystemAdminPageContent() {
       { wch: 8 },  // 단계
       { wch: 8 },  // 배정(h)
       { wch: 12 }, // 서비스유형
-      { wch: 10 }, // 조치담당자
-      { wch: 12 }, // 조치담당자소속
+      { wch: 10 }, // 조치자
+      { wch: 12 }, // 조치소속
       { wch: 8 },  // 작업(h)
       { wch: 20 }, // 신청일시
       { wch: 20 }, // 배정일
@@ -2538,8 +2694,8 @@ function SystemAdminPageContent() {
                           <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">단계</th>
                           <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">배정(h)</th>
                           <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">서비스유형</th>
-                          <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">조치담당자</th>
-                          <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">조치담당자소속</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">조치자</th>
+                          <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">조치소속</th>
                           <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">작업(h)</th>
                         </tr>
                       </thead>
@@ -2566,11 +2722,15 @@ function SystemAdminPageContent() {
                                 {report.stage}
                               </span>
                             </td>
-                            <td className="px-2 py-2 text-gray-900 text-center">{report.assignmentHours}h</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">
+                              {report.assignmentHours === '-' ? '-' : `${report.assignmentHours}h`}
+                            </td>
                             <td className="px-2 py-2 text-gray-900 text-center">{report.serviceType}</td>
-                            <td className="px-2 py-2 text-gray-900 text-center">{report.assignee}</td>
-                            <td className="px-2 py-2 text-gray-900 text-center">{report.assigneeDepartment}</td>
-                            <td className="px-2 py-2 text-gray-900 text-center">{report.workHours}h</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{report.technician || '-'}</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{report.technicianDepartment || '-'}</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">
+                              {report.workHours === '-' ? '-' : `${report.workHours}h`}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -2593,10 +2753,13 @@ function SystemAdminPageContent() {
                   </button>
                   
                   {/* 페이지네이션 */}
-                  {serviceReportTotalPages > 1 && (
+                  {(serviceReportTotalPages > 1 || serviceReportData.length > 0) && (
                     <div className="flex items-center space-x-2">
                       <button 
-                        onClick={() => setServiceReportCurrentPage(Math.max(1, serviceReportCurrentPage - 1))}
+                        onClick={() => {
+                          const newPage = Math.max(1, serviceReportCurrentPage - 1);
+                          setServiceReportCurrentPage(newPage);
+                        }}
                         disabled={serviceReportCurrentPage === 1}
                         className="px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                       >
@@ -2606,7 +2769,10 @@ function SystemAdminPageContent() {
                         {serviceReportCurrentPage}/{serviceReportTotalPages}
                       </span>
                       <button 
-                        onClick={() => setServiceReportCurrentPage(Math.min(serviceReportTotalPages, serviceReportCurrentPage + 1))}
+                        onClick={() => {
+                          const newPage = Math.min(serviceReportTotalPages, serviceReportCurrentPage + 1);
+                          setServiceReportCurrentPage(newPage);
+                        }}
                         disabled={serviceReportCurrentPage >= serviceReportTotalPages}
                         className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                       >
