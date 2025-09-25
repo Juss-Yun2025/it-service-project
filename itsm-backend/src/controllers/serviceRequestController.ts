@@ -156,10 +156,12 @@ export const getAllServiceRequests = async (req: Request, res: Response): Promis
     
     const result = await db.query<ServiceRequest>(query, queryParams);
     console.log('쿼리 결과 개수:', result.rows.length);
-    console.log('쿼리 결과 단계별 분포:', result.rows.reduce((acc, row) => {
+    const stageDistribution = result.rows.reduce((acc, row) => {
       acc[row.stage] = (acc[row.stage] || 0) + 1;
       return acc;
-    }, {} as Record<string, number>));
+    }, {} as Record<string, number>);
+    console.log('쿼리 결과 단계별 분포:', stageDistribution);
+    console.log('선택된 단계:', stage, '결과에 포함된 단계들:', Object.keys(stageDistribution));
 
     // 총 개수 조회
     let countQuery = `

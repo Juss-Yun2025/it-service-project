@@ -144,16 +144,6 @@ export interface ServiceRequest {
   updated_at: string;
 }
 
-export interface Stage {
-  id: number;
-  name: string;
-  description: string;
-  color: string;
-  is_active: boolean;
-  progress_name: string;
-  created_at: string;
-  updated_at: string;
-}
 
 export interface ServiceRequestCreateRequest {
   title: string;
@@ -242,54 +232,6 @@ export interface CurrentStatusUpdateRequest {
   is_active?: boolean;
 }
 
-// ===== 단계 관리 인터페이스 =====
-export interface Stage {
-  id: number;
-  name: string;
-  description?: string;
-  color?: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface StageCreateRequest {
-  name: string;
-  description?: string;
-  color?: string;
-}
-
-export interface StageUpdateRequest {
-  name?: string;
-  description?: string;
-  color?: string;
-  is_active?: boolean;
-}
-
-// ===== 단계-진행 매칭 인터페이스 =====
-export interface StageProgressMapping {
-  id: number;
-  stage_id: number;
-  progress_name: string;
-  description?: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-  stage?: Stage;
-}
-
-export interface StageProgressMappingCreateRequest {
-  stage_id: number;
-  progress_name: string;
-  description?: string;
-}
-
-export interface StageProgressMappingUpdateRequest {
-  stage_id?: number;
-  progress_name?: string;
-  description?: string;
-  is_active?: boolean;
-}
 
 // 권한 관련 인터페이스
 export interface Permission {
@@ -636,40 +578,6 @@ class ApiClient {
     });
   }
 
-  // ===== 단계 관리 API =====
-  
-  // 모든 단계 조회
-  async getStages(): Promise<ApiResponse<Stage[]>> {
-    return this.request<Stage[]>('/api/stages');
-  }
-
-  // 특정 단계 조회
-  async getStage(id: number): Promise<ApiResponse<Stage>> {
-    return this.request<Stage>(`/api/stages/${id}`);
-  }
-
-  // 새 단계 생성
-  async createStage(data: StageCreateRequest): Promise<ApiResponse<Stage>> {
-    return this.request<Stage>('/api/stages', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    });
-  }
-
-  // 단계 수정
-  async updateStage(id: number, data: StageUpdateRequest): Promise<ApiResponse<Stage>> {
-    return this.request<Stage>(`/api/stages/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(data)
-    });
-  }
-
-  // 단계 삭제
-  async deleteStage(id: number): Promise<ApiResponse<void>> {
-    return this.request<void>(`/api/stages/${id}`, {
-      method: 'DELETE'
-    });
-  }
 
   // ===== 단계-진행 매칭 API =====
   
@@ -824,27 +732,6 @@ class ApiClient {
     });
   }
 
-  // ===== 단계 관리 API =====
-  
-  // 모든 단계 조회
-  async getStages(): Promise<ApiResponse<Stage[]>> {
-    return this.request<Stage[]>('/api/stages');
-  }
-
-  // 특정 단계 조회
-  async getStage(id: number): Promise<ApiResponse<Stage>> {
-    return this.request<Stage>(`/api/stages/${id}`);
-  }
-
-  // 다음 단계 조회
-  async getNextStage(currentStageId: number): Promise<ApiResponse<Stage | null>> {
-    return this.request<Stage | null>(`/api/stages/next/${currentStageId}`);
-  }
-
-  // 단계명으로 진행명 조회
-  async getProgressByStageName(stageName: string): Promise<ApiResponse<string>> {
-    return this.request<string>(`/api/stages/progress/${stageName}`);
-  }
 
   // ===== 범용 HTTP 메서드 =====
   

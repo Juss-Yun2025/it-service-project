@@ -564,68 +564,55 @@ function SystemAdminPageContent() {
     }
   };
 
-  // 컴포넌트 마운트 시 stages와 roles 로드
+  // 컴포넌트 마운트 시 roles 로드
   useEffect(() => {
-    loadStages();
     loadRoles();
   }, []);
 
-  // 단계 정보 상태
-  const [stages, setStages] = useState<Stage[]>([]);
-  const [stagesLoading, setStagesLoading] = useState(false);
 
   // 역할 정보 상태
   const [roles, setRoles] = useState<Role[]>([]);
   const [rolesLoading, setRolesLoading] = useState(false);
 
-  // stages가 로드된 후 기본값 설정
-  useEffect(() => {
-    if (stages.length > 0 && !currentStage) {
-      setCurrentStage(stages[0].name)
-    }
-  }, [stages, currentStage])
 
-  // 단계 정보 로드
-  const loadStages = async () => {
-    try {
-      setStagesLoading(true);
-      console.log('단계 정보 로드 시작...');
-      const response = await apiClient.getStages();
-      console.log('단계 정보 API 응답:', response);
-      if (response.success && response.data) {
-        setStages(response.data);
-        console.log('단계 정보 로드 성공:', response.data);
-      } else {
-        console.error('단계 정보 로드 실패 - 응답 실패:', response);
-      }
-    } catch (error) {
-      console.error('단계 정보 로드 실패:', error);
-    } finally {
-      setStagesLoading(false);
-    }
-  };
 
   // 단계별 프로세스 관리 함수들
   const getCurrentStage = () => {
-    return selectedWorkRequest?.stage || stages[0]?.name || '';
+    return selectedWorkRequest?.stage || '';
   };
 
   const getCurrentStageId = () => {
-    const currentStageName = getCurrentStage();
-    const stage = stages.find(s => s.name === currentStageName);
-    return stage?.id || stages[0]?.id || 0;
+    return selectedWorkRequest?.stageId || 0;
   };
 
   // 단계별 ID 가져오기 헬퍼 함수
   const getStageIdByName = (stageName: string) => {
-    const stage = stages.find(s => s.name === stageName);
-    return stage?.id || 0;
+    const stageMap: { [key: string]: number } = {
+      '접수': 1,
+      '배정': 2,
+      '재배정': 3,
+      '확인': 4,
+      '예정': 5,
+      '작업': 6,
+      '완료': 7,
+      '미결': 8
+    };
+    return stageMap[stageName] || 0;
   };
 
   // 단계별 이름 가져오기 헬퍼 함수
   const getStageNameById = (stageId: number) => {
-    const stage = stages.find(s => s.id === stageId);
-    return stage?.name || '';
+    const stageMap: { [key: number]: string } = {
+      1: '접수',
+      2: '배정',
+      3: '재배정',
+      4: '확인',
+      5: '예정',
+      6: '작업',
+      7: '완료',
+      8: '미결'
+    };
+    return stageMap[stageId] || '';
   };
 
   // 현재 일시를 datetime-local 형식으로 반환하는 함수
@@ -1363,7 +1350,8 @@ function SystemAdminPageContent() {
       console.log('단계 필터링으로 제외:', {
         requestStage: request.stage,
         selectedStage: serviceWorkSelectedStage,
-        stageId: request.stageId
+        stageId: request.stageId,
+        매칭여부: request.stage === serviceWorkSelectedStage
       });
       return false;
     }
@@ -1408,7 +1396,13 @@ function SystemAdminPageContent() {
 
   // API 기반 페이지네이션
   const serviceWorkTotalPages = serviceRequestsPagination.totalPages;
-  const paginatedServiceRequests = serviceRequests; // API에서 이미 페이지네이션된 데이터
+  const paginatedServiceRequests = filteredServiceRequests; // 필터링된 데이터 사용
+  
+  console.log('테이블에 표시될 데이터:', {
+    원본데이터: serviceRequests.length,
+    필터링된데이터: filteredServiceRequests.length,
+    표시될데이터: paginatedServiceRequests.length
+  });
   
   
   // 디버깅용 로그 제거됨
@@ -2221,32 +2215,18 @@ function SystemAdminPageContent() {
                       {/* 단계 선택 */}
                       <select
                         value={serviceWorkSelectedStage}
-                        onChange={(e) => {
-                          console.log('=== 단계 선택 시작 ===');
-                          console.log('선택된 값:', e.target.value);
-                          console.log('이전 값:', serviceWorkSelectedStage);
-                          console.log('사용 가능한 단계들:', stages.map(s => s.name));
-                          console.log('stages 배열 길이:', stages.length);
-                          console.log('stagesLoading:', stagesLoading);
-                          
-                          setServiceWorkSelectedStage(e.target.value);
-                          
-                          console.log('setServiceWorkSelectedStage 호출됨');
-                          console.log('=== 단계 선택 완료 ===');
-                        }}
+                        onChange={(e) => setServiceWorkSelectedStage(e.target.value)}
                         className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
-                        disabled={stagesLoading}
                       >
                         <option value="전체">전체</option>
-                        {stages.length > 0 ? (
-                          stages.map((stage) => (
-                            <option key={stage.id} value={stage.name}>
-                              {stage.name}
-                            </option>
-                          ))
-                        ) : (
-                          <option value="" disabled>단계 로딩 중... ({stages.length}개)</option>
-                        )}
+                        <option value="접수">접수</option>
+                        <option value="배정">배정</option>
+                        <option value="재배정">재배정</option>
+                        <option value="확인">확인</option>
+                        <option value="예정">예정</option>
+                        <option value="작업">작업</option>
+                        <option value="완료">완료</option>
+                        <option value="미결">미결</option>
                       </select>
                     </div>
                     
