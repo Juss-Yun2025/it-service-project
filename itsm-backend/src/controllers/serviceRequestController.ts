@@ -62,10 +62,14 @@ export const getAllServiceRequests = async (req: Request, res: Response): Promis
       startDate, 
       endDate, 
       department, 
+      status,
+      stage_id,
       showIncompleteOnly,
       page = 1,
       limit = 10
     } = req.query;
+
+    console.log('백엔드 받은 파라미터:', { startDate, endDate, department, status, stage_id, showIncompleteOnly, page, limit });
 
     let query = `
       SELECT sr.id, sr.request_number, sr.title, cs.name as current_status,
@@ -110,6 +114,21 @@ export const getAllServiceRequests = async (req: Request, res: Response): Promis
       queryParams.push(department);
     }
 
+    // 현재상태 필터
+    if (status && status !== '전체') {
+      paramCount++;
+      query += ` AND cs.name = $${paramCount}`;
+      queryParams.push(status);
+    }
+
+    // 단계 필터
+    if (stage_id) {
+      console.log('백엔드 stage_id 필터링:', { stage_id, type: typeof stage_id });
+      paramCount++;
+      query += ` AND sr.stage_id = $${paramCount}`;
+      queryParams.push(stage_id);
+    }
+
     // 미완료 조회 필터
     if (showIncompleteOnly === 'true') {
       query += ` AND sr.stage != '완료'`;
@@ -128,7 +147,15 @@ export const getAllServiceRequests = async (req: Request, res: Response): Promis
     query += ` OFFSET $${paramCount}`;
     queryParams.push(offset);
 
+    console.log('실행되는 쿼리:', query);
+    console.log('쿼리 파라미터:', queryParams);
+    
     const result = await db.query<ServiceRequest>(query, queryParams);
+    
+    console.log('쿼리 결과 개수:', result.rows.length);
+    if (result.rows.length > 0) {
+      console.log('첫 번째 결과의 stage_id:', (result.rows[0] as any).stage_id);
+    }
 
     // 총 개수 조회
     let countQuery = `
@@ -157,6 +184,18 @@ export const getAllServiceRequests = async (req: Request, res: Response): Promis
       countParamCount++;
       countQuery += ` AND sr.technician_department = $${countParamCount}`;
       countParams.push(department);
+    }
+
+    if (status && status !== '전체') {
+      countParamCount++;
+      countQuery += ` AND cs.name = $${countParamCount}`;
+      countParams.push(status);
+    }
+
+    if (stage_id) {
+      countParamCount++;
+      countQuery += ` AND sr.stage_id = $${countParamCount}`;
+      countParams.push(stage_id);
     }
 
     if (showIncompleteOnly === 'true') {

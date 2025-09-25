@@ -919,14 +919,23 @@ function SystemAdminPageContent() {
         ? stages.find(s => s.name === serviceReportStageFilter)?.id 
         : undefined;
       
+      console.log('서비스현황리포트 단계 필터링 디버깅:', {
+        serviceReportStageFilter,
+        selectedStageId,
+        stages: stages.map(s => ({ id: s.id, name: s.name }))
+      });
+      
       const params = {
         startDate: serviceReportSearchStartDate,
         endDate: serviceReportSearchEndDate,
+        status: serviceReportStatusFilter !== '전체' ? serviceReportStatusFilter : undefined,
         department: serviceReportDepartmentFilter !== '전체' ? serviceReportDepartmentFilter : undefined,
         stage_id: selectedStageId,
         page: serviceReportCurrentPage,
         limit: serviceReportItemsPerPage
       };
+      
+      console.log('서비스현황리포트 API 파라미터:', params);
       
       const response = await apiClient.getServiceRequests(params);
       
@@ -1187,27 +1196,8 @@ function SystemAdminPageContent() {
     }
   });
 
-  // 서비스현황 리포트 필터링
-  const filteredServiceReports = serviceReportDataMapped.filter(report => {
-    // 날짜 필터
-    if (serviceReportSearchStartDate && serviceReportSearchEndDate) {
-      const reportDate = new Date(report.requestDateTime.split(' ')[0].replace(/\./g, '-'));
-      const startDate = new Date(serviceReportSearchStartDate);
-      const endDate = new Date(serviceReportSearchEndDate);
-      if (reportDate < startDate || reportDate > endDate) return false;
-    }
-    
-    // 현재상태 필터
-    if (serviceReportStatusFilter !== '전체' && report.currentStatus !== serviceReportStatusFilter) return false;
-    
-    // 부서 필터
-    if (serviceReportDepartmentFilter !== '전체' && report.requesterDepartment !== serviceReportDepartmentFilter) return false;
-    
-    // 단계 필터
-    if (serviceReportStageFilter !== '전체' && report.stage !== serviceReportStageFilter) return false;
-    
-    return true;
-  });
+  // 서비스현황 리포트 필터링 (서버에서 이미 필터링되므로 클라이언트 사이드 필터링 제거)
+  const filteredServiceReports = serviceReportDataMapped;
 
   // 디버깅 로그 제거됨
 
@@ -2197,14 +2187,30 @@ function SystemAdminPageContent() {
                         <input
                           type="date"
                           value={serviceWorkSearchStartDate}
-                          onChange={(e) => setServiceWorkSearchStartDate(e.target.value)}
+                          max={serviceWorkSearchEndDate}
+                          onChange={(e) => {
+                            const startDate = e.target.value;
+                            setServiceWorkSearchStartDate(startDate);
+                            // 시작일이 종료일보다 늦으면 종료일을 시작일로 설정
+                            if (startDate && serviceWorkSearchEndDate && startDate > serviceWorkSearchEndDate) {
+                              setServiceWorkSearchEndDate(startDate);
+                            }
+                          }}
                           className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
                         />
                         <span className="text-gray-600 font-medium">~</span>
                         <input
                           type="date"
                           value={serviceWorkSearchEndDate}
-                          onChange={(e) => setServiceWorkSearchEndDate(e.target.value)}
+                          min={serviceWorkSearchStartDate}
+                          onChange={(e) => {
+                            const endDate = e.target.value;
+                            setServiceWorkSearchEndDate(endDate);
+                            // 종료일이 시작일보다 이르면 시작일을 종료일로 설정
+                            if (endDate && serviceWorkSearchStartDate && endDate < serviceWorkSearchStartDate) {
+                              setServiceWorkSearchStartDate(endDate);
+                            }
+                          }}
                           className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
                         />
                       </div>
@@ -2585,13 +2591,8 @@ function SystemAdminPageContent() {
                   <div className="flex items-center space-x-4">
                     <button
                       onClick={() => {
-                        setServiceReportCurrentPage(1);
-                        const today = new Date().toISOString().split('T')[0];
-                        setServiceReportSearchStartDate(today);
-                        setServiceReportSearchEndDate(today);
-                        setServiceReportStatusFilter('전체');
-                        setServiceReportDepartmentFilter('전체');
-                        setServiceReportStageFilter('전체');
+                        // 서비스현황리포트 데이터 새로고침 (현재 검색 조건 유지)
+                        fetchServiceReportData();
                       }}
                       className="w-6 h-6 text-gray-600 hover:text-gray-800 transition-colors"
                     >
@@ -2617,14 +2618,30 @@ function SystemAdminPageContent() {
                         <input
                           type="date"
                           value={serviceReportSearchStartDate}
-                          onChange={(e) => setServiceReportSearchStartDate(e.target.value)}
+                          max={serviceReportSearchEndDate}
+                          onChange={(e) => {
+                            const startDate = e.target.value;
+                            setServiceReportSearchStartDate(startDate);
+                            // 시작일이 종료일보다 늦으면 종료일을 시작일로 설정
+                            if (startDate && serviceReportSearchEndDate && startDate > serviceReportSearchEndDate) {
+                              setServiceReportSearchEndDate(startDate);
+                            }
+                          }}
                           className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
                         />
                         <span className="text-gray-600 font-medium">~</span>
                         <input
                           type="date"
                           value={serviceReportSearchEndDate}
-                          onChange={(e) => setServiceReportSearchEndDate(e.target.value)}
+                          min={serviceReportSearchStartDate}
+                          onChange={(e) => {
+                            const endDate = e.target.value;
+                            setServiceReportSearchEndDate(endDate);
+                            // 종료일이 시작일보다 이르면 시작일을 종료일로 설정
+                            if (endDate && serviceReportSearchStartDate && endDate < serviceReportSearchStartDate) {
+                              setServiceReportSearchStartDate(endDate);
+                            }
+                          }}
                           className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
                         />
                       </div>
@@ -2667,14 +2684,11 @@ function SystemAdminPageContent() {
                         className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
                       >
                         <option value="전체">전체</option>
-                        <option value="접수">접수</option>
-                        <option value="배정">배정</option>
-                        <option value="확인">확인</option>
-                        <option value="예정">예정</option>
-                        <option value="작업">작업</option>
-                        <option value="완료">완료</option>
-                        <option value="미결">미결</option>
-                        <option value="재배정">재배정</option>
+                        {stages.map((stage) => (
+                          <option key={stage.id} value={stage.name}>
+                            {stage.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>

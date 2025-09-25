@@ -206,6 +206,8 @@ export interface ServiceRequestListParams {
   startDate?: string;
   endDate?: string;
   department?: string;
+  status?: string;
+  stage_id?: number;
   showIncompleteOnly?: boolean;
   page?: number;
   limit?: number;
@@ -563,6 +565,8 @@ class ApiClient {
     if (params?.startDate) queryParams.append('startDate', params.startDate);
     if (params?.endDate) queryParams.append('endDate', params.endDate);
     if (params?.department) queryParams.append('department', params.department);
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.stage_id) queryParams.append('stage_id', params.stage_id.toString());
     if (params?.showIncompleteOnly !== undefined) queryParams.append('showIncompleteOnly', params.showIncompleteOnly.toString());
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
