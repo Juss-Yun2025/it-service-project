@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Icon from '@/components/ui/Icon'
-import { apiClient, User, UserUpdateRequest, Department, Role, Position, Stage, ServiceType } from '@/lib/api'
+import { apiClient, User, UserUpdateRequest, Department, Role, Position, Stage, ServiceType, CurrentStatus } from '@/lib/api'
 import { PermissionGuard, RoleGuard, usePermissions, useRoles } from '@/components/PermissionGuard'
 
 // 상수 정의는 제거됨 - DB에서 동적으로 로드
@@ -137,6 +137,40 @@ function SystemAdminPageContent() {
     } finally {
       setServiceTypesLoading(false)
     }
+  }
+
+  // 현재상태 목록 가져오기
+  const fetchCurrentStatuses = async () => {
+    try {
+      const response = await apiClient.getCurrentStatuses()
+      if (response.success && response.data) {
+        setCurrentStatuses(response.data)
+      }
+    } catch (error) {
+      console.error('현재상태 목록 가져오기 실패:', error)
+    }
+  }
+
+  // 현재상태별 스타일 클래스 생성 함수
+  const getCurrentStatusStyle = (statusName: string) => {
+    const status = currentStatuses.find(s => s.name === statusName)
+    if (status && status.color) {
+      // DB에서 color 정보가 있으면 해당 색상 사용
+      return `px-2 py-1 rounded-full text-xs font-medium ${status.color}`
+    }
+    
+    // 기본 스타일 (기존 하드코딩된 스타일을 fallback으로 사용)
+    const defaultStyles: { [key: string]: string } = {
+      '정상작동': 'bg-green-100 text-green-800',
+      '오류발생': 'bg-red-100 text-red-800',
+      '메시지창': 'bg-blue-100 text-blue-800',
+      '부분불능': 'bg-yellow-100 text-yellow-800',
+      '전체불능': 'bg-red-200 text-red-900',
+      '점검요청': 'bg-purple-100 text-purple-800',
+      '기타상태': 'bg-gray-100 text-gray-800'
+    }
+    
+    return `px-2 py-1 rounded-full text-xs font-medium ${defaultStyles[statusName] || 'bg-gray-100 text-gray-800'}`
   }
 
   // 부서별 조치담당자 가져오기 (조치담당자 권한만)
@@ -295,10 +329,11 @@ function SystemAdminPageContent() {
     }
   };
 
-  // 컴포넌트 마운트 시 부서 목록과 서비스 타입 가져오기
+  // 컴포넌트 마운트 시 부서 목록과 서비스 타입, 현재상태 가져오기
   useEffect(() => {
     fetchDepartments()
     fetchServiceTypes()
+    fetchCurrentStatuses()
   }, [])
 
 
@@ -344,11 +379,28 @@ function SystemAdminPageContent() {
   // 서비스현황 리포트 관련 상태
   const [showServiceReport, setShowServiceReport] = useState(false)
   const [serviceReportCurrentPage, setServiceReportCurrentPage] = useState(1)
-  const [serviceReportSearchStartDate, setServiceReportSearchStartDate] = useState(new Date().toISOString().split('T')[0])
+  const [serviceReportSearchStartDate, setServiceReportSearchStartDate] = useState(() => {
+    // 현재일 기준 1주일 전
+    const oneWeekAgo = new Date()
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+    return oneWeekAgo.toISOString().split('T')[0]
+  })
   const [serviceReportSearchEndDate, setServiceReportSearchEndDate] = useState(new Date().toISOString().split('T')[0])
   const [serviceReportStatusFilter, setServiceReportStatusFilter] = useState('전체')
   const [serviceReportDepartmentFilter, setServiceReportDepartmentFilter] = useState('전체')
   const [serviceReportStageFilter, setServiceReportStageFilter] = useState('전체')
+  
+  // 서비스현황 리포트 데이터 상태
+  const [serviceReportData, setServiceReportData] = useState<ServiceRequest[]>([])
+  const [serviceReportPagination, setServiceReportPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0
+  })
+  
+  // 현재상태 관리
+  const [currentStatuses, setCurrentStatuses] = useState<CurrentStatus[]>([])
   
   // 사용자관리 관련 상태
   const [userManagementCurrentPage, setUserManagementCurrentPage] = useState(1)
@@ -938,6 +990,55 @@ function SystemAdminPageContent() {
     }
   };
 
+  // 서비스현황 리포트 데이터 가져오기
+  const fetchServiceReportData = async () => {
+    setServiceRequestsLoading(true); // 로딩 상태는 공유
+    try {
+      const selectedStageId = serviceReportStageFilter !== '전체'
+        ? stages.find(s => s.name === serviceReportStageFilter)?.id
+        : undefined;
+
+      const params = {
+        startDate: serviceReportSearchStartDate,
+        endDate: serviceReportSearchEndDate,
+        department: serviceReportDepartmentFilter !== '전체' ? serviceReportDepartmentFilter : undefined,
+        status: serviceReportStatusFilter !== '전체' ? serviceReportStatusFilter : undefined,
+        stage_id: selectedStageId,
+        page: serviceReportCurrentPage,
+        limit: 10
+      };
+
+      console.log('서비스현황리포트 API 파라미터:', params);
+
+      const response = await apiClient.getServiceRequests(params);
+      
+      console.log('서비스현황리포트 API 응답:', response);
+
+      if (response.success && response.data) {
+        console.log('서비스현황리포트 원본 데이터 개수:', response.data.length);
+        const transformedData = response.data.map((item: any) => mapServiceRequestData(item));
+        console.log('서비스현황리포트 변환된 데이터 개수:', transformedData.length);
+        setServiceReportData(transformedData); // 서비스현황 리포트 전용 상태에 저장
+
+        if (response.pagination) {
+          console.log('서비스현황리포트 페이지네이션 정보:', response.pagination);
+          setServiceReportPagination({ // 서비스현황 리포트 전용 페이지네이션 상태에 저장
+            page: response.pagination.page,
+            limit: response.pagination.limit,
+            total: response.pagination.total,
+            totalPages: response.pagination.totalPages
+          });
+        }
+      } else {
+        console.error('서비스현황 리포트 데이터 가져오기 실패:', response.error);
+      }
+    } catch (error) {
+      console.error('서비스현황 리포트 데이터 가져오기 오류:', error);
+    } finally {
+      setServiceRequestsLoading(false);
+    }
+  };
+
   // 서비스 요청 데이터 가져오기 (검색 조건 변경 시마다)
   useEffect(() => {
     console.log('=== useEffect 트리거됨 ===');
@@ -953,6 +1054,20 @@ function SystemAdminPageContent() {
     fetchServiceRequests();
     console.log('=== useEffect 완료 ===');
   }, [serviceWorkSearchStartDate, serviceWorkSearchEndDate, serviceWorkSelectedDepartment, serviceWorkSelectedStage, showServiceIncompleteOnly, serviceRequestsPagination.page]);
+
+  // 서비스현황 리포트 모달이 열릴 때 데이터 가져오기
+  useEffect(() => {
+    if (showServiceReport) {
+      fetchServiceReportData();
+    }
+  }, [showServiceReport]);
+
+  // 서비스현황 리포트 검색 조건 변경 시 데이터 가져오기
+  useEffect(() => {
+    if (showServiceReport) {
+      fetchServiceReportData();
+    }
+  }, [serviceReportSearchStartDate, serviceReportSearchEndDate, serviceReportStatusFilter, serviceReportDepartmentFilter, serviceReportStageFilter, serviceReportCurrentPage]);
 
   // 권한 목록 로드
   useEffect(() => {
@@ -981,37 +1096,63 @@ function SystemAdminPageContent() {
   // 더미 데이터 제거됨 - API 기반으로 교체
   // 더미 데이터 제거됨 - serviceRequests는 API에서 가져옴
 
-  // 서비스현황 리포트 데이터 생성 (서비스 요청 데이터를 기반으로)
-  const serviceReportData = serviceRequests.map(request => {
-    // 배정(h) 계산: 신청시간 - 배정시간
-    const assignmentHours = request.assignTime && request.requestTime ? 
-      Math.round((new Date(`${request.assignDate} ${request.assignTime}`).getTime() - new Date(`${request.requestDate} ${request.requestTime}`).getTime()) / (1000 * 60 * 60) * 10) / 10 : 0;
-    
-    // 작업(h) 계산: 작업시작시간 - 작업완료시간
-    const workHours = 0; // 실제 데이터로 계산 필요
+  // 서비스현황 리포트 데이터 매핑 (serviceReportData 상태를 기반으로)
+  const serviceReportDataMapped = serviceReportData.map(request => {
+    // 배정(h) 계산: 배정일시 - 신청일시
+    let assignmentHours = '-';
+    if (request.assignDate && request.requestDate) {
+      try {
+        const assignDateTime = new Date(request.assignDate);
+        const requestDateTime = new Date(request.requestDate);
+        if (!isNaN(assignDateTime.getTime()) && !isNaN(requestDateTime.getTime())) {
+          const diffMs = assignDateTime.getTime() - requestDateTime.getTime();
+          const diffHours = diffMs / (1000 * 60 * 60);
+          assignmentHours = diffHours >= 0 ? (Math.round(diffHours * 10) / 10).toString() : '-';
+        }
+      } catch (error) {
+        assignmentHours = '-';
+      }
+    }
+
+    // 작업(h) 계산: 작업완료일시 - 작업시작일시
+    let workHours = '-';
+    if (request.workCompleteDate && request.workStartDate) {
+      try {
+        const completeDateTime = new Date(request.workCompleteDate);
+        const startDateTime = new Date(request.workStartDate);
+        if (!isNaN(completeDateTime.getTime()) && !isNaN(startDateTime.getTime())) {
+          const diffMs = completeDateTime.getTime() - startDateTime.getTime();
+          const diffHours = diffMs / (1000 * 60 * 60);
+          workHours = diffHours >= 0 ? (Math.round(diffHours * 10) / 10).toString() : '-';
+        }
+      } catch (error) {
+        workHours = '-';
+      }
+    }
 
     return {
       id: request.id,
       requestNumber: request.requestNumber,
       title: request.title,
+      currentStatus: request.currentStatus,
       requester: request.requester,
       requesterDepartment: request.department,
       stage: request.stage,
       assignmentHours: assignmentHours,
       serviceType: request.serviceType,
-      assignee: request.assignee || '',
-      assigneeDepartment: request.assigneeDepartment || '',
+      technician: request.technician || '',
+      technicianDepartment: request.technicianDepartment || '',
       workHours: workHours,
       requestDateTime: `${request.requestDate} ${request.requestTime || ''}`.trim(),
       assignDateTime: request.assignDate || '',
-      scheduledDateTime: request.scheduled_date || '',
-      workStartDateTime: request.work_start_date || '',
-      workCompleteDateTime: request.work_complete_date || ''
+      scheduledDateTime: request.scheduledDate || '',
+      workStartDateTime: request.workStartDate || '',
+      workCompleteDateTime: request.workCompleteDate || ''
     }
   });
 
   // 서비스현황 리포트 필터링
-  const filteredServiceReports = serviceReportData.filter(report => {
+  const filteredServiceReports = serviceReportDataMapped.filter(report => {
     // 날짜 필터
     if (serviceReportSearchStartDate && serviceReportSearchEndDate) {
       const reportDate = new Date(report.requestDateTime.split(' ')[0].replace(/\./g, '-'));
@@ -1032,13 +1173,9 @@ function SystemAdminPageContent() {
     return true;
   });
 
-  // 서비스현황 리포트 페이지네이션
-  const serviceReportItemsPerPage = 10;
-  const serviceReportTotalPages = Math.ceil(filteredServiceReports.length / serviceReportItemsPerPage);
-  const paginatedServiceReports = filteredServiceReports.slice(
-    (serviceReportCurrentPage - 1) * serviceReportItemsPerPage,
-    serviceReportCurrentPage * serviceReportItemsPerPage
-  );
+  // 서비스현황 리포트 페이지네이션 (서버사이드 페이지네이션 사용)
+  const serviceReportTotalPages = serviceReportPagination.totalPages;
+  const paginatedServiceReports = serviceReportDataMapped;
 
   // 엑셀 다운로드 함수
   const generateServiceReportExcel = async (data: ServiceRequest[]) => {
@@ -2163,16 +2300,7 @@ function SystemAdminPageContent() {
                             <td className="px-2 py-2 text-gray-900 text-center">{request.requestTime ? request.requestTime.substring(0, 5) : '-'}</td>
                             <td className="px-2 py-2 text-gray-900">{request.title}</td>
                             <td className="px-2 py-2 text-center">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                request.currentStatus === '정상작동' ? 'bg-green-100 text-green-800' :
-                                request.currentStatus === '오류발생' ? 'bg-red-100 text-red-800' :
-                                request.currentStatus === '메시지창' ? 'bg-blue-100 text-blue-800' :
-                                request.currentStatus === '부분불능' ? 'bg-yellow-100 text-yellow-800' :
-                                request.currentStatus === '전체불능' ? 'bg-red-200 text-red-900' :
-                                request.currentStatus === '점검요청' ? 'bg-purple-100 text-purple-800' :
-                                request.currentStatus === '기타상태' ? 'bg-gray-100 text-gray-800' :
-                                'bg-gray-100 text-gray-800'
-                              }`}>
+                              <span className={getCurrentStatusStyle(request.currentStatus)}>
                                 {request.currentStatus}
                               </span>
                             </td>
@@ -2468,13 +2596,8 @@ function SystemAdminPageContent() {
                   <div className="flex items-center space-x-4">
                     <button
                       onClick={() => {
-                        setServiceReportCurrentPage(1);
-                        const today = new Date().toISOString().split('T')[0];
-                        setServiceReportSearchStartDate(today);
-                        setServiceReportSearchEndDate(today);
-                        setServiceReportStatusFilter('전체');
-                        setServiceReportDepartmentFilter('전체');
-                        setServiceReportStageFilter('전체');
+                        // 서비스현황리포트 데이터 새로고침 (현재 검색 조건 유지)
+                        fetchServiceReportData();
                       }}
                       className="w-6 h-6 text-gray-600 hover:text-gray-800 transition-colors"
                     >
@@ -2632,7 +2755,7 @@ function SystemAdminPageContent() {
                   </button>
                   
                   {/* 페이지네이션 */}
-                  {serviceReportTotalPages > 1 && (
+                  {(serviceReportTotalPages > 1 || serviceReportData.length > 0) && (
                     <div className="flex items-center space-x-2">
                       <button 
                         onClick={() => setServiceReportCurrentPage(Math.max(1, serviceReportCurrentPage - 1))}
