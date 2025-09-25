@@ -19,6 +19,7 @@ import permissionRoutes from './routes/permissions';
 import positionRoutes from './routes/positions';
 import serviceTypeRoutes from './routes/serviceTypes';
 import roleRoutes from './routes/roles';
+import stageRoutes from './routes/stages';
 
 // Load environment variables
 dotenv.config();
@@ -60,6 +61,7 @@ app.use('/api/permissions', permissionRoutes);
 app.use('/api/positions', positionRoutes);
 app.use('/api/service-types', serviceTypeRoutes);
 app.use('/api/roles', roleRoutes);
+app.use('/api/stages', stageRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {

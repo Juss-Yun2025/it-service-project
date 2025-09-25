@@ -50,6 +50,28 @@ export interface UserUpdateRequest {
   status?: string;
 }
 
+// ===== 단계 관리 인터페이스 =====
+export interface Stage {
+  id: number;
+  name: string;
+  description?: string;
+  sort_order?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StageCreateRequest {
+  name: string;
+  description?: string;
+  sort_order?: number;
+}
+
+export interface StageUpdateRequest {
+  name?: string;
+  description?: string;
+  sort_order?: number;
+}
+
 export interface Department {
   id: number;
   name: string;
@@ -637,6 +659,41 @@ class ApiClient {
   // 단계명으로 진행명 조회
   async getProgressByStageName(stageName: string): Promise<ApiResponse<string>> {
     return this.request<string>(`/api/stages/progress/${encodeURIComponent(stageName)}`);
+  }
+
+  // ===== 단계 관리 API =====
+  
+  // 모든 단계 조회
+  async getStages(): Promise<ApiResponse<Stage[]>> {
+    return this.request<Stage[]>('/api/stages');
+  }
+
+  // 특정 단계 조회
+  async getStage(id: number): Promise<ApiResponse<Stage>> {
+    return this.request<Stage>(`/api/stages/${id}`);
+  }
+
+  // 새 단계 생성
+  async createStage(data: StageCreateRequest): Promise<ApiResponse<Stage>> {
+    return this.request<Stage>('/api/stages', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  // 단계 수정
+  async updateStage(id: number, data: StageUpdateRequest): Promise<ApiResponse<Stage>> {
+    return this.request<Stage>(`/api/stages/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+
+  // 단계 삭제
+  async deleteStage(id: number): Promise<ApiResponse<void>> {
+    return this.request<void>(`/api/stages/${id}`, {
+      method: 'DELETE'
+    });
   }
 
   // ===== 권한 관련 API =====
