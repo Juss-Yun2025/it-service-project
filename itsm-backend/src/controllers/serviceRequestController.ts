@@ -62,21 +62,14 @@ export const getAllServiceRequests = async (req: Request, res: Response): Promis
       startDate, 
       endDate, 
       department, 
-      stage,
+      status,
+      stage_id,
       showIncompleteOnly,
       page = 1,
       limit = 10
     } = req.query;
-    
-    console.log('서비스 요청 검색 파라미터:', {
-      startDate,
-      endDate,
-      department,
-      stage,
-      showIncompleteOnly,
-      page,
-      limit
-    });
+
+    console.log('백엔드 받은 파라미터:', { startDate, endDate, department, status, stage_id, showIncompleteOnly, page, limit });
 
     let query = `
       SELECT sr.id, sr.request_number, sr.title, cs.name as current_status,
@@ -112,7 +105,6 @@ export const getAllServiceRequests = async (req: Request, res: Response): Promis
       paramCount++;
       query += ` AND sr.request_date <= $${paramCount}`;
       queryParams.push(endDate);
-      console.log('날짜 필터링 적용:', startDate, '~', endDate);
     }
 
     // 부서 필터 (조치담당자 부서 기준)
@@ -120,22 +112,26 @@ export const getAllServiceRequests = async (req: Request, res: Response): Promis
       paramCount++;
       query += ` AND sr.technician_department = $${paramCount}`;
       queryParams.push(department);
-      console.log('부서 필터링 적용:', department);
     }
 
-    // 단계 필터링
-    if (stage) {
+    // 현재상태 필터
+    if (status && status !== '전체') {
       paramCount++;
-      query += ` AND s.name = $${paramCount}`;
-      queryParams.push(stage);
-      console.log('단계 필터링 적용:', stage);
-      console.log('단계 필터링 쿼리 조건:', `s.name = $${paramCount}`);
+      query += ` AND cs.name = $${paramCount}`;
+      queryParams.push(status);
     }
 
-    // 진행중..조회 필터 (stage_id가 7=완료, 8=미결을 제외한 모든 것)
+    // 단계 필터
+    if (stage_id) {
+      console.log('백엔드 stage_id 필터링:', { stage_id, type: typeof stage_id });
+      paramCount++;
+      query += ` AND sr.stage_id = $${paramCount}`;
+      queryParams.push(stage_id);
+    }
+
+    // 미완료 조회 필터
     if (showIncompleteOnly === 'true') {
-      query += ` AND sr.stage_id NOT IN (7, 8)`;
-      console.log('진행중..조회 필터링 적용: 완료/미결 제외');
+      query += ` AND sr.stage != '완료'`;
     }
 
     // 정렬
@@ -151,17 +147,15 @@ export const getAllServiceRequests = async (req: Request, res: Response): Promis
     query += ` OFFSET $${paramCount}`;
     queryParams.push(offset);
 
-    console.log('최종 쿼리:', query);
+    console.log('실행되는 쿼리:', query);
     console.log('쿼리 파라미터:', queryParams);
     
     const result = await db.query<ServiceRequest>(query, queryParams);
+    
     console.log('쿼리 결과 개수:', result.rows.length);
-    const stageDistribution = result.rows.reduce((acc, row) => {
-      acc[row.stage] = (acc[row.stage] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-    console.log('쿼리 결과 단계별 분포:', stageDistribution);
-    console.log('선택된 단계:', stage, '결과에 포함된 단계들:', Object.keys(stageDistribution));
+    if (result.rows.length > 0) {
+      console.log('첫 번째 결과의 stage_id:', (result.rows[0] as any).stage_id);
+    }
 
     // 총 개수 조회
     let countQuery = `
@@ -192,15 +186,20 @@ export const getAllServiceRequests = async (req: Request, res: Response): Promis
       countParams.push(department);
     }
 
-    if (stage) {
+    if (status && status !== '전체') {
       countParamCount++;
-      countQuery += ` AND s.name = $${countParamCount}`;
-      countParams.push(stage);
-      console.log('카운트 쿼리 단계 필터링 적용:', stage);
+      countQuery += ` AND cs.name = $${countParamCount}`;
+      countParams.push(status);
+    }
+
+    if (stage_id) {
+      countParamCount++;
+      countQuery += ` AND sr.stage_id = $${countParamCount}`;
+      countParams.push(stage_id);
     }
 
     if (showIncompleteOnly === 'true') {
-      countQuery += ` AND sr.stage_id NOT IN (7, 8)`;
+      countQuery += ` AND sr.stage != '완료'`;
     }
 
     const countResult = await db.query<{total: string}>(countQuery, countParams);
@@ -715,6 +714,72 @@ export const getNextStage = async (req: Request, res: Response): Promise<void> =
     res.status(500).json({
       success: false,
       error: '다음 단계 조회에 실패했습니다.'
+    });
+  }
+};
+
+// 배정취소 처리
+export const cancelAssignment = async (req: Request, res: Response) => {
+  try {
+    const {
+      requestId,
+      rejectionOpinion,
+      rejectionDate,
+      rejectionName,
+      stageId,
+      previousAssigneeDate,
+      previousAssignee
+    } = req.body;
+
+    // 필수 필드 검증
+    if (!requestId || !rejectionOpinion || !rejectionDate || !rejectionName || !stageId) {
+      return res.status(400).json({
+        success: false,
+        error: '필수 필드가 누락되었습니다.'
+      });
+    }
+
+    // 배정취소 처리
+    await db.query(`
+      UPDATE service_requests SET
+        previous_assign_date = $1,
+        previous_assignee = $2,
+        previous_assignment_opinion = assignment_opinion,
+        rejection_opinion = $3,
+        rejection_date = $4,
+        rejection_name = $5,
+        stage_id = $6,
+        assign_date = NULL,
+        assign_time = NULL,
+        assignee_id = NULL,
+        assignee_name = NULL,
+        assignee_department = NULL,
+        assignment_opinion = NULL,
+        technician_id = NULL,
+        technician_name = NULL,
+        technician_department = NULL,
+        updated_at = NOW()
+      WHERE id = $7
+    `, [
+      previousAssigneeDate || null,
+      previousAssignee || null,
+      rejectionOpinion,
+      rejectionDate,
+      rejectionName,
+      stageId,
+      requestId
+    ]);
+
+    return res.json({
+      success: true,
+      message: '배정이 취소되었습니다.'
+    });
+
+  } catch (error) {
+    console.error('배정취소 처리 오류:', error);
+    return res.status(500).json({
+      success: false,
+      error: '배정취소 처리 중 오류가 발생했습니다.'
     });
   }
 };
