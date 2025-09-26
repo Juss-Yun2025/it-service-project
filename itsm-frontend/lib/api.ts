@@ -58,6 +58,14 @@ export interface Stage {
   sort_order?: number;
   created_at: string;
   updated_at: string;
+  activeFields?: string[]; // 단계별 활성화 필드 목록
+  requiredFields?: string[]; // 단계별 필수 필드 목록
+  progressMessage?: string; // 단계별 진행 메시지
+  icon?: string; // 단계별 아이콘
+  iconColor?: string; // 단계별 아이콘 색상
+  buttons?: string[]; // 단계별 버튼 목록
+  color?: string; // 단계별 색상
+  statsKey?: string; // 단계별 통계 키
 }
 
 export interface StageCreateRequest {
@@ -172,6 +180,44 @@ export interface GeneralInquiryListParams {
 
 export interface GeneralInquiryAnswerRequest {
   answer_content: string;
+}
+
+// ===== 서비스 통계 관련 인터페이스 =====
+export interface ServiceStatistics {
+  overview: {
+    total_requests: number;
+    pending_requests: number;
+    assigned_requests: number;
+    in_progress_requests: number;
+    completed_requests: number;
+    cancelled_requests: number;
+    stage_received: number;
+    stage_assigned: number;
+    stage_reassigned: number;
+    stage_confirmed: number;
+    stage_scheduled: number;
+    stage_working: number;
+    stage_completed: number;
+    stage_pending: number;
+    avg_assignment_hours: number;
+    avg_work_hours: number;
+  };
+  by_department: Array<{
+    requester_department: string;
+    request_count: number;
+    completed_count: number;
+  }>;
+  by_service_type: Array<{
+    service_type: string;
+    request_count: number;
+    completed_count: number;
+  }>;
+}
+
+export interface ServiceStatisticsParams {
+  startDate?: string;
+  endDate?: string;
+  department?: string;
 }
 
 // ===== 서비스 요청 관련 인터페이스 =====
@@ -675,6 +721,10 @@ class ApiClient {
     });
   }
 
+  // 모든 현재상태 조회 (별칭)
+  async getAllCurrentStatuses(): Promise<ApiResponse<CurrentStatus[]>> {
+    return this.getCurrentStatuses();
+  }
 
   // ===== 단계-진행 매칭 API =====
   
@@ -952,6 +1002,40 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(data)
     });
+  }
+
+  // ===== 서비스 통계 관련 API =====
+
+  // 서비스 통계 조회
+  async getServiceStatistics(params?: ServiceStatisticsParams): Promise<ApiResponse<ServiceStatistics>> {
+    const queryParams = new URLSearchParams();
+    
+    if (params?.startDate) queryParams.append('startDate', params.startDate);
+    if (params?.endDate) queryParams.append('endDate', params.endDate);
+    if (params?.department) queryParams.append('department', params.department);
+    
+    const queryString = queryParams.toString();
+    const url = queryString ? `/api/reports/service-statistics?${queryString}` : '/api/reports/service-statistics';
+    
+    return this.request<ServiceStatistics>(url);
+  }
+
+  // 서비스 리포트 조회
+  async getServiceReport(params?: ServiceRequestListParams): Promise<ApiResponse<ServiceRequest[]>> {
+    const queryParams = new URLSearchParams();
+    
+    if (params?.startDate) queryParams.append('startDate', params.startDate);
+    if (params?.endDate) queryParams.append('endDate', params.endDate);
+    if (params?.department) queryParams.append('department', params.department);
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.stage_id) queryParams.append('stage', params.stage_id.toString());
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    
+    const queryString = queryParams.toString();
+    const url = queryString ? `/api/reports/service?${queryString}` : '/api/reports/service';
+    
+    return this.request<ServiceRequest[]>(url);
   }
 }
 

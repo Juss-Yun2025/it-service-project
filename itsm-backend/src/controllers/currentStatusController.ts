@@ -5,12 +5,32 @@ import { db } from '../config/database';
 export const getAllCurrentStatuses = async (req: Request, res: Response): Promise<void> => {
   try {
     const result = await db.query(
-      'SELECT * FROM current_statuses WHERE is_active = true ORDER BY id'
+      'SELECT id, name, description, color, is_active, created_at, updated_at FROM current_statuses WHERE is_active = true ORDER BY id'
     );
+    
+    // 색상 정보가 없는 경우 기본 색상 매핑 적용
+    const statusesWithColors = result.rows.map(status => {
+      if (!status.color) {
+        // 기본 색상 매핑 (설정 가능)
+        const defaultColors: {[key: string]: string} = {
+          '정상작동': 'bg-green-100 text-green-800',
+          '오류발생': 'bg-red-100 text-red-800',
+          '메시지창': 'bg-blue-100 text-blue-800',
+          '부분불능': 'bg-yellow-100 text-yellow-800',
+          '전체불능': 'bg-red-200 text-red-900',
+          '점검요청': 'bg-purple-100 text-purple-800',
+          '기타상태': 'bg-gray-100 text-gray-800'
+        };
+        
+        status.color = defaultColors[status.name] || 'bg-gray-100 text-gray-800';
+      }
+      
+      return status;
+    });
     
     res.json({
       success: true,
-      data: result.rows
+      data: statusesWithColors
     });
     return;
   } catch (error) {

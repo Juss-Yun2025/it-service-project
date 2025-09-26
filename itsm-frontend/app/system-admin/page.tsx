@@ -195,6 +195,7 @@ const mapServiceRequestData = (rawData: any): ServiceRequest => {
 
 }
 
+
 function SystemAdminPageContent() {
 
   const router = useRouter()
@@ -810,7 +811,7 @@ function SystemAdminPageContent() {
 
   const [serviceWorkSelectedDepartment, setServiceWorkSelectedDepartment] = useState('전체')
 
-  const [serviceWorkCurrentPage, setServiceWorkCurrentPage] = useState(1)
+  // serviceWorkCurrentPage는 serviceRequestsPagination.page와 동기화됨
 
   // 작업정보등록 관련 상태
 
@@ -918,11 +919,12 @@ function SystemAdminPageContent() {
 
   }, [serviceWorkScheduledDate]);
 
-  // 컴포넌트 마운트 시 stages 로드
+  // 컴포넌트 마운트 시 stages와 statuses 로드
 
   useEffect(() => {
 
     loadStages();
+    loadStatuses();
 
   }, []);
 
@@ -931,6 +933,77 @@ function SystemAdminPageContent() {
   const [stages, setStages] = useState<Stage[]>([]);
 
   const [stagesLoading, setStagesLoading] = useState(false);
+
+  // 단계별 필드 매핑 (동적 처리)
+  const [stageFieldMapping, setStageFieldMapping] = useState<{[key: string]: string[]}>({});
+
+  // 단계별 필수 필드 매핑 (동적 처리)
+  const [stageRequiredFields, setStageRequiredFields] = useState<{[key: string]: string[]}>({});
+
+  // 단계별 진행 메시지 매핑 (동적 처리)
+  const [stageMessages, setStageMessages] = useState<{[key: string]: string}>({});
+
+  // 상태별 색상 매핑 (동적 처리)
+  const [statusColors, setStatusColors] = useState<{[key: string]: string}>({});
+
+  // 상태 목록 (동적 처리)
+  const [statusList, setStatusList] = useState<string[]>([]);
+
+  // 단계별 아이콘 매핑 (동적 처리)
+  const [stageIcons, setStageIcons] = useState<{[key: string]: {icon: string, iconColor: string}}>({});
+
+  // 단계별 버튼 매핑 (동적 처리)
+  const [stageButtons, setStageButtons] = useState<{[key: string]: string[]}>({});
+
+  // 단계별 색상 매핑 (동적 처리)
+  const [stageColors, setStageColors] = useState<{[key: string]: string}>({});
+
+  // 단계별 통계 매핑 (동적 처리)
+  const [stageStatsMapping, setStageStatsMapping] = useState<{[key: string]: string}>({});
+
+  // 역할 목록 (동적 처리)
+  const [roles, setRoles] = useState<Role[]>([]);
+
+  // 현재 사용자의 권한 정보
+  const [currentUserRole, setCurrentUserRole] = useState<string>('');
+
+  // 단계별 필드 활성화 여부 확인 함수
+  const isStageFieldActive = (fieldName: string) => {
+    const currentStageName = getCurrentStage();
+    if (currentStageName && stageFieldMapping[currentStageName]) {
+      return stageFieldMapping[currentStageName].includes(fieldName);
+    }
+    return false;
+  };
+
+  // 단계별 필드 스타일 클래스 생성 함수
+  const getStageFieldStyle = (fieldName: string) => {
+    const isActive = isStageFieldActive(fieldName);
+    return isActive ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50';
+  };
+
+  // 다음 단계명 가져오기 함수
+  const getNextStageName = (currentStageName: string): string | null => {
+    if (!stages || stages.length === 0) return null;
+    
+    const currentIndex = stages.findIndex(stage => stage.name === currentStageName);
+    if (currentIndex === -1 || currentIndex >= stages.length - 1) return null;
+    
+    return stages[currentIndex + 1].name;
+  };
+
+  // 단계명 가져오기 함수 (완전 동적)
+  const getStageName = (stageKey: string): string => {
+    // stages가 로드되었으면 stages에서 직접 찾기
+    if (stages && stages.length > 0) {
+      const stage = stages.find(s => s.name === stageKey);
+      return stage ? stage.name : stageKey; // 찾지 못하면 stageKey 그대로 반환
+    }
+    
+    // stages가 아직 로드되지 않았으면 stageKey 그대로 반환
+    return stageKey;
+  };
+
 
   // stages가 로드된 후 기본값 설정
 
@@ -943,6 +1016,13 @@ function SystemAdminPageContent() {
     }
 
   }, [stages, currentStage])
+
+  // 초기 데이터 로드
+  useEffect(() => {
+    loadRoles();
+    loadStatuses();
+    loadCurrentUserRole();
+  }, []);
 
   // 단계 정보 로드
 
@@ -958,6 +1038,57 @@ function SystemAdminPageContent() {
 
         setStages(response.data);
 
+        // 단계별 필드 매핑 설정 (백엔드에서 받은 activeFields 사용)
+        const fieldMapping: {[key: string]: string[]} = {};
+        const requiredFieldsMapping: {[key: string]: string[]} = {};
+        const messagesMapping: {[key: string]: string} = {};
+        const iconsMapping: {[key: string]: {icon: string, iconColor: string}} = {};
+        const buttonsMapping: {[key: string]: string[]} = {};
+        const colorsMapping: {[key: string]: string} = {};
+        const statsMapping: {[key: string]: string} = {};
+        
+        response.data.forEach((stage: Stage) => {
+          if (stage.activeFields) {
+            fieldMapping[stage.name] = stage.activeFields;
+          }
+          if (stage.requiredFields) {
+            requiredFieldsMapping[stage.name] = stage.requiredFields;
+          }
+          if (stage.progressMessage) {
+            messagesMapping[stage.name] = stage.progressMessage;
+          }
+          if (stage.icon && stage.iconColor) {
+            iconsMapping[stage.name] = {
+              icon: stage.icon,
+              iconColor: stage.iconColor
+            };
+          }
+          if (stage.buttons) {
+            buttonsMapping[stage.name] = stage.buttons;
+          }
+          if (stage.color) {
+            colorsMapping[stage.name] = stage.color;
+          }
+          if (stage.statsKey) {
+            statsMapping[stage.name] = stage.statsKey;
+          }
+        });
+
+        setStageFieldMapping(fieldMapping);
+        setStageRequiredFields(requiredFieldsMapping);
+        setStageMessages(messagesMapping);
+        setStageIcons(iconsMapping);
+        setStageButtons(buttonsMapping);
+        setStageColors(colorsMapping);
+        setStageStatsMapping(statsMapping);
+        console.log('단계별 필드 매핑 설정 (백엔드 기반):', fieldMapping);
+        console.log('단계별 필수 필드 매핑 설정 (백엔드 기반):', requiredFieldsMapping);
+        console.log('단계별 메시지 매핑 설정 (백엔드 기반):', messagesMapping);
+        console.log('단계별 아이콘 매핑 설정 (백엔드 기반):', iconsMapping);
+        console.log('단계별 버튼 매핑 설정 (백엔드 기반):', buttonsMapping);
+        console.log('단계별 색상 매핑 설정 (백엔드 기반):', colorsMapping);
+        console.log('단계별 통계 매핑 설정 (백엔드 기반):', statsMapping);
+
       }
 
     } catch (error) {
@@ -970,6 +1101,66 @@ function SystemAdminPageContent() {
 
     }
 
+  };
+
+  // 역할 정보 로드
+  const loadRoles = async () => {
+    try {
+      const response = await apiClient.getRoles();
+      if (response.success && response.data) {
+        setRoles(response.data);
+        console.log('역할 목록 설정 (백엔드 기반):', response.data);
+      }
+    } catch (error) {
+      console.error('역할 정보 로드 실패:', error);
+    }
+  };
+
+  // 현재 사용자의 권한 정보 로드
+  const loadCurrentUserRole = async () => {
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const currentUser = JSON.parse(userStr);
+        if (currentUser.role) {
+          setCurrentUserRole(currentUser.role);
+          console.log('현재 사용자 권한:', currentUser.role);
+        }
+      }
+    } catch (error) {
+      console.error('사용자 권한 정보 로드 실패:', error);
+    }
+  };
+
+  // 상태 정보 로드
+  const loadStatuses = async () => {
+    try {
+      const response = await apiClient.getAllCurrentStatuses();
+      
+      if (response.success && response.data) {
+        // 상태별 색상 매핑 설정
+        const colorMapping: {[key: string]: string} = {};
+        
+        response.data.forEach((status: any) => {
+          if (status.color) {
+            colorMapping[status.name] = status.color;
+          }
+        });
+
+        setStatusColors(colorMapping);
+        
+        // 상태 목록 설정
+        const statusNames = response.data.map((status: any) => status.name);
+        setStatusList(statusNames);
+        
+        console.log('상태별 색상 매핑 설정 (백엔드 기반):', colorMapping);
+        console.log('상태 목록 설정 (백엔드 기반):', statusNames);
+      }
+    } catch (error) {
+      console.error('상태 정보 로드 실패:', error);
+      // 오류 발생 시 빈 객체로 설정 (기본 회색 색상 사용)
+      setStatusColors({});
+    }
   };
 
   // 단계별 프로세스 관리 함수들
@@ -1132,39 +1323,12 @@ function SystemAdminPageContent() {
 
     const currentStageName = getCurrentStage();
 
-    // stages 테이블 기반으로 필드 활성화 로직
-
-    switch (fieldName) {
-
-      case 'scheduledDate':
-
-        return currentStageName === '확인'; // 확인 단계에서 예정조율일시 활성화
-
-      case 'workStartDate':
-
-        return currentStageName === '예정'; // 예정 단계에서 작업시작일시 활성화
-
-      case 'workContent':
-
-        return currentStageName === '작업'; // 작업 단계에서 작업내역 활성화
-
-      case 'workCompleteDate':
-
-        return currentStageName === '작업'; // 작업 단계에서 작업완료일시 활성화
-
-      case 'problemIssue':
-
-        return currentStageName === '완료'; // 완료 단계에서 문제사항 활성화
-
-      case 'isUnresolved':
-
-        return currentStageName === '완료'; // 완료 단계에서 미결 Check 활성화
-
-      default:
-
-        return false;
-
+    // 동적 필드 활성화 로직 (DB 기반)
+    if (currentStageName && stageFieldMapping[currentStageName]) {
+      return stageFieldMapping[currentStageName].includes(fieldName);
     }
+
+    return false;
 
   };
 
@@ -1172,31 +1336,29 @@ function SystemAdminPageContent() {
 
     const currentStageName = getCurrentStage();
 
-    // stages 테이블 기반으로 단계 진행 검증
-
-    switch (currentStageName) {
-
-      case '확인': // 확인 단계
-
-        return !!serviceWorkScheduledDate;
-
-      case '예정': // 예정 단계
-
-        return !!serviceWorkStartDate;
-
-      case '작업': // 작업 단계
-
-        return !!(serviceWorkContent && serviceWorkCompleteDate);
-
-      case '완료': // 완료 단계
-
-        return !!serviceWorkProblemIssue;
-
-      default:
-
-        return false;
-
+    // 동적 필수 필드 검증 (백엔드 기반)
+    if (currentStageName && stageRequiredFields[currentStageName]) {
+      const requiredFields = stageRequiredFields[currentStageName];
+      
+      return requiredFields.every(fieldName => {
+        switch (fieldName) {
+          case 'scheduledDate':
+            return !!serviceWorkScheduledDate;
+          case 'workStartDate':
+            return !!serviceWorkStartDate;
+          case 'workContent':
+            return !!serviceWorkContent;
+          case 'workCompleteDate':
+            return !!serviceWorkCompleteDate;
+          case 'problemIssue':
+            return !!serviceWorkProblemIssue;
+          default:
+            return false;
+        }
+      });
     }
+
+    return false;
 
   };
 
@@ -1354,43 +1516,12 @@ function SystemAdminPageContent() {
 
         }
 
-        // 단계별 메시지 표시
-
-        let stageMessage = '';
+        // 단계별 메시지 표시 (동적 처리)
 
         const currentStageName = getCurrentStage();
 
-        switch (currentStageName) {
-
-          case '확인': // 확인 단계
-
-            stageMessage = '작업 예정 조율 단계가 진행 되었습니다. 다음 단계로 진행....';
-
-            break;
-
-          case '예정': // 예정 단계
-
-            stageMessage = '작업 시작 단계가 진행 되었습니다. 다음 단계로 진행....';
-
-            break;
-
-          case '작업': // 작업 단계
-
-            stageMessage = '작업 단계가 완료 되었습니다. 미결 사항이 있다면 다음 단계로 진행....';
-
-            break;
-
-          case '완료': // 완료 단계
-
-            stageMessage = '미결 단계로 처리 되었습니다....';
-
-            break;
-
-          default:
-
-            stageMessage = '다음 단계로 진행....';
-
-        }
+        // 동적 메시지 처리 (백엔드 기반)
+        const stageMessage = stageMessages[currentStageName] || '다음 단계로 진행....';
 
         alert(stageMessage);
 
@@ -1505,7 +1636,7 @@ function SystemAdminPageContent() {
 
   const [inquiryEndDate, setInquiryEndDate] = useState(new Date().toISOString().split('T')[0])
 
-  const [chartData, setChartData] = useState({
+  const [chartData, setChartData] = useState<{ [key: string]: number }>({
 
     received: 5,
 
@@ -1607,7 +1738,7 @@ function SystemAdminPageContent() {
 
   useEffect(() => {
 
-    setServiceWorkCurrentPage(1)
+    setServiceRequestsPagination(prev => ({ ...prev, page: 1 }))
 
   }, [serviceWorkSearchStartDate, serviceWorkSearchEndDate, serviceWorkSelectedStage, serviceWorkSelectedDepartment])
 
@@ -1795,7 +1926,7 @@ function SystemAdminPageContent() {
 
         endDate: serviceWorkSearchEndDate,
 
-        department: serviceWorkSelectedDepartment !== '전체' ? serviceWorkSelectedDepartment : undefined,
+        technician_department: serviceWorkSelectedDepartment !== '전체' ? serviceWorkSelectedDepartment : undefined,
 
         stage_id: selectedStageId,
 
@@ -2657,9 +2788,9 @@ function SystemAdminPageContent() {
 
     }
 
-    // 부서 필터링
+    // 부서 필터링 (조치소속 기준)
 
-    if (serviceWorkSelectedDepartment !== '전체' && request.department !== serviceWorkSelectedDepartment) {
+    if (serviceWorkSelectedDepartment !== '전체' && request.technicianDepartment !== serviceWorkSelectedDepartment) {
 
       return false;
 
@@ -2799,7 +2930,8 @@ function SystemAdminPageContent() {
 
     if (scheduledDate) {
 
-      setCurrentStage('작업') // 예정 → 작업으로 변경
+      const nextStage = getNextStageName('예정');
+      if (nextStage) setCurrentStage(nextStage); // 예정 → 다음 단계로 변경
 
       // 작업시작일시에 현재 시점 자동 설정 (한국 시간)
 
@@ -2829,7 +2961,8 @@ function SystemAdminPageContent() {
 
     if (workStartDate) {
 
-      setCurrentStage('완료') // 작업 → 완료로 변경
+      const nextStage = getNextStageName('작업');
+      if (nextStage) setCurrentStage(nextStage); // 작업 → 다음 단계로 변경
 
       // 작업완료일시에 현재 시점 자동 설정 (한국 시간)
 
@@ -2859,7 +2992,8 @@ function SystemAdminPageContent() {
 
     if (workCompleteDate && workContent) {
 
-      setCurrentStage('미결') // 완료 → 미결로 변경
+      const nextStage = getNextStageName('완료');
+      if (nextStage) setCurrentStage(nextStage); // 완료 → 다음 단계로 변경
 
       // 작업 완료
 
@@ -2877,7 +3011,8 @@ function SystemAdminPageContent() {
 
     if (problemIssue) {
 
-      setCurrentStage('미결')
+      const nextStage = getNextStageName('완료');
+      if (nextStage) setCurrentStage(nextStage);
 
       // 데이터 업데이트만 수행
 
@@ -2905,7 +3040,7 @@ function SystemAdminPageContent() {
 
           req.id === selectedRequest.id
 
-            ? { ...req, stage: '확인' }
+            ? { ...req, stage: getStageName('확인') }
 
             : req
 
@@ -2964,7 +3099,7 @@ function SystemAdminPageContent() {
 
           req.id === selectedRequest.id
 
-            ? { ...req, stage: '작업', completionDate: new Date().toLocaleString('ko-KR') }
+            ? { ...req, stage: getStageName('작업'), completionDate: new Date().toLocaleString('ko-KR') }
 
             : req
 
@@ -2990,74 +3125,47 @@ function SystemAdminPageContent() {
 
   const updateChartData = useCallback(() => {
 
-    // 집계 현황용 별도 데이터를 기반으로 부서별 통계 계산
+    // 집계 현황용 별도 데이터를 기반으로 부서별 통계 계산 (stages 테이블 기반)
 
-    const departmentData: { [key: string]: { received: number, assigned: number, working: number, completed: number, failed: number } } = {};
-
-    // 전체 부서 초기화
-
-    departmentData['전체'] = { received: 0, assigned: 0, working: 0, completed: 0, failed: 0 };
-
-    // DB에서 가져온 부서 목록으로 초기화
-
-    departments.forEach(dept => {
-
-      departmentData[dept.name] = { received: 0, assigned: 0, working: 0, completed: 0, failed: 0 };
-
+    // stages 테이블에서 통계 키들을 동적으로 가져와서 초기화
+    const stageStatsKeys = Object.values(stageStatsMapping).filter(key => key !== null);
+    const initialStats: { [key: string]: number } = {};
+    stageStatsKeys.forEach(key => {
+      initialStats[key] = 0;
     });
 
-    // 집계 현황용 별도 데이터를 기반으로 통계 계산
+    const departmentData: { [key: string]: { [key: string]: number } } = {};
+
+    // 전체 부서 초기화
+    departmentData['전체'] = { ...initialStats };
+
+    // DB에서 가져온 부서 목록으로 초기화
+    departments.forEach(dept => {
+      departmentData[dept.name] = { ...initialStats };
+    });
+
+    // 집계 현황용 별도 데이터를 기반으로 통계 계산 (stages 테이블 기반)
 
     aggregationServiceRequests.forEach(request => {
 
       const deptName = request.department || '';
 
-      // 전체 통계 업데이트
-
-      departmentData['전체'].received++;
-
-      if (deptName && departmentData[deptName]) {
-
-        departmentData[deptName].received++;
-
+      // 전체 통계 업데이트 (접수 건수)
+      if (departmentData['전체'].received !== undefined) {
+        departmentData['전체'].received++;
       }
 
-      // 단계별 통계 업데이트
+      if (deptName && departmentData[deptName] && departmentData[deptName].received !== undefined) {
+        departmentData[deptName].received++;
+      }
 
-      switch (request.stage) {
-
-        case '배정':
-
-          departmentData['전체'].assigned++;
-
-          if (deptName && departmentData[deptName]) departmentData[deptName].assigned++;
-
-          break;
-
-        case '작업':
-
-          departmentData['전체'].working++;
-
-          if (deptName && departmentData[deptName]) departmentData[deptName].working++;
-
-          break;
-
-        case '완료':
-
-          departmentData['전체'].completed++;
-
-          if (deptName && departmentData[deptName]) departmentData[deptName].completed++;
-
-          break;
-
-        case '미결':
-
-          departmentData['전체'].failed++;
-
-          if (deptName && departmentData[deptName]) departmentData[deptName].failed++;
-
-          break;
-
+      // 단계별 통계 업데이트 (동적 처리 - stages 테이블 기반)
+      const statKey = stageStatsMapping[request.stage];
+      if (statKey && departmentData['전체'][statKey] !== undefined) {
+        departmentData['전체'][statKey]++;
+        if (deptName && departmentData[deptName] && departmentData[deptName][statKey] !== undefined) {
+          departmentData[deptName][statKey]++;
+        }
       }
 
     });
@@ -3066,25 +3174,19 @@ function SystemAdminPageContent() {
 
     const selectedDept = aggregationSelectedDepartment === '전체' ? '전체' : aggregationSelectedDepartment;
 
-    const data = departmentData[selectedDept] || departmentData['전체'] || { received: 0, assigned: 0, working: 0, completed: 0, failed: 0 };
+    const data = departmentData[selectedDept] || departmentData['전체'] || { ...initialStats };
 
-    // 실제 데이터를 그대로 사용 (가중치 제거) - NaN 방지
+    // 실제 데이터를 그대로 사용 (가중치 제거) - NaN 방지 (stages 테이블 기반)
 
-    setChartData({
+    const chartData: { [key: string]: number } = {};
 
-      received: Math.max(0, data.received || 0),
+    stageStatsKeys.forEach(key => {
+      chartData[key] = Math.max(0, data[key] || 0);
+    });
 
-      assigned: Math.max(0, data.assigned || 0),
+    setChartData(chartData);
 
-      working: Math.max(0, data.working || 0),
-
-      completed: Math.max(0, data.completed || 0),
-
-      failed: Math.max(0, data.failed || 0)
-
-    })
-
-  }, [aggregationServiceRequests, departments, aggregationSelectedDepartment])
+  }, [aggregationServiceRequests, departments, aggregationSelectedDepartment, stageStatsMapping])
 
   // 집계 현황용 별도 데이터가 변경될 때 차트 데이터 업데이트 (서비스 작업 List와 완전 분리)
 
@@ -3172,6 +3274,30 @@ function SystemAdminPageContent() {
 
   }, [inquirySelectedDepartment, inquiryStartDate, inquiryEndDate])
 
+  // 서비스작업List관리가 열릴 때 부서 데이터 새로고침
+
+  useEffect(() => {
+
+    if (showServiceWorkList) {
+
+      fetchDepartments()
+
+    }
+
+  }, [showServiceWorkList])
+
+  // 서비스집계현황이 열릴 때 부서 데이터 새로고침
+
+  useEffect(() => {
+
+    if (showServiceAggregation) {
+
+      fetchDepartments()
+
+    }
+
+  }, [showServiceAggregation])
+
   // 데이터 새로고침 함수 (검색 조건 유지)
 
   const handleRefresh = () => {
@@ -3238,7 +3364,8 @@ function SystemAdminPageContent() {
 
     setIsUnresolved(false)
 
-    setCurrentStage('예정')
+    const nextStage = getNextStageName('확인');
+    if (nextStage) setCurrentStage(nextStage);
 
   }
 
@@ -3254,7 +3381,7 @@ function SystemAdminPageContent() {
 
           req.id === selectedRequest.id
 
-            ? { ...req, stage: '확인' }
+            ? { ...req, stage: getStageName('확인') }
 
             : req
 
@@ -3336,7 +3463,7 @@ function SystemAdminPageContent() {
 
               rejectionOpinion: rejectionOpinion,
 
-              stage: '반려'
+              stage: getStageName('반려')
 
             }
 
@@ -3436,10 +3563,28 @@ function SystemAdminPageContent() {
 
           <div className="flex items-center justify-between mb-12">
 
-            <div className="px-20 py-0 rounded-full -ml-72 smooth-hover animate-fade-in shadow-lg" style={{ backgroundColor: '#FFD4D4', marginLeft: '-310px' }}>
-
-              <span className="text-red-600 font-medium" style={{ fontSize: '14px' }}>시스템관리 ({managerInfo.name})</span>
-
+            <div 
+              className="px-20 py-0 rounded-full -ml-72 smooth-hover animate-fade-in shadow-lg" 
+              style={{ 
+                backgroundColor: currentUserRole === '관리매니저' ? '#D4E6FF' : 
+                               currentUserRole === '배정담당자' ? '#D4FFD4' : 
+                               currentUserRole === '조치담당자' ? '#FFF4D4' : 
+                               currentUserRole === '일반사용자' ? '#E6D4FF' : '#FFD4D4',
+                marginLeft: '-310px' 
+              }}
+            >
+              <span 
+                className="font-medium" 
+                style={{ 
+                  fontSize: '14px',
+                  color: currentUserRole === '관리매니저' ? '#0066CC' : 
+                         currentUserRole === '배정담당자' ? '#006600' : 
+                         currentUserRole === '조치담당자' ? '#CC6600' : 
+                         currentUserRole === '일반사용자' ? '#6600CC' : '#CC0000'
+                }}
+              >
+                {currentUserRole || '시스템관리'} ({managerInfo.name})
+              </span>
             </div>
 
           </div>
@@ -3484,7 +3629,7 @@ function SystemAdminPageContent() {
 
                     <button
 
-                      onClick={() => {/* 새로고침 로직 */ }}
+                      onClick={() => fetchAggregationServiceRequests()}
 
                       className="w-6 h-6 text-gray-600 hover:text-gray-800 transition-colors"
 
@@ -3535,8 +3680,6 @@ function SystemAdminPageContent() {
                         onChange={(e) => {
 
                           setAggregationSelectedDepartment(e.target.value)
-
-                          setCurrentDepartment(e.target.value || 'IT팀')
 
                         }}
 
@@ -3608,7 +3751,7 @@ function SystemAdminPageContent() {
 
                           {(() => {
 
-                            const total = chartData.received + chartData.assigned + chartData.working + chartData.completed + chartData.failed
+                            const total = Object.values(chartData).reduce((sum, value) => sum + value, 0)
 
                             const radius = 120
 
@@ -3632,21 +3775,39 @@ function SystemAdminPageContent() {
 
                             }
 
-                            // 각 섹션의 각도 계산 (180도 반원) - NaN 방지
+                            // 각 섹션의 각도 계산 (180도 반원) - NaN 방지 (동적 처리)
 
-                            const receivedAngle = total > 0 ? (chartData.received / total) * 180 : 0
+                            const stageColors = {
 
-                            const assignedAngle = total > 0 ? (chartData.assigned / total) * 180 : 0
+                              received: '#3B82F6',
 
-                            const workingAngle = total > 0 ? (chartData.working / total) * 180 : 0
+                              assigned: '#10B981',
 
-                            const completedAngle = total > 0 ? (chartData.completed / total) * 180 : 0
+                              working: '#F59E0B',
 
-                            const failedAngle = total > 0 ? (chartData.failed / total) * 180 : 0
+                              completed: '#8B5CF6',
+
+                              failed: '#EF4444'
+
+                            };
+
+                            const stageData = Object.entries(chartData).map(([key, value]) => {
+                              // stages 테이블에서 한글 이름 찾기
+                              const stageInfo = stages && stages.length > 0 ? stages.find(s => stageStatsMapping[s.name] === key) : null;
+                              const koreanName = stageInfo ? stageInfo.name : key;
+
+                              return {
+                                key,
+                                koreanName,
+                                value,
+                                angle: total > 0 ? (value / total) * 180 : 0,
+                                color: stageColors[key] || '#6B7280'
+                              };
+                            });
 
                             // 호 그리기 함수
 
-                            const createArc = (startAngle, endAngle, color, strokeWidth = 48) => {
+                            const createArc = (key, startAngle, endAngle, color, strokeWidth = 48) => {
 
                               // 각도가 유효하지 않으면 빈 path 반환
 
@@ -3681,6 +3842,8 @@ function SystemAdminPageContent() {
                               return (
 
                                 <path
+
+                                  key={key}
 
                                   d={d}
 
@@ -3734,33 +3897,22 @@ function SystemAdminPageContent() {
 
                               <>
 
-                                {/* 접수대기 (보라색) */}
+                                {/* 동적 단계별 차트 렌더링 */}
 
-                                {createArc(currentAngle, currentAngle + receivedAngle, "#8B5CF6")}
+                                {stageData.map((stage, index) => {
 
-                                {currentAngle += receivedAngle}
+                                  if (stage.value === 0) return null;
 
-                                {/* 배정진행 (주황색) */}
+                                  const startAngle = currentAngle;
 
-                                {createArc(currentAngle, currentAngle + assignedAngle, "#F59E0B")}
+                                  const endAngle = currentAngle + stage.angle;
 
-                                {currentAngle += assignedAngle}
+                                  currentAngle += stage.angle;
 
-                                {/* 작업진행 (파란색) */}
+                                  return createArc(stage.key, startAngle, endAngle, stage.color);
 
-                                {createArc(currentAngle, currentAngle + workingAngle, "#3B82F6")}
+                                })}
 
-                                {currentAngle += workingAngle}
-
-                                {/* 처리완료 (초록색) */}
-
-                                {createArc(currentAngle, currentAngle + completedAngle, "#10B981")}
-
-                                {currentAngle += completedAngle}
-
-                                {/* 처리불가 (빨간색) */}
-
-                                {createArc(currentAngle, currentAngle + failedAngle, "#EF4444")}
 
                               </>
 
@@ -3774,45 +3926,68 @@ function SystemAdminPageContent() {
 
                         <div className="absolute top-36 right-4 space-y-2 text-sm">
 
-                          <div className="flex items-center space-x-2">
+                          {/* 동적 범례 렌더링 */}
 
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#EF4444' }}></div>
+                          {(() => {
+                            // stages와 stageStatsMapping이 로드되지 않았으면 로딩 표시
+                            if (!stages || stages.length === 0 || Object.keys(stageStatsMapping).length === 0) {
+                              return (
+                                <div className="text-gray-500 text-xs">
+                                  로딩 중...
+                                </div>
+                              );
+                            }
 
-                            <span className="text-gray-700 font-medium text-xs">미결: {chartData.failed}</span>
+                            const stageColors = {
 
-                          </div>
+                              received: '#3B82F6',
 
-                          <div className="flex items-center space-x-2">
+                              assigned: '#10B981',
 
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#10B981' }}></div>
+                              working: '#F59E0B',
 
-                            <span className="text-gray-700 font-medium text-xs">완료: {chartData.completed}</span>
+                              completed: '#8B5CF6',
 
-                          </div>
+                              failed: '#EF4444'
 
-                          <div className="flex items-center space-x-2">
+                            };
 
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#3B82F6' }}></div>
+                            const stageData = Object.entries(chartData).map(([key, value]) => {
+                              // stages 테이블에서 한글 이름 찾기
+                              const stageInfo = stages.find(s => stageStatsMapping[s.name] === key);
+                              const koreanName = stageInfo ? stageInfo.name : key;
 
-                            <span className="text-gray-700 font-medium text-xs">작업: {chartData.working}</span>
+                              return {
+                                key,
+                                koreanName,
+                                value,
+                                color: stageColors[key] || '#6B7280'
+                              };
+                            });
 
-                          </div>
+                            return stageData.map((stage, index) => {
 
-                          <div className="flex items-center space-x-2">
+                              if (stage.value === 0) return null;
 
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#F59E0B' }}></div>
+                              return (
 
-                            <span className="text-gray-700 font-medium text-xs">배정: {chartData.assigned}</span>
+                                <div key={stage.key} className="flex items-center space-x-2">
 
-                          </div>
+                                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: stage.color }}></div>
 
-                          <div className="flex items-center space-x-2">
+                                <span className="text-gray-700 font-medium text-xs">
 
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: '#8B5CF6' }}></div>
+                                  {stage.koreanName}: {stage.value}
 
-                            <span className="text-gray-700 font-medium text-xs">접수: {chartData.received}</span>
+                                </span>
 
-                          </div>
+                                </div>
+
+                              );
+
+                            });
+
+                          })()}
 
                         </div>
 
@@ -4237,57 +4412,32 @@ function SystemAdminPageContent() {
                 </div>
 
                 {/* 테이블 영역 */}
-
                 <div className="flex-1 overflow-hidden">
-
                   <div className="overflow-x-auto overflow-y-auto px-4" style={{ height: '450px' }}>
-
                     <table className="w-full text-sm">
-
                       <thead className="sticky top-0" style={{ backgroundColor: '#FFD4D4' }}>
-
                         <tr>
-
                           <th className="px-2 py-2 text-center text-sm font-bold text-red-600">신청번호</th>
-
                           <th className="px-2 py-2 text-center text-sm font-bold text-red-600">신청시간</th>
-
                           <th className="px-2 py-2 text-center text-sm font-bold text-red-600">신청제목</th>
-
                           <th className="px-2 py-2 text-center text-sm font-bold text-red-600">현재상태</th>
-
                           <th className="px-2 py-2 text-center text-sm font-bold text-red-600">신청자</th>
-
                           <th className="px-2 py-2 text-center text-sm font-bold text-red-600">신청소속</th>
-
                           <th className="px-2 py-2 text-center text-sm font-bold text-red-600">배정시간</th>
-
                           <th className="px-2 py-2 text-center text-sm font-bold text-red-600">단계</th>
-
                           <th className="px-2 py-2 text-center text-sm font-bold text-red-600">조치자</th>
-
                           <th className="px-2 py-2 text-center text-sm font-bold text-red-600">조치소속</th>
-
                           <th className="px-2 py-2 text-center text-sm font-bold text-red-600">관리</th>
-
                         </tr>
-
                       </thead>
 
                       <tbody className="divide-y divide-gray-200">
-
                         {paginatedServiceRequests.length === 0 ? (
-
                           <tr>
-
                             <td colSpan={10} className="px-2 py-8 text-center text-gray-500">
-
                               데이터가 없습니다.
-
                             </td>
-
                           </tr>
-
                         ) : (
 
                           paginatedServiceRequests.map((request) => (
@@ -4302,26 +4452,8 @@ function SystemAdminPageContent() {
 
                               <td className="px-2 py-2 text-center">
 
-                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${request.currentStatus === '정상작동' ? 'bg-green-100 text-green-800' :
-
-                                  request.currentStatus === '오류발생' ? 'bg-red-100 text-red-800' :
-
-                                    request.currentStatus === '메시지창' ? 'bg-blue-100 text-blue-800' :
-
-                                      request.currentStatus === '부분불능' ? 'bg-yellow-100 text-yellow-800' :
-
-                                        request.currentStatus === '전체불능' ? 'bg-red-200 text-red-900' :
-
-                                          request.currentStatus === '점검요청' ? 'bg-purple-100 text-purple-800' :
-
-                                            request.currentStatus === '기타상태' ? 'bg-gray-100 text-gray-800' :
-
-                                              'bg-gray-100 text-gray-800'
-
-                                  }`}>
-
+                                <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[request.currentStatus] || 'bg-gray-100 text-gray-800'}`}>
                                   {request.currentStatus}
-
                                 </span>
 
                               </td>
@@ -4336,21 +4468,13 @@ function SystemAdminPageContent() {
 
                                 <div className="flex items-center justify-center">
 
-                                  {request.stage === '접수' && <Icon name="user" size={16} className="text-blue-600" />}
-
-                                  {request.stage === '배정' && <Icon name="check" size={16} className="text-green-600" />}
-
-                                  {request.stage === '재배정' && <Icon name="refresh-cw" size={16} className="text-orange-600" />}
-
-                                  {request.stage === '확인' && <Icon name="eye" size={16} className="text-purple-600" />}
-
-                                  {request.stage === '예정' && <Icon name="calendar" size={16} className="text-indigo-600" />}
-
-                                  {request.stage === '작업' && <Icon name="settings" size={16} className="text-yellow-600" />}
-
-                                  {request.stage === '완료' && <Icon name="check-circle" size={16} className="text-green-600" />}
-
-                                  {request.stage === '미결' && <Icon name="x-circle" size={16} className="text-red-600" />}
+                                  {stageIcons[request.stage] && (
+                                    <Icon 
+                                      name={stageIcons[request.stage].icon} 
+                                      size={16} 
+                                      className={stageIcons[request.stage].iconColor} 
+                                    />
+                                  )}
 
                                   <span className="ml-1 text-gray-900">{request.stage}</span>
 
@@ -4494,7 +4618,7 @@ function SystemAdminPageContent() {
 
                                   {/* 배정 단계: 배정취소 버튼만 */}
 
-                                  {request.stage === '배정' && (
+                                  {stageButtons[request.stage]?.includes('assignmentCancel') && (
 
                                     <button
 
@@ -4512,9 +4636,7 @@ function SystemAdminPageContent() {
 
                                   {/* 확인/예정/작업/완료/미결 단계: 조치담당자 확정 - 수정/삭제 버튼 (시스템 관리자 전체 권한) */}
 
-                                  {(request.stage === '확인' || request.stage === '예정' ||
-
-                                    request.stage === '작업' || request.stage === '완료' || request.stage === '미결') && (
+                                  {stageButtons[request.stage]?.includes('edit') && stageButtons[request.stage]?.includes('delete') && (
 
                                       <>
 
@@ -4776,15 +4898,13 @@ function SystemAdminPageContent() {
 
                         onClick={() => {
 
-                          const newPage = Math.max(1, serviceWorkCurrentPage - 1);
-
-                          setServiceWorkCurrentPage(newPage);
+                          const newPage = Math.max(1, serviceRequestsPagination.page - 1);
 
                           setServiceRequestsPagination(prev => ({ ...prev, page: newPage }));
 
                         }}
 
-                        disabled={serviceWorkCurrentPage === 1}
+                        disabled={serviceRequestsPagination.page === 1}
 
                         className="px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
 
@@ -4796,7 +4916,7 @@ function SystemAdminPageContent() {
 
                       <span className="px-2 py-1 bg-blue-500 text-white rounded text-xs">
 
-                        {serviceWorkCurrentPage}/{serviceWorkTotalPages}
+                        {serviceRequestsPagination.page}/{serviceWorkTotalPages}
 
                       </span>
 
@@ -4804,15 +4924,13 @@ function SystemAdminPageContent() {
 
                         onClick={() => {
 
-                          const newPage = Math.min(serviceWorkTotalPages, serviceWorkCurrentPage + 1);
-
-                          setServiceWorkCurrentPage(newPage);
+                          const newPage = Math.min(serviceWorkTotalPages, serviceRequestsPagination.page + 1);
 
                           setServiceRequestsPagination(prev => ({ ...prev, page: newPage }));
 
                         }}
 
-                        disabled={serviceWorkCurrentPage >= serviceWorkTotalPages}
+                        disabled={serviceRequestsPagination.page >= serviceWorkTotalPages}
 
                         className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
 
@@ -4969,23 +5087,12 @@ function SystemAdminPageContent() {
                         className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
 
                       >
-
                         <option value="전체">전체</option>
-
-                        <option value="정상작동">정상작동</option>
-
-                        <option value="부분불능">부분불능</option>
-
-                        <option value="전체불능">전체불능</option>
-
-                        <option value="기타상태">기타상태</option>
-
-                        <option value="메시지창">메시지창</option>
-
-                        <option value="오류발생">오류발생</option>
-
-                        <option value="점검요청">점검요청</option>
-
+                        {statusList.map((status) => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
                       </select>
 
                       {/* 부서 선택 */}
@@ -5104,25 +5211,7 @@ function SystemAdminPageContent() {
 
                             <td className="px-2 py-2 text-gray-900 text-center">
 
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${report.stage === '접수' ? 'bg-purple-100 text-purple-800' :
-
-                                report.stage === '배정' ? 'bg-blue-100 text-blue-800' :
-
-                                  report.stage === '확인' ? 'bg-green-100 text-green-800' :
-
-                                    report.stage === '예정' ? 'bg-yellow-100 text-yellow-800' :
-
-                                      report.stage === '작업' ? 'bg-blue-100 text-blue-800' :
-
-                                        report.stage === '완료' ? 'bg-green-100 text-green-800' :
-
-                                          report.stage === '미결' ? 'bg-red-100 text-red-800' :
-
-                                            report.stage === '재배정' ? 'bg-orange-100 text-orange-800' :
-
-                                              'bg-gray-100 text-gray-800'
-
-                                }`}>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${stageColors[report.stage] || 'bg-gray-100 text-gray-800'}`}>
 
                                 {report.stage}
 
@@ -5383,27 +5472,21 @@ function SystemAdminPageContent() {
                         {/* 권한 선택 */}
 
                         <select
-
                           value={userManagementSearchRole}
-
                           onChange={(e) => setUserManagementSearchRole(e.target.value)}
-
                           className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
-
+                          disabled={roles.length === 0}
                         >
-
                           <option value="전체">전체</option>
-
-                          <option value="시스템관리">시스템관리</option>
-
-                          <option value="관리매니저">관리매니저</option>
-
-                          <option value="배정담당자">배정담당자</option>
-
-                          <option value="조치담당자">조치담당자</option>
-
-                          <option value="일반사용자">일반사용자</option>
-
+                          {roles.length === 0 ? (
+                            <option value="" disabled>로딩 중...</option>
+                          ) : (
+                            roles.map((role) => (
+                              <option key={role.id} value={role.name}>
+                                {role.name}
+                              </option>
+                            ))
+                          )}
                         </select>
 
                         {/* 성명 찾기 */}
@@ -5509,29 +5592,17 @@ function SystemAdminPageContent() {
                       <table className="w-full text-sm">
 
                         <thead className="sticky top-0 bg-gray-100">
-
                           <tr>
-
                             <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">이메일/ID</th>
-
                             <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">성명</th>
-
                             <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">소속</th>
-
                             <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">직급</th>
-
                             <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">연락처</th>
-
                             <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">권한</th>
-
                             <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">생성일시</th>
-
                             <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">상태</th>
-
                             <th className="px-2 py-2 text-center text-sm font-bold text-gray-800">관리</th>
-
                           </tr>
-
                         </thead>
 
                         <tbody className="divide-y divide-gray-200">
@@ -5654,11 +5725,11 @@ function SystemAdminPageContent() {
 
                                 <td className="px-2 py-2 text-center">
 
-                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${user.status === 'active' ? 'bg-green-100 text-green-800' :
-
-                                    user.status === 'inactive' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'
-
-                                    }`}>
+                                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                    user.status === 'active' ? 'bg-green-100 text-green-800' :
+                                    user.status === 'inactive' ? 'bg-red-100 text-red-800' : 
+                                    'bg-gray-100 text-gray-800'
+                                  }`}>
 
                                     {user.status === 'active' ? '정상' : user.status === 'inactive' ? '정지' : user.status}
 
@@ -7306,7 +7377,7 @@ function SystemAdminPageContent() {
 
                       {/* 예정 조율 일시 */}
 
-                      <div className={`px-4 py-0 rounded-lg border-2 ${currentStage === '예정' ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
+                      <div className={`px-4 py-0 rounded-lg border-2 ${getStageFieldStyle('workStartDate')}`}>
 
                         <div className="flex items-center gap-4">
 
@@ -7322,17 +7393,15 @@ function SystemAdminPageContent() {
 
                               onChange={(e) => setScheduledDate(e.target.value)}
 
-                              disabled={currentStage !== '예정'}
+                              disabled={!isStageFieldActive('workStartDate')}
 
-                              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${currentStage !== '예정' ? 'bg-gray-100 cursor-not-allowed' : ''
-
-                                }`}
+                              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${!isStageFieldActive('workStartDate') ? 'bg-gray-100 cursor-not-allowed' : ''}`}
 
                             />
 
                           </div>
 
-                          {currentStage === '예정' && (
+                          {isStageFieldActive('workStartDate') && (
 
                             <div className="flex items-center gap-2">
 
@@ -7368,7 +7437,7 @@ function SystemAdminPageContent() {
 
                       {/* 작업 시작 일시 */}
 
-                      <div className={`px-4 py-0 rounded-lg border-2 ${currentStage === '작업' ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
+                      <div className={`px-4 py-0 rounded-lg border-2 ${getStageFieldStyle('workContent')}`}>
 
                         <div className="flex items-center gap-4">
 
@@ -7384,17 +7453,15 @@ function SystemAdminPageContent() {
 
                               onChange={(e) => setWorkStartDate(e.target.value)}
 
-                              disabled={currentStage !== '작업'}
+                              disabled={!isStageFieldActive('workContent')}
 
-                              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${currentStage !== '작업' ? 'bg-gray-100 cursor-not-allowed' : ''
-
-                                }`}
+                              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${!isStageFieldActive('workContent') ? 'bg-gray-100 cursor-not-allowed' : ''}`}
 
                             />
 
                           </div>
 
-                          {currentStage === '작업' && (
+                          {isStageFieldActive('workContent') && (
 
                             <div className="flex items-center gap-2">
 
@@ -7430,7 +7497,7 @@ function SystemAdminPageContent() {
 
                       {/* 작업 내역 및 완료 일시 */}
 
-                      <div className={`px-4 py-0 rounded-lg border-2 ${currentStage === '완료' ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
+                      <div className={`px-4 py-0 rounded-lg border-2 ${getStageFieldStyle('problemIssue')}`}>
 
                         <div className="space-y-0">
 
@@ -7444,11 +7511,9 @@ function SystemAdminPageContent() {
 
                               onChange={(e) => setWorkContent(e.target.value)}
 
-                              disabled={currentStage !== '완료'}
+                              disabled={!isStageFieldActive('problemIssue')}
 
-                              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${currentStage !== '완료' ? 'bg-gray-100 cursor-not-allowed' : ''
-
-                                }`}
+                              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${!isStageFieldActive('problemIssue') ? 'bg-gray-100 cursor-not-allowed' : ''}`}
 
                               rows={3}
 
@@ -7470,17 +7535,15 @@ function SystemAdminPageContent() {
 
                               onChange={(e) => setWorkCompleteDate(e.target.value)}
 
-                              disabled={currentStage !== '완료'}
+                              disabled={!isStageFieldActive('problemIssue')}
 
-                              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${currentStage !== '완료' ? 'bg-gray-100 cursor-not-allowed' : ''
-
-                                }`}
+                              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${!isStageFieldActive('problemIssue') ? 'bg-gray-100 cursor-not-allowed' : ''}`}
 
                             />
 
                           </div>
 
-                          {currentStage === '완료' && (
+                          {isStageFieldActive('problemIssue') && (
 
                             <div className="flex justify-end">
 
@@ -7514,7 +7577,7 @@ function SystemAdminPageContent() {
 
                       {/* 문제 사항 */}
 
-                      <div className={`px-4 py-0 rounded-lg border-2 ${currentStage === '미결' ? 'border-orange-300 bg-orange-50' : 'border-gray-200 bg-gray-50'}`}>
+                      <div className={`px-4 py-0 rounded-lg border-2 ${getStageFieldStyle('isUnresolved')}`}>
 
                         <div className="flex items-start gap-4">
 
@@ -7528,11 +7591,9 @@ function SystemAdminPageContent() {
 
                               onChange={(e) => setProblemIssue(e.target.value)}
 
-                              disabled={currentStage !== '미결'}
+                              disabled={!isStageFieldActive('isUnresolved')}
 
-                              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 ${currentStage !== '미결' ? 'bg-gray-100 cursor-not-allowed' : ''
-
-                                }`}
+                              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 ${!isStageFieldActive('isUnresolved') ? 'bg-gray-100 cursor-not-allowed' : ''}`}
 
                               rows={3}
 
@@ -7542,7 +7603,7 @@ function SystemAdminPageContent() {
 
                           </div>
 
-                          {currentStage === '미결' && (
+                          {isStageFieldActive('isUnresolved') && (
 
                             <div className="flex items-start gap-2">
 
@@ -7576,15 +7637,13 @@ function SystemAdminPageContent() {
 
                             onChange={(e) => setIsUnresolved(e.target.checked)}
 
-                            disabled={currentStage !== '미결'}
+                            disabled={!isStageFieldActive('isUnresolved')}
 
-                            className={`mr-2 ${currentStage !== '미결' ? 'cursor-not-allowed' : ''}`}
+                            className={`mr-2 ${!isStageFieldActive('isUnresolved') ? 'cursor-not-allowed' : ''}`}
 
                           />
 
-                          <label htmlFor="unresolved" className={`text-sm font-medium ${currentStage !== '미결' ? 'text-gray-400' : 'text-gray-700'
-
-                            }`}>
+                          <label htmlFor="unresolved" className={`text-sm font-medium ${!isStageFieldActive('isUnresolved') ? 'text-gray-400' : 'text-gray-700'}`}>
 
                             미결 완료
 
@@ -8715,7 +8774,7 @@ function SystemAdminPageContent() {
 
                     {/* 예정 단계 */}
 
-                    {currentStage === '예정' && (
+                    {isStageFieldActive('workStartDate') && (
 
                       <div className="space-y-3">
 
@@ -8755,7 +8814,7 @@ function SystemAdminPageContent() {
 
                     {/* 작업 단계 */}
 
-                    {currentStage === '작업' && (
+                    {isStageFieldActive('workContent') && (
 
                       <div className="space-y-3">
 
@@ -8795,7 +8854,7 @@ function SystemAdminPageContent() {
 
                     {/* 완료 단계 */}
 
-                    {currentStage === '완료' && (
+                    {isStageFieldActive('problemIssue') && (
 
                       <div className="space-y-3">
 
@@ -8855,7 +8914,7 @@ function SystemAdminPageContent() {
 
                     {/* 미결 단계 */}
 
-                    {currentStage === '미결' && (
+                    {isStageFieldActive('isUnresolved') && (
 
                       <div className="space-y-3">
 
@@ -9419,7 +9478,7 @@ function SystemAdminPageContent() {
 
                     const updateData = {
 
-                      stage: '배정',
+                      stage: getStageName('배정'),
 
                       // 조치소속은 technician_department에 저장
 
@@ -10771,7 +10830,7 @@ function SystemAdminPageContent() {
 
               {/* 작업 전체 수정 버튼 - 완료/미결 단계에서만 표시 */}
 
-              {(selectedWorkRequest?.stage === '완료' || selectedWorkRequest?.stage === '미결') && (
+              {selectedWorkRequest?.stage && stageButtons[selectedWorkRequest.stage]?.includes('edit') && (
 
                 <button
 
@@ -10783,7 +10842,7 @@ function SystemAdminPageContent() {
 
                       const updateData = {
 
-                        stage: '확인'
+                        stage: getStageName('확인')
 
                       };
 
@@ -10795,7 +10854,7 @@ function SystemAdminPageContent() {
 
                         // selectedWorkRequest 업데이트
 
-                        setSelectedWorkRequest(prev => prev ? { ...prev, stage: '확인' } : null);
+                        setSelectedWorkRequest(prev => prev ? { ...prev, stage: getStageName('확인') } : null);
 
                         // 알림 메시지
 
@@ -11392,15 +11451,11 @@ function SystemAdminPageContent() {
       )}
 
       {/* 자주하는 질문 관리 프레임 - 시스템관리에서는 제거됨 */}
-
       {/* FAQ 수정 모달 - 시스템관리에서는 제거됨 */}
-
       {/* FAQ 추가 모달 - 시스템관리에서는 제거됨 */}
-
       {/* FAQ 완료 모달 - 시스템관리에서는 제거됨 */}
 
       {/* 일반문의 List 관리 프레임 */}
-
       {showGeneralInquiryList && (
 
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">

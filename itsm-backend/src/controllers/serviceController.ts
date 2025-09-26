@@ -74,6 +74,7 @@ export const getServiceRequests = async (req: Request, res: Response): Promise<v
       stage,
       stage_id,
       department,
+      technician_department,
       priority,
       startDate,
       endDate,
@@ -145,6 +146,12 @@ export const getServiceRequests = async (req: Request, res: Response): Promise<v
     if (department) {
       whereConditions.push(`requester_department = $${paramIndex}`);
       queryParams.push(department);
+      paramIndex++;
+    }
+
+    if (technician_department) {
+      whereConditions.push(`technician_department = $${paramIndex}`);
+      queryParams.push(technician_department);
       paramIndex++;
     }
 
