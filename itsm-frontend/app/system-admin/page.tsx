@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Icon from '@/components/ui/Icon'
-import { apiClient, User, UserUpdateRequest, Department, Role, Position, Stage, ServiceType, GeneralInquiry } from '@/lib/api'
+import { apiClient, User, UserUpdateRequest, Department, Role, Position, Stage, ServiceType, GeneralInquiry, ServiceStatistics } from '@/lib/api'
 import { PermissionGuard, RoleGuard, usePermissions, useRoles } from '@/components/PermissionGuard'
 
 // 날짜 포맷팅 함수
@@ -83,9 +83,7 @@ interface ServiceRequest {
 
   // 작업정보등록 관련 필드들
   scheduledDate?: string
-  workStartDate?: string
   workContent?: string
-  workCompleteDate?: string
   problemIssue?: string
   isUnresolved?: boolean
   stageId?: number
@@ -1628,6 +1626,10 @@ function SystemAdminPageContent() {
 
   const [aggregationLoading, setAggregationLoading] = useState(false)
 
+  // 서비스 통계 데이터 상태
+  const [serviceStatistics, setServiceStatistics] = useState<ServiceStatistics | null>(null)
+  const [statisticsLoading, setStatisticsLoading] = useState(false)
+
   const [inquirySelectedDepartment, setInquirySelectedDepartment] = useState('')
 
   const [inquiryCurrentDepartment, setInquiryCurrentDepartment] = useState('전체 부서')
@@ -1980,6 +1982,30 @@ function SystemAdminPageContent() {
 
   };
 
+  // 서비스 통계 데이터 가져오기
+  const fetchServiceStatistics = async () => {
+    setStatisticsLoading(true);
+    try {
+      const params = {
+        startDate: aggregationStartDate,
+        endDate: aggregationEndDate,
+        department: aggregationSelectedDepartment !== '전체' ? aggregationSelectedDepartment : undefined
+      };
+      
+      const response = await apiClient.getServiceStatistics(params);
+      
+      if (response.success && response.data) {
+        setServiceStatistics(response.data);
+      } else {
+        console.error('서비스 통계 조회 실패:', response.error);
+      }
+    } catch (error) {
+      console.error('서비스 통계 조회 오류:', error);
+    } finally {
+      setStatisticsLoading(false);
+    }
+  };
+
   // 서비스 집계 현황용 별도 데이터 가져오기 (서비스 작업 List와 완전 분리)
 
   const fetchAggregationServiceRequests = async () => {
@@ -2045,6 +2071,7 @@ function SystemAdminPageContent() {
   useEffect(() => {
 
     fetchAggregationServiceRequests();
+    fetchServiceStatistics();
 
   }, [aggregationStartDate, aggregationEndDate, aggregationSelectedDepartment]);
 
@@ -3125,50 +3152,55 @@ function SystemAdminPageContent() {
 
   const updateChartData = useCallback(() => {
 
-    // 집계 현황용 별도 데이터를 기반으로 부서별 통계 계산 (stages 테이블 기반)
+    // 서비스 통계 데이터를 사용하여 차트 데이터 업데이트
+    if (!serviceStatistics) {
+      // 서비스 통계 데이터가 없으면 기존 방식 사용
+      const stageStatsKeys = Object.values(stageStatsMapping).filter(key => key !== null);
+      const initialStats: { [key: string]: number } = {};
+      stageStatsKeys.forEach(key => {
+        initialStats[key] = 0;
+      });
 
-    // stages 테이블에서 통계 키들을 동적으로 가져와서 초기화
-    const stageStatsKeys = Object.values(stageStatsMapping).filter(key => key !== null);
-    const initialStats: { [key: string]: number } = {};
-    stageStatsKeys.forEach(key => {
-      initialStats[key] = 0;
-    });
+      const departmentData: { [key: string]: { [key: string]: number } } = {};
+      departmentData['전체'] = { ...initialStats };
 
-    const departmentData: { [key: string]: { [key: string]: number } } = {};
+      departments.forEach(dept => {
+        departmentData[dept.name] = { ...initialStats };
+      });
 
-    // 전체 부서 초기화
-    departmentData['전체'] = { ...initialStats };
-
-    // DB에서 가져온 부서 목록으로 초기화
-    departments.forEach(dept => {
-      departmentData[dept.name] = { ...initialStats };
-    });
-
-    // 집계 현황용 별도 데이터를 기반으로 통계 계산 (stages 테이블 기반)
-
-    aggregationServiceRequests.forEach(request => {
-
-      const deptName = request.department || '';
-
-      // 전체 통계 업데이트 (접수 건수)
-      if (departmentData['전체'].received !== undefined) {
-        departmentData['전체'].received++;
-      }
-
-      if (deptName && departmentData[deptName] && departmentData[deptName].received !== undefined) {
-        departmentData[deptName].received++;
-      }
-
-      // 단계별 통계 업데이트 (동적 처리 - stages 테이블 기반)
-      const statKey = stageStatsMapping[request.stage];
-      if (statKey && departmentData['전체'][statKey] !== undefined) {
-        departmentData['전체'][statKey]++;
-        if (deptName && departmentData[deptName] && departmentData[deptName][statKey] !== undefined) {
-          departmentData[deptName][statKey]++;
+      aggregationServiceRequests.forEach(request => {
+        const deptName = request.department || '';
+        if (departmentData['전체'].received !== undefined) {
+          departmentData['전체'].received++;
         }
-      }
+        if (deptName && departmentData[deptName] && departmentData[deptName].received !== undefined) {
+          departmentData[deptName].received++;
+        }
+        const statKey = stageStatsMapping[request.stage];
+        if (statKey && departmentData['전체'][statKey] !== undefined) {
+          departmentData['전체'][statKey]++;
+          if (deptName && departmentData[deptName] && departmentData[deptName][statKey] !== undefined) {
+            departmentData[deptName][statKey]++;
+          }
+        }
+      });
 
-    });
+      const selectedDept = aggregationSelectedDepartment === '전체' ? '전체' : aggregationSelectedDepartment;
+      setChartData(departmentData[selectedDept] || initialStats);
+      return;
+    }
+
+    // 서비스 통계 데이터를 사용하여 차트 데이터 구성
+    const overview = serviceStatistics.overview;
+    const newChartData = {
+      received: overview.stage_received || 0,
+      assigned: overview.stage_assigned || 0,
+      working: overview.stage_working || 0,
+      completed: overview.stage_completed || 0,
+      failed: overview.stage_pending || 0
+    };
+
+    setChartData(newChartData);
 
     // 선택된 부서 또는 전체 부서 데이터 사용 (집계 현황용 별도 변수 사용)
 
@@ -3186,7 +3218,7 @@ function SystemAdminPageContent() {
 
     setChartData(chartData);
 
-  }, [aggregationServiceRequests, departments, aggregationSelectedDepartment, stageStatsMapping])
+  }, [serviceStatistics, aggregationServiceRequests, departments, aggregationSelectedDepartment, stageStatsMapping])
 
   // 집계 현황용 별도 데이터가 변경될 때 차트 데이터 업데이트 (서비스 작업 List와 완전 분리)
 
@@ -3293,6 +3325,7 @@ function SystemAdminPageContent() {
     if (showServiceAggregation) {
 
       fetchDepartments()
+      fetchServiceStatistics()
 
     }
 
@@ -3629,7 +3662,10 @@ function SystemAdminPageContent() {
 
                     <button
 
-                      onClick={() => fetchAggregationServiceRequests()}
+                      onClick={() => {
+                        fetchAggregationServiceRequests();
+                        fetchServiceStatistics();
+                      }}
 
                       className="w-6 h-6 text-gray-600 hover:text-gray-800 transition-colors"
 
@@ -3994,6 +4030,61 @@ function SystemAdminPageContent() {
                       </div>
 
                     </div>
+
+                    {/* 서비스 통계 정보 표시 */}
+                    {serviceStatistics && (
+                      <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                        <h4 className="text-sm font-semibold text-gray-700 mb-3">서비스 통계 요약</h4>
+                        <div className="grid grid-cols-2 gap-3 text-xs">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">총 요청:</span>
+                            <span className="font-medium">{serviceStatistics.overview.total_requests}건</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">완료:</span>
+                            <span className="font-medium text-green-600">{serviceStatistics.overview.stage_completed}건</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">진행중:</span>
+                            <span className="font-medium text-blue-600">{serviceStatistics.overview.stage_working}건</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">평균 배정시간:</span>
+                            <span className="font-medium">
+                              {serviceStatistics.overview.avg_assignment_hours 
+                                ? `${serviceStatistics.overview.avg_assignment_hours.toFixed(1)}시간`
+                                : 'N/A'
+                              }
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">평균 작업시간:</span>
+                            <span className="font-medium">
+                              {serviceStatistics.overview.avg_work_hours 
+                                ? `${serviceStatistics.overview.avg_work_hours.toFixed(1)}시간`
+                                : 'N/A'
+                              }
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">완료율:</span>
+                            <span className="font-medium text-green-600">
+                              {serviceStatistics.overview.total_requests > 0 
+                                ? `${((serviceStatistics.overview.stage_completed / serviceStatistics.overview.total_requests) * 100).toFixed(1)}%`
+                                : '0%'
+                              }
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 로딩 상태 표시 */}
+                    {statisticsLoading && (
+                      <div className="mt-4 p-4 text-center">
+                        <div className="text-sm text-gray-500">통계 데이터 로딩 중...</div>
+                      </div>
+                    )}
 
                   </>
 
