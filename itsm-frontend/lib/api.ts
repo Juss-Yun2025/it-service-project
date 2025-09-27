@@ -182,6 +182,26 @@ export interface GeneralInquiryAnswerRequest {
   answer_content: string;
 }
 
+export interface InquiryStatistics {
+  overview: {
+    total_inquiries: number;
+    pending_inquiries: number;
+    answered_inquiries: number;
+    avg_response_hours: number;
+  };
+  by_department: Array<{
+    department: string;
+    inquiry_count: number;
+    answered_count: number;
+  }>;
+}
+
+export interface InquiryStatisticsParams {
+  startDate?: string;
+  endDate?: string;
+  department?: string;
+}
+
 // ===== 서비스 통계 관련 인터페이스 =====
 export interface ServiceStatistics {
   overview: {
@@ -1002,6 +1022,28 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(data)
     });
+  }
+
+  // 일반문의 답변 수정하기
+  async updateInquiryAnswer(id: string, data: GeneralInquiryAnswerRequest): Promise<ApiResponse<GeneralInquiry>> {
+    return this.request<GeneralInquiry>(`/api/inquiries/${id}/answer`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+
+  // 일반문의사항 통계 조회
+  async getInquiryStatistics(params?: InquiryStatisticsParams): Promise<ApiResponse<InquiryStatistics>> {
+    const queryParams = new URLSearchParams();
+    
+    if (params?.startDate) queryParams.append('startDate', params.startDate);
+    if (params?.endDate) queryParams.append('endDate', params.endDate);
+    if (params?.department) queryParams.append('department', params.department);
+    
+    const queryString = queryParams.toString();
+    const url = queryString ? `/api/reports/inquiry-statistics?${queryString}` : '/api/reports/inquiry-statistics';
+    
+    return this.request<InquiryStatistics>(url);
   }
 
   // ===== 서비스 통계 관련 API =====
