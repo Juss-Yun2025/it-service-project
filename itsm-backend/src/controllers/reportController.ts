@@ -62,7 +62,7 @@ export const getServiceReport = async (req: Request, res: Response): Promise<voi
     }
 
     if (department) {
-      whereConditions.push(`sr.requester_department = $${paramIndex}`);
+      whereConditions.push(`sr.technician_department = $${paramIndex}`);
       queryParams.push(department);
       paramIndex++;
     }
@@ -170,7 +170,7 @@ export const getServiceStatistics = async (req: Request, res: Response): Promise
         [userId]
       );
       if (userResult.rows.length > 0) {
-        whereConditions.push(`requester_department = $${paramIndex}`);
+        whereConditions.push(`department = $${paramIndex}`);
         queryParams.push(userResult.rows[0].department);
         paramIndex++;
       }
@@ -178,19 +178,19 @@ export const getServiceStatistics = async (req: Request, res: Response): Promise
 
     // Date filtering
     if (startDate) {
-      whereConditions.push(`request_date >= $${paramIndex}`);
+      whereConditions.push(`sr.created_at >= $${paramIndex}`);
       queryParams.push(startDate);
       paramIndex++;
     }
 
     if (endDate) {
-      whereConditions.push(`request_date <= $${paramIndex}`);
+      whereConditions.push(`sr.created_at <= $${paramIndex}::date + interval '1 day'`);
       queryParams.push(endDate);
       paramIndex++;
     }
 
     if (department) {
-      whereConditions.push(`requester_department = $${paramIndex}`);
+      whereConditions.push(`sr.technician_department = $${paramIndex}`);
       queryParams.push(department);
       paramIndex++;
     }
@@ -206,38 +206,40 @@ export const getServiceStatistics = async (req: Request, res: Response): Promise
         COUNT(CASE WHEN cs.name = '메시지창' THEN 1 END) as in_progress_requests,
         COUNT(CASE WHEN cs.name = '부분불능' THEN 1 END) as completed_requests,
         COUNT(CASE WHEN cs.name = '전체불능' THEN 1 END) as cancelled_requests,
-        COUNT(CASE WHEN s.name = '접수' THEN 1 END) as stage_received,
-        COUNT(CASE WHEN s.name = '배정' THEN 1 END) as stage_assigned,
-        COUNT(CASE WHEN s.name = '재배정' THEN 1 END) as stage_reassigned,
-        COUNT(CASE WHEN s.name = '확인' THEN 1 END) as stage_confirmed,
-        COUNT(CASE WHEN s.name = '예정' THEN 1 END) as stage_scheduled,
-        COUNT(CASE WHEN s.name = '작업' THEN 1 END) as stage_working,
-        COUNT(CASE WHEN s.name = '완료' THEN 1 END) as stage_completed,
-        COUNT(CASE WHEN s.name = '미결' THEN 1 END) as stage_pending,
+        COUNT(CASE WHEN s.name = '접수' THEN 1 END) as stage_접수,
+        COUNT(CASE WHEN s.name = '배정' THEN 1 END) as stage_배정,
+        COUNT(CASE WHEN s.name = '재배정' THEN 1 END) as stage_재배정,
+        COUNT(CASE WHEN s.name = '확인' THEN 1 END) as stage_확인,
+        COUNT(CASE WHEN s.name = '예정' THEN 1 END) as stage_예정,
+        COUNT(CASE WHEN s.name = '작업' THEN 1 END) as stage_작업,
+        COUNT(CASE WHEN s.name = '완료' THEN 1 END) as stage_완료,
+        COUNT(CASE WHEN s.name = '미결' THEN 1 END) as stage_미결,
         AVG(CASE 
-          WHEN assignment_date IS NOT NULL THEN 
-            EXTRACT(EPOCH FROM (assignment_date - request_date)) / 3600
+          WHEN sr.assign_date IS NOT NULL THEN 
+            EXTRACT(EPOCH FROM (sr.assign_date - sr.created_at)) / 3600
           ELSE NULL 
         END) as avg_assignment_hours,
         AVG(CASE 
-          WHEN work_start_date IS NOT NULL AND work_completion_date IS NOT NULL THEN 
-            EXTRACT(EPOCH FROM (work_completion_date - work_start_date)) / 3600
+          WHEN sr.work_start_date IS NOT NULL AND sr.work_complete_date IS NOT NULL THEN 
+            EXTRACT(EPOCH FROM (sr.work_complete_date - sr.work_start_date)) / 3600
           ELSE NULL 
         END) as avg_work_hours
       FROM service_requests sr
       LEFT JOIN current_statuses cs ON sr.current_status_id = cs.id
+      LEFT JOIN stages s ON sr.stage_id = s.id
       WHERE ${whereClause}
     `, queryParams);
 
     // Get department statistics
     const deptResult = await db.query(`
       SELECT 
-        requester_department,
+        technician_department,
         COUNT(*) as request_count,
         COUNT(CASE WHEN cs.name = '정상작동' THEN 1 END) as completed_count
-      FROM service_requests 
+      FROM service_requests sr
+      LEFT JOIN current_statuses cs ON sr.current_status_id = cs.id
       WHERE ${whereClause}
-      GROUP BY requester_department
+      GROUP BY technician_department
       ORDER BY request_count DESC
     `, queryParams);
 
@@ -294,7 +296,7 @@ export const getInquiryStatistics = async (req: Request, res: Response): Promise
         [userId]
       );
       if (userResult.rows.length > 0) {
-        whereConditions.push(`requester_department = $${paramIndex}`);
+        whereConditions.push(`department = $${paramIndex}`);
         queryParams.push(userResult.rows[0].department);
         paramIndex++;
       }
@@ -302,19 +304,19 @@ export const getInquiryStatistics = async (req: Request, res: Response): Promise
 
     // Date filtering
     if (startDate) {
-      whereConditions.push(`inquiry_date >= $${paramIndex}`);
+      whereConditions.push(`created_at >= $${paramIndex}`);
       queryParams.push(startDate);
       paramIndex++;
     }
 
     if (endDate) {
-      whereConditions.push(`inquiry_date <= $${paramIndex}`);
+      whereConditions.push(`created_at <= $${paramIndex}::date + interval '1 day'`);
       queryParams.push(endDate);
       paramIndex++;
     }
 
     if (department) {
-      whereConditions.push(`requester_department = $${paramIndex}`);
+      whereConditions.push(`department = $${paramIndex}`);
       queryParams.push(department);
       paramIndex++;
     }
@@ -325,14 +327,13 @@ export const getInquiryStatistics = async (req: Request, res: Response): Promise
     const statsResult = await db.query(`
       SELECT 
         COUNT(*) as total_inquiries,
-        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_inquiries,
-        COUNT(CASE WHEN status = 'answered' THEN 1 END) as answered_inquiries,
-        COUNT(CASE WHEN status = 'closed' THEN 1 END) as closed_inquiries,
+        COUNT(CASE WHEN answered_at IS NOT NULL THEN 1 END) as answered_inquiries,
+        COUNT(CASE WHEN answered_at IS NULL THEN 1 END) as pending_inquiries,
         AVG(CASE 
-          WHEN answer_date IS NOT NULL THEN 
-            EXTRACT(EPOCH FROM (answer_date - inquiry_date)) / 3600
+          WHEN answered_at IS NOT NULL AND created_at IS NOT NULL THEN 
+            EXTRACT(EPOCH FROM (answered_at - created_at)) / 3600
           ELSE NULL 
-        END) as avg_answer_hours
+        END) as avg_response_hours
       FROM general_inquiries 
       WHERE ${whereClause}
     `, queryParams);
@@ -340,12 +341,12 @@ export const getInquiryStatistics = async (req: Request, res: Response): Promise
     // Get department statistics
     const deptResult = await db.query(`
       SELECT 
-        requester_department,
+        department,
         COUNT(*) as inquiry_count,
-        COUNT(CASE WHEN status = 'answered' THEN 1 END) as answered_count
+        COUNT(CASE WHEN answered_at IS NOT NULL THEN 1 END) as answered_count
       FROM general_inquiries 
       WHERE ${whereClause}
-      GROUP BY requester_department
+      GROUP BY department
       ORDER BY inquiry_count DESC
     `, queryParams);
 

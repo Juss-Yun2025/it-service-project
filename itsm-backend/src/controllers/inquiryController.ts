@@ -374,7 +374,7 @@ export const answerGeneralInquiry = async (req: Request, res: Response): Promise
     const userRole = req.user?.role;
 
     // Only technicians and above can answer inquiries
-    if (!['technician', 'assignment_manager', 'service_manager', 'system_admin'].includes(userRole!)) {
+    if (!['technician', 'assignment_manager', 'service_manager', 'system_admin', '시스템관리'].includes(userRole!)) {
       res.status(403).json({
         success: false,
         message: 'Insufficient permissions to answer inquiries'
@@ -430,6 +430,76 @@ export const answerGeneralInquiry = async (req: Request, res: Response): Promise
 
   } catch (error) {
     console.error('Answer general inquiry error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error'
+    } as ApiResponse);
+  
+
+    return;}
+};
+
+export const updateGeneralInquiryAnswer = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { answer_content } = req.body;
+    const userId = req.user?.id;
+    const userRole = req.user?.role;
+
+    // Only technicians and above can update answers
+    if (!['technician', 'assignment_manager', 'service_manager', 'system_admin', '시스템관리'].includes(userRole!)) {
+      res.status(403).json({
+        success: false,
+        message: 'Insufficient permissions to update answers'
+      } as ApiResponse);
+    
+
+      return;}
+
+    // Check if inquiry exists
+    const existingInquiry = await db.query<GeneralInquiry>(
+      'SELECT * FROM general_inquiries WHERE id = $1',
+      [id]
+    );
+
+    if (existingInquiry.rows.length === 0) {
+      res.status(404).json({
+        success: false,
+        message: 'General inquiry not found'
+      } as ApiResponse);
+    
+
+      return;}
+
+    const inquiry = existingInquiry.rows[0];
+
+    if (inquiry.status !== 'answered') {
+      res.status(400).json({
+        success: false,
+        message: 'This inquiry has not been answered yet'
+      } as ApiResponse);
+    
+
+      return;}
+
+    // Update inquiry answer
+    const result = await db.query<GeneralInquiry>(
+      `UPDATE general_inquiries 
+       SET answer = $1, 
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2
+       RETURNING *`,
+      [answer_content, id]
+    );
+
+    res.json({
+      success: true,
+      data: result.rows[0],
+      message: 'General inquiry answer updated successfully'
+    } as ApiResponse);
+
+  } catch (error) {
+    console.error('Update general inquiry answer error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error'
