@@ -123,3 +123,11 @@ npm run extract-figma-tokens
 ## 📞 문의
 
 프로젝트에 대한 문의사항이 있으시면 이슈를 생성해 주세요.
+
+## windows 환경
+
+&& 문자는 수행 되지 않습니다.
+
+#   i t p m - p r o j e c t 
+ 
+ 
