@@ -154,7 +154,7 @@ export const getServiceReport = async (req: Request, res: Response): Promise<voi
 
 export const getServiceStatistics = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { startDate, endDate, department } = req.query;
+  const { startDate, endDate, department, dateField } = req.query;
     const userId = req.user?.id;
     const userRole = req.user?.role;
 
@@ -176,15 +176,16 @@ export const getServiceStatistics = async (req: Request, res: Response): Promise
       }
     }
 
-    // Date filtering
+    // Date filtering (컬럼명 동적 적용)
+  const dateColumn = typeof dateField === 'string' && dateField.length > 0 ? dateField : 'request_date';
     if (startDate) {
-      whereConditions.push(`sr.created_at >= $${paramIndex}`);
+      whereConditions.push(`sr.${dateColumn} >= $${paramIndex}`);
       queryParams.push(startDate);
       paramIndex++;
     }
 
     if (endDate) {
-      whereConditions.push(`sr.created_at <= $${paramIndex}::date + interval '1 day'`);
+      whereConditions.push(`sr.${dateColumn} <= $${paramIndex}::date + interval '1 day'`);
       queryParams.push(endDate);
       paramIndex++;
     }

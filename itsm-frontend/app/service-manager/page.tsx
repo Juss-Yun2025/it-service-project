@@ -1,129 +1,41 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Icon from '@/components/ui/Icon'
+import { apiClient } from '@/lib/api'
+import type { Stage, Department } from '@/lib/api'
 
-// 데이터 타입 정의
-interface ServiceRequest {
-  id: string
-  requestNumber: string
-  title: string
-  status: string
-  currentStatus: string
-  requestDate: string
-  requestTime?: string
-  requester: string
-  department: string
-  stage: string
-  assignTime?: string
-  assignDate?: string
-  assignee?: string
-  assigneeDepartment?: string
-  content: string
-  contact: string
-  location: string
-  actualRequester?: string
-  actualContact?: string
-  serviceType: string
-  completionDate?: string
-  // 배정 관련 필드들
-  assignmentOpinion?: string
-  previousAssignDate?: string
-  previousAssignee?: string
-  previousAssignmentOpinion?: string
-  rejectionDate?: string
-  rejectionOpinion?: string
-  // 작업정보등록 관련 필드들
-  scheduledDate?: string
-  workStartDate?: string
-  workContent?: string
-  workCompleteDate?: string
-  problemIssue?: string
-  isUnresolved?: boolean
-  currentWorkStage?: string
-}
-
-interface PendingWork {
-  id: string
-  technician: string
-  lastWeekPending: number
-  longTermPending: number
-}
-
-export default function ServiceManagerPage() {
-  const router = useRouter()
-  const [currentDate, setCurrentDate] = useState('')
-  const [currentTime, setCurrentTime] = useState('')
-  const [isWorking, setIsWorking] = useState(true)
-  const [searchStartDate, setSearchStartDate] = useState('')
-  const [searchEndDate, setSearchEndDate] = useState('')
-  const [showIncompleteOnly, setShowIncompleteOnly] = useState(false)
-  const [showAssignmentModal, setShowAssignmentModal] = useState(false)
-  const [showRejectionModal, setShowRejectionModal] = useState(false)
-  const [showInfoModal, setShowInfoModal] = useState(false)
+function ServiceManagerPage() {
+  // 모든 상태 변수 선언 (최상단)
+  const [selectedInquiry, setSelectedInquiry] = useState<any>(null)
+  const [showGeneralInquiryEditModal, setShowGeneralInquiryEditModal] = useState(false)
+  const [showGeneralInquiryDeleteModal, setShowGeneralInquiryDeleteModal] = useState(false)
+  const [showGeneralInquiryReplyModal, setShowGeneralInquiryReplyModal] = useState(false)
+  const [showFAQAddModal, setShowFAQAddModal] = useState(false)
+  const [showFAQCompleteModal, setShowFAQCompleteModal] = useState(false)
+  const [generalInquiryCurrentPage, setGeneralInquiryCurrentPage] = useState(1)
+  const [showUnansweredOnly, setShowUnansweredOnly] = useState(false)
+  const [generalInquirySearchStartDate, setGeneralInquirySearchStartDate] = useState('')
+  const [generalInquirySearchEndDate, setGeneralInquirySearchEndDate] = useState('')
   const [showInfoSuccessModal, setShowInfoSuccessModal] = useState(false)
-  const [showApprovalSuccessModal, setShowApprovalSuccessModal] = useState(false)
-  const [showRejectionSuccessModal, setShowRejectionSuccessModal] = useState(false)
-  const [showRejectionInAssignment, setShowRejectionInAssignment] = useState(false)
-  const [showInfoViewModal, setShowInfoViewModal] = useState(false)
-  const [showWorkRegistrationModal, setShowWorkRegistrationModal] = useState(false)
-  const [showWorkRegistrationInInfo, setShowWorkRegistrationInInfo] = useState(false)
-  const [showWorkCompleteModal, setShowWorkCompleteModal] = useState(false)
-  const [rejectionOpinion, setRejectionOpinion] = useState('')
-  
-  // 작업정보등록 관련 상태
-  const [scheduledDate, setScheduledDate] = useState('')
-  const [workStartDate, setWorkStartDate] = useState('')
-  const [workContent, setWorkContent] = useState('')
-  const [workCompleteDate, setWorkCompleteDate] = useState('')
-  const [problemIssue, setProblemIssue] = useState('')
-  const [isUnresolved, setIsUnresolved] = useState(false)
-  const [currentStage, setCurrentStage] = useState('예정')
-  const [selectedRequest, setSelectedRequest] = useState<ServiceRequest | null>(null)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [showServiceWorkCompleteModal, setShowServiceWorkCompleteModal] = useState(false)
+  const [showServiceWorkDeleteCompleteModal, setShowServiceWorkDeleteCompleteModal] = useState(false)
+  const [faqCurrentPage, setFaqCurrentPage] = useState(1)
+  const [selectedFAQ, setSelectedFAQ] = useState<any>(null)
+  const [showFAQEditModal, setShowFAQEditModal] = useState(false)
+  const [showGeneralInquiryStatus, setShowGeneralInquiryStatus] = useState(true)
+  const [inquiryCurrentDepartment, setInquiryCurrentDepartment] = useState('전체 부서')
+  const [showServiceWorkInfoModal, setShowServiceWorkInfoModal] = useState(false)
+  const [showServiceWorkDeleteModal, setShowServiceWorkDeleteModal] = useState(false)
+  const [serviceWorkTotalPages, setServiceWorkTotalPages] = useState(1)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  
-  // 서비스작업 List 관리 관련 상태
-  const [showServiceWorkList, setShowServiceWorkList] = useState(false)
-  const [showFAQManagement, setShowFAQManagement] = useState(false)
-  
-  // 자주하는 질문 관리 관련 상태
-  const [faqCurrentPage, setFaqCurrentPage] = useState(1)
-  const [showFAQEditModal, setShowFAQEditModal] = useState(false)
-  const [showFAQAddModal, setShowFAQAddModal] = useState(false)
-  const [showFAQCompleteModal, setShowFAQCompleteModal] = useState(false)
-  const [selectedFAQ, setSelectedFAQ] = useState<{id: number; question: string; answer: string; category: string} | null>(null)
-  
-  // 일반문의 List 관리 관련 상태
-  const [showGeneralInquiryList, setShowGeneralInquiryList] = useState(false)
-  const [showGeneralInquiryReplyModal, setShowGeneralInquiryReplyModal] = useState(false)
-  const [showGeneralInquiryEditModal, setShowGeneralInquiryEditModal] = useState(false)
-  const [showGeneralInquiryDeleteModal, setShowGeneralInquiryDeleteModal] = useState(false)
-  const [selectedInquiry, setSelectedInquiry] = useState<{id: number; title: string; content: string; status: string} | null>(null)
-  const [generalInquiryCurrentPage, setGeneralInquiryCurrentPage] = useState(1)
-  const [generalInquirySearchStartDate, setGeneralInquirySearchStartDate] = useState(() => {
-    const oneWeekAgo = new Date()
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
-    return oneWeekAgo.toISOString().split('T')[0]
-  })
-  const [generalInquirySearchEndDate, setGeneralInquirySearchEndDate] = useState(new Date().toISOString().split('T')[0])
-  const [showUnansweredOnly, setShowUnansweredOnly] = useState(false)
+  const [paginatedServiceRequests, setPaginatedServiceRequests] = useState<ServiceRequest[]>([])
+  const [selectedWorkRequest, setSelectedWorkRequest] = useState<ServiceRequest | null>(null)
   const [showServiceAssignmentModal, setShowServiceAssignmentModal] = useState(false)
   const [showServiceReassignmentModal, setShowServiceReassignmentModal] = useState(false)
-  const [showServiceWorkInfoModal, setShowServiceWorkInfoModal] = useState(false)
-  const [showServiceWorkDeleteModal, setShowServiceWorkDeleteModal] = useState(false)
-  const [selectedWorkRequest, setSelectedWorkRequest] = useState<ServiceRequest | null>(null)
-  const [serviceWorkSearchStartDate, setServiceWorkSearchStartDate] = useState('')
-  const [serviceWorkSearchEndDate, setServiceWorkSearchEndDate] = useState('')
-  const [showServiceIncompleteOnly, setShowServiceIncompleteOnly] = useState(false)
-  const [serviceWorkSelectedDepartment, setServiceWorkSelectedDepartment] = useState('IT팀')
-  const [serviceWorkCurrentPage, setServiceWorkCurrentPage] = useState(1)
-  
-  // 작업정보등록 관련 상태
   const [serviceWorkScheduledDate, setServiceWorkScheduledDate] = useState('')
   const [serviceWorkStartDate, setServiceWorkStartDate] = useState('')
   const [serviceWorkContent, setServiceWorkContent] = useState('')
@@ -131,43 +43,462 @@ export default function ServiceManagerPage() {
   const [serviceWorkProblemIssue, setServiceWorkProblemIssue] = useState('')
   const [serviceWorkIsUnresolved, setServiceWorkIsUnresolved] = useState(false)
   const [serviceWorkCurrentStage, setServiceWorkCurrentStage] = useState('예정')
-  const [showServiceWorkCompleteModal, setShowServiceWorkCompleteModal] = useState(false)
-  const [showServiceWorkDeleteCompleteModal, setShowServiceWorkDeleteCompleteModal] = useState(false)
-  
-  // 관리매니저 정보 상태
-  const [managerInfo, setManagerInfo] = useState({
-    name: '황매니저',
-    email: 'service@itsm.com',
-    fullName: '황매니저',
-    position: '대리',
-    department: 'IT팀',
-    phone: '010-1234-5678',
-    createDate: '2024-01-15 09:00:00'
+  const [aggregationServiceStatistics, setAggregationServiceStatistics] = useState<any>(null)
+  const [isUnresolved, setIsUnresolved] = useState(false)
+  const [showApprovalSuccessModal, setShowApprovalSuccessModal] = useState(false)
+  const router = useRouter()
+  const [showServiceAggregation, setShowServiceAggregation] = useState(true)
+  const [currentDepartment, setCurrentDepartment] = useState('')
+  const [showServiceWorkList, setShowServiceWorkList] = useState(false)
+  const [showFAQManagement, setShowFAQManagement] = useState(false)
+  const [showGeneralInquiryList, setShowGeneralInquiryList] = useState(false)
+  const [selectedRequest, setSelectedRequest] = useState<ServiceRequest | null>(null)
+  const [showAssignmentModal, setShowAssignmentModal] = useState(false)
+  const [showInfoModal, setShowInfoModal] = useState(false)
+  const [inquiryStartDate, setInquiryStartDate] = useState(() => {
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    return oneWeekAgo.toISOString().split('T')[0];
   })
-  const [showPendingWork, setShowPendingWork] = useState(true)
+  const [inquiryEndDate, setInquiryEndDate] = useState(() => {
+    return new Date().toISOString().split('T')[0];
+  })
+  const [inquirySelectedDepartment, setInquirySelectedDepartment] = useState('')
+  const [inquiryData, setInquiryData] = useState({
+    answered: 0,
+    unanswered: 0,
+    total: 0,
+    completionRate: 0,
+    avgResponseTime: 0
+  })
+  interface ManagerInfo {
+    name: string;
+    email: string;
+    fullName: string;
+    position: string;
+    department: string;
+    phone: string;
+    createDate: string;
+  }
+  const [managerInfo, setManagerInfo] = useState<ManagerInfo>({
+    name: '',
+    email: '',
+    fullName: '',
+    position: '',
+    department: '',
+    phone: '',
+    createDate: ''
+  })
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [departments, setDepartments] = useState<Department[]>([])
+  const [departmentsLoading, setDepartmentsLoading] = useState<boolean>(false)
+  const [stages, setStages] = useState<Stage[]>([])
+  const [stageColors, setStageColors] = useState<{[key: string]: string}>({})
+  const [serviceWorkSearchStartDate, setServiceWorkSearchStartDate] = useState('')
+  const [serviceWorkSearchEndDate, setServiceWorkSearchEndDate] = useState('')
+  const [showServiceIncompleteOnly, setShowServiceIncompleteOnly] = useState(false)
+  const [serviceWorkSelectedDepartment, setServiceWorkSelectedDepartment] = useState('전체')
+  const [serviceWorkCurrentPage, setServiceWorkCurrentPage] = useState(1)
+  const [currentDate, setCurrentDate] = useState('')
+  const [currentTime, setCurrentTime] = useState('')
+  const [searchStartDate, setSearchStartDate] = useState('')
+  const [searchEndDate, setSearchEndDate] = useState('')
+  const [showWorkRegistrationInInfo, setShowWorkRegistrationInInfo] = useState(false)
+  const [scheduledDate, setScheduledDate] = useState('')
+  const [currentStage, setCurrentStage] = useState('예정')
+  const [workStartDate, setWorkStartDate] = useState('')
+  const [workCompleteDate, setWorkCompleteDate] = useState('')
+  const [workContent, setWorkContent] = useState('')
+  const [problemIssue, setProblemIssue] = useState('')
+  const [showRejectionSuccessModal, setShowRejectionSuccessModal] = useState(false)
+  const [selectedDepartment, setSelectedDepartment] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [aggregationStartDate, setAggregationStartDate] = useState(() => {
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    return oneMonthAgo.toISOString().split('T')[0];
+  })
+  const [aggregationEndDate, setAggregationEndDate] = useState(() => {
+    return new Date().toISOString().split('T')[0];
+  })
+  const [aggregationSelectedDepartment, setAggregationSelectedDepartment] = useState('')
+  const [aggregationLoading, setAggregationLoading] = useState(false)
+  const [aggregationServiceRequests, setAggregationServiceRequests] = useState<ServiceRequest[]>([])
+  const [showIncompleteOnly, setShowIncompleteOnly] = useState(false)
+  const [showRejectionModal, setShowRejectionModal] = useState(false)
+  const [showRejectionInAssignment, setShowRejectionInAssignment] = useState(false)
+  const [showInfoViewModal, setShowInfoViewModal] = useState(false)
+  const [showWorkRegistrationModal, setShowWorkRegistrationModal] = useState(false)
+  const [showWorkCompleteModal, setShowWorkCompleteModal] = useState(false)
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [rejectionOpinion, setRejectionOpinion] = useState('')
+  
+  // 시스템관리 페이지와 동일: 서비스 집계 요청 데이터 가져오기
+  const fetchAggregationServiceRequests = async () => {
+    setAggregationLoading(true);
+    try {
+      const params = {
+        startDate: aggregationStartDate,
+        endDate: aggregationEndDate,
+        department: aggregationSelectedDepartment !== '' ? aggregationSelectedDepartment : undefined,
+        showIncompleteOnly: false, // 집계 현황에서는 모든 상태 포함
+        page: 1,
+        limit: 1000 // 집계용이므로 충분한 데이터 가져오기
+      };
+      const response = await apiClient.getServiceRequests(params);
+      if (response.success && response.data) {
+        // API 응답 데이터를 프론트엔드 형식으로 변환
+        const transformedData = response.data.map((item: any) => mapServiceRequestData(item));
+        setAggregationServiceRequests(transformedData);
+      } else {
+        console.error('Failed to fetch aggregation service requests:', response.error);
+      }
+    } catch (error) {
+      console.error('Error fetching aggregation service requests:', error);
+    } finally {
+      setAggregationLoading(false);
+    }
+  };
+
+  // 시스템관리 페이지와 동일: 서비스 집계 통계 가져오기
+  const fetchAggregationServiceStatistics = async () => {
+    console.log('🔄 fetchAggregationServiceStatistics 시작:', {
+      aggregationStartDate,
+      aggregationEndDate,
+      aggregationSelectedDepartment,
+      currentUserId,
+      managerDepartment: managerInfo.department
+    });
+    try {
+      const params = {
+        startDate: aggregationStartDate,
+        endDate: aggregationEndDate,
+        department: aggregationSelectedDepartment !== '' ? aggregationSelectedDepartment : undefined,
+        dateField: 'request_date' // 검색 기준 컬럼 변경
+      }
+      console.log('📡 API 호출 파라미터:', {
+        ...params,
+        departmentValue: aggregationSelectedDepartment,
+        willSendDepartment: aggregationSelectedDepartment !== '' ? aggregationSelectedDepartment : 'undefined(전체부서)'
+      });
+      const response = await apiClient.getServiceStatistics(params)
+      console.log('📊 API 응답:', response);
+      if (response.success && response.data) {
+        setAggregationServiceStatistics(response.data)
+        console.log('✅ aggregationServiceStatistics 설정됨:', response.data);
+        console.log('🔍 상세 데이터 구조:', {
+          hasOverview: !!response.data.overview,
+          overview: response.data.overview,
+          allKeys: Object.keys(response.data),
+          overviewKeys: response.data.overview ? Object.keys(response.data.overview) : []
+        });
+      } else {
+        console.error('❌ API 응답 실패:', response);
+      }
+    } catch (e) {
+      console.error('❌ 서비스 집계현황 통계 가져오기 실패:', e)
+    }
+  }
+
+  // 시스템관리 페이지와 동일: stages 로드 함수
+  const loadStages = async () => {
+    console.log('🚀 stages 로드 시작');
+    try {
+      const response = await apiClient.getStages();
+      if (response.success && response.data) {
+        console.log('📋 stages 로드 성공:', response.data);
+        setStages(response.data);
+        console.log('🎯 stages 설정 완료, length:', response.data.length);
+      } else {
+        console.error('❌ stages 로드 실패:', response.error);
+      }
+    } catch (error) {
+      console.error('❌ stages 로드 중 오류:', error);
+    }
+  };
+
+  // 특정 부서로 통계 가져오기 (초기 로드용)
+  const fetchAggregationServiceStatisticsWithDepartment = async (departmentName: string) => {
+    console.log('🔄 fetchAggregationServiceStatisticsWithDepartment 시작:', {
+      departmentName,
+      aggregationStartDate,
+      aggregationEndDate
+    });
+    try {
+      const params = {
+        startDate: aggregationStartDate,
+        endDate: aggregationEndDate,
+        department: departmentName !== '' ? departmentName : undefined
+      }
+      console.log('📡 직접 부서 API 호출 파라미터:', {
+        ...params,
+        departmentValue: departmentName,
+        willSendDepartment: departmentName !== '' ? departmentName : 'undefined(전체부서)'
+      });
+      const response = await apiClient.getServiceStatistics(params)
+      console.log('📊 직접 부서 API 응답:', response)
+      if (response.success && response.data) {
+        setAggregationServiceStatistics(response.data)
+        console.log('✅ 직접 부서 aggregationServiceStatistics 설정됨:', response.data);
+      } else {
+        console.error('❌ 직접 부서 API 응답 실패:', response);
+      }
+    } catch (e) {
+      console.error('❌ 직접 부서 서비스 집계현황 통계 가져오기 실패:', e)
+    }
+  };
+  
+  // ServiceRequest 타입 정의
+  interface ServiceRequest {
+    id: any;
+    requestNumber: any;
+    title: any;
+    currentStatus: any;
+    requestDate: any;
+    requestTime: any;
+    requester: any;
+    department: any;
+    requesterDepartment: any;
+    stage: any;
+    assignTime: any;
+    assignDate: any;
+    description?: any;
+    status?: any;
+    priority?: any;
+    assignedTo?: any;
+    requestedBy?: any;
+    workStartDate?: string;
+    workCompleteDate?: string;
+    workContent?: string;
+    problemIssue?: string;
+    isUnresolved?: boolean;
+    completedBy?: string;
+    stageId?: any;
+    [key: string]: any;
+  }
+  
+  const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([])
+
+  // PendingWork 인터페이스 정의
+  interface PendingWork {
+    id: string
+    technician: string
+    lastWeekPending: number
+    longTermPending: number
+  }
+
+  // 초기값 설정 및 데이터 로드 useEffect
+  useEffect(() => {
+    // 시스템관리 페이지 패턴 참고: 로그인 사용자 정보 localStorage에서 가져오기
+    const userStr = window.localStorage.getItem('user');
+    console.log('🔍 localStorage에서 가져온 사용자 정보:', userStr);
+    if (userStr) {
+      const currentUser = JSON.parse(userStr);
+      console.log('👤 파싱된 사용자 정보:', currentUser);
+      console.log('🏢 사용자 부서:', currentUser.department);
+      
+      setCurrentUserId(currentUser.id || '관리매니저');
+      setManagerInfo({
+        name: currentUser.name || '',
+        email: currentUser.email || '',
+        fullName: currentUser.name || '',
+        position: currentUser.position || '',
+        department: currentUser.department || '전체 부서',
+        phone: currentUser.phone || '',
+        createDate: currentUser.created_at || ''
+      });
+      setCurrentDepartment(currentUser.department || '전체 부서');
+      // 관리매니저는 소속 책임자로 소속 조치담당자들의 업무를 관리할 부서 권한을 가진다
+      const userDepartment = currentUser.department || '';
+      console.log('🎯 설정할 aggregationSelectedDepartment:', userDepartment);
+      setAggregationSelectedDepartment(userDepartment);
+    } else {
+      console.log('⚠️ localStorage에 사용자 정보가 없음');
+      setCurrentUserId('관리매니저');
+      setManagerInfo({
+        name: '관리매니저',
+        email: '',
+        fullName: '관리매니저',
+        position: '',
+        department: '전체 부서',
+        phone: '',
+        createDate: ''
+      });
+      setCurrentDepartment('전체 부서');
+      setAggregationSelectedDepartment(''); // 기본값은 전체 부서
+    }
+    // 그래프(검색) 일자 초기값: 최근 한 달
+    const today = new Date();
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(today.getMonth() - 1);
+    setSearchStartDate(oneMonthAgo.toISOString().split('T')[0]);
+    setSearchEndDate(today.toISOString().split('T')[0]);
+    
+    // 초기값 설정 후 서비스 통계 자동 로드
+    setTimeout(() => {
+      console.log('🚀 페이지 로드 시 초기 데이터 로딩');
+      loadStages(); // stages 먼저 로드
+      fetchDepartments(); // departments 로드
+    }, 100);
+    
+    // 부서 설정이 완료된 후 통계 로드 (사용자 부서값 직접 사용)
+    const userDepartment = userStr ? JSON.parse(userStr).department || '' : '';
+    setTimeout(() => {
+      console.log('📊 부서 설정 완료 후 통계 로드, 직접 사용자 부서:', userDepartment);
+      // aggregationSelectedDepartment 상태값 대신 직접 사용자 부서값 사용
+      fetchAggregationServiceStatisticsWithDepartment(userDepartment);
+    }, 300);
+  }, []);
+
+  // 검색 조건 변경 시 자동으로 데이터 재조회
+  useEffect(() => {
+    if (stages.length > 0) {
+      fetchAggregationServiceStatistics();
+    }
+  }, [aggregationStartDate, aggregationEndDate, aggregationSelectedDepartment]);
+
+  // 모든 useState 선언 (최상단)
+  interface ManagerInfo {
+    name: string;
+    email: string;
+    fullName: string;
+    position: string;
+    department: string;
+    phone: string;
+    createDate: string;
+  }
+
+  // 날짜 형식화 함수
+  const formatDateTime = (dateString: string): string => {
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day} ${hours}:${minutes}`;
+  };
+
+  // 부서 목록 불러오기 함수
+  const fetchDepartments = async () => {
+    console.log('🏢 fetchDepartments 시작');
+    setDepartmentsLoading(true)
+    try {
+      const response = await apiClient.getDepartments()
+      console.log('🏢 부서 API 응답:', response);
+      if (response.success && response.data) {
+        setDepartments(response.data)
+        console.log('✅ departments 설정됨:', response.data);
+      } else {
+        console.error('❌ Failed to fetch departments:', response.error)
+      }
+    } catch (error) {
+      console.error('❌ Error fetching departments:', error)
+    } finally {
+      setDepartmentsLoading(false)
+    }
+  }
+
+  // 데이터 타입 정의
+  // 서비스 작업 관련 상태 변수들 (컴포넌트 최상단에 선언)
+  const filteredServiceRequests = useMemo(() => {
+    return serviceRequests.filter((request) => {
+      // 날짜 필터
+      if (serviceWorkSearchStartDate && serviceWorkSearchEndDate) {
+        const requestDate = new Date(request.requestDate.replace(/\./g, '-'));
+        const startDate = new Date(serviceWorkSearchStartDate);
+        const endDate = new Date(serviceWorkSearchEndDate);
+        if (requestDate < startDate || requestDate > endDate) return false;
+      }
+      // 미결 완료 조회 필터
+      if (showServiceIncompleteOnly) {
+        return request.stage !== '완료';
+      }
+      // 접수/재배정 단계: 모든 데이터 표시
+      if (request.stage === '접수' || request.stage === '재배정') {
+        return true;
+      }
+      // 기타 단계: 조치소속 기준 필터링
+      if (serviceWorkSelectedDepartment !== '전체') {
+        return request.assigneeDepartment === serviceWorkSelectedDepartment;
+      }
+      // 전체 선택 시 모든 데이터 표시
+      return true;
+    });
+  }, [serviceRequests, serviceWorkSearchStartDate, serviceWorkSearchEndDate, showServiceIncompleteOnly, serviceWorkSelectedDepartment]);
+
+
+
+// 데이터 매핑 함수 (시스템관리 페이지 참고)
+const mapServiceRequestData = (rawData: any): ServiceRequest => {
+  return {
+    id: rawData.id?.toString() || '',
+    requestNumber: rawData.request_number || '',
+    title: rawData.title || '',
+    currentStatus: rawData.current_status || '',
+    requestDate: rawData.request_date || '',
+    requestTime: rawData.request_time || '',
+    requester: rawData.requester || '',
+    department: rawData.department || '',
+    requesterDepartment: rawData.requester_department || '',
+    stage: rawData.stage || '',
+    assignTime: rawData.assign_time || '',
+    assignDate: rawData.assign_date || '',
+    assignee: rawData.assignee || '',
+    assigneeDepartment: rawData.assignee_department || '',
+    technician: rawData.technician || '',
+    technicianDepartment: rawData.technician_department || '',
+    workStartDate: rawData.work_start_date || '',
+    workStartTime: rawData.work_start_time || '',
+    workCompleteDate: rawData.work_complete_date || '',
+    workCompleteTime: rawData.work_complete_time || '',
+    assignmentHours: rawData.assignment_hours || '',
+    workHours: rawData.work_hours || '',
+    content: rawData.content || '',
+    contact: rawData.contact || '',
+    location: rawData.location || '',
+    actualRequester: rawData.actual_requester || '',
+    actualContact: rawData.actual_contact || '',
+    actualRequesterDepartment: rawData.actual_requester_department || '',
+    serviceType: rawData.service_type || '',
+    completionDate: rawData.completion_date || '',
+    assignmentOpinion: rawData.assignment_opinion || '',
+    previousAssignDate: rawData.previous_assign_date || '',
+    previousAssignee: rawData.previous_assignee || '',
+    previousAssignmentOpinion: rawData.previous_assignment_opinion || '',
+    rejectionDate: rawData.rejection_date || '',
+    rejectionOpinion: rawData.rejection_opinion || '',
+    rejectionName: rawData.rejection_name || '',
+    scheduledDate: rawData.scheduled_date || '',
+    workContent: rawData.work_content || '',
+    problemIssue: rawData.problem_issue || '',
+    isUnresolved: rawData.is_unresolved || false,
+    stageId: rawData.stage_id || 0
+  };
+
   const [showServiceAggregation, setShowServiceAggregation] = useState(true)
   const [showGeneralInquiryStatus, setShowGeneralInquiryStatus] = useState(true)
-  const [selectedDepartment, setSelectedDepartment] = useState('IT팀')
-  const [currentDepartment, setCurrentDepartment] = useState('IT팀')
+  const [selectedDepartment, setSelectedDepartment] = useState('')
+  const [currentDepartment, setCurrentDepartment] = useState('')
+  // stages, stageColors, departments, departmentsLoading은 이미 위에서 선언됨
+  const [aggregationServiceStatistics, setAggregationServiceStatistics] = useState<any>(null)
   const [startDate, setStartDate] = useState(new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().split('T')[0])
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0])
-  const [inquirySelectedDepartment, setInquirySelectedDepartment] = useState('')
   const [inquiryCurrentDepartment, setInquiryCurrentDepartment] = useState('전체 부서')
-  const [inquiryStartDate, setInquiryStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 7)).toISOString().split('T')[0])
-  const [inquiryEndDate, setInquiryEndDate] = useState(new Date().toISOString().split('T')[0])
   const [chartData, setChartData] = useState({
-    received: 5,
-    assigned: 10,
-    working: 6,
-    completed: 5,
-    failed: 2
+    received: 0,
+    assigned: 0,
+    working: 0,
+    completed: 0,
+    failed: 0
   })
   const [inquiryData, setInquiryData] = useState({
-    answered: 15,
-    unanswered: 10,
-    total: 25,
-    completionRate: 60.0,
-    avgResponseTime: 2.3
+    answered: 0,
+    unanswered: 0,
+    total: 0,
+    completionRate: 0,
+    avgResponseTime: 0
   })
 
   // 현재 날짜와 시간 설정
@@ -215,672 +546,208 @@ export default function ServiceManagerPage() {
     setServiceWorkCurrentPage(1)
   }, [serviceWorkSearchStartDate, serviceWorkSearchEndDate, showServiceIncompleteOnly, serviceWorkSelectedDepartment])
 
-  // 서비스 요청 데이터
-  const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([
+  // 로그인 사용자 정보로 초기 설정
+  useEffect(() => {
+    const user = apiClient.getCurrentUser();
+    if (user) {
+      setCurrentUserId(user.id);
+      setManagerInfo({
+        name: user.name || '',
+        email: user.email || '',
+        fullName: user.name || '',
+        position: user.position || '',
+        department: user.department || '',
+        phone: (user as any).phone || '',
+        createDate: user.created_at || ''
+      });
+      
+      if (user.department) {
+        setSelectedDepartment(user.department);
+        setCurrentDepartment(user.department);
+        // 일반문의 현황 초기값도 로그인 소속으로 동기화
+        setInquirySelectedDepartment(user.department);
+        setInquiryCurrentDepartment(user.department);
+      }
+    }
+  }, [])
+
+  // 부서 목록 로드
+  // 이미 위에서 선언된 fetchDepartments만 사용
+
+  // 단계 목록 로드
+  useEffect(() => {
+    (async () => {
+      console.log('🎯 stages 로드 시작');
+      try {
+        const res = await apiClient.getStages();
+        console.log('📋 stages API 응답:', res);
+        if (res.success && res.data) {
+          console.log('✅ stages 데이터 설정:', res.data);
+          setStages(res.data);
+          // 시스템관리 페이지와 동일한 색상 매핑 생성
+          const colors: {[key: string]: string} = {}
+          const colorMap: { [key: string]: string } = {
+            'bg-purple-100 text-purple-800': '#8B5CF6',
+            'bg-blue-100 text-blue-800': '#3B82F6',
+            'bg-green-100 text-green-800': '#10B981',
+            'bg-yellow-100 text-yellow-800': '#F59E0B',
+            'bg-red-100 text-red-800': '#EF4444',
+            'bg-gray-100 text-gray-800': '#6B7280',
+            'bg-indigo-100 text-indigo-800': '#6366F1',
+            'bg-pink-100 text-pink-800': '#EC4899',
+          }
+          res.data.forEach((st: any) => {
+            if (st?.name && st?.color) {
+              colors[st.name] = colorMap[st.color] || '#6B7280'
+            }
+          })
+          setStageColors(colors)
+        }
+      } catch (e) {
+        console.error('❌ 단계 목록 로드 실패:', e);
+        console.error('❌ stages 로드 에러 상세:', e);
+      }
+    })();
+    fetchDepartments()
+    
+    // 시스템관리 페이지와 동일: 초기 집계 데이터 로딩
+    console.log('🚀 페이지 로드 시 초기 데이터 로딩');
+    fetchAggregationServiceRequests();
+    fetchAggregationServiceStatistics();
+  }, [])
+
+  // 시스템관리 페이지와 동일: 집계 조건 변경 시 데이터 새로고침
+  useEffect(() => {
+    fetchAggregationServiceRequests();
+    fetchAggregationServiceStatistics();
+  }, [aggregationStartDate, aggregationEndDate, aggregationSelectedDepartment]);
+
+  // 시스템관리 페이지와 동일: 서비스 집계 요청 데이터 가져오기
+  const fetchAggregationServiceRequests = async () => {
+    setAggregationLoading(true);
+    try {
+      const params = {
+        startDate: aggregationStartDate,
+        endDate: aggregationEndDate,
+        department: aggregationSelectedDepartment !== '' ? aggregationSelectedDepartment : undefined,
+        showIncompleteOnly: false, // 집계 현황에서는 모든 상태 포함
+        page: 1,
+        limit: 1000 // 집계용이므로 충분한 데이터 가져오기
+      };
+      const response = await apiClient.getServiceRequests(params);
+      if (response.success && response.data) {
+        // API 응답 데이터를 프론트엔드 형식으로 변환
+        const transformedData = response.data.map((item: any) => mapServiceRequestData(item));
+        setAggregationServiceRequests(transformedData);
+      } else {
+        console.error('Failed to fetch aggregation service requests:', response.error);
+      }
+    } catch (error) {
+      console.error('Error fetching aggregation service requests:', error);
+    } finally {
+      setAggregationLoading(false);
+    }
+  };
+
+  // 서비스 요청 데이터는 이미 위에서 선언됨
+  // 차트 데이터는 이미 위에서 선언됨
+  // 문의 데이터는 이미 위에서 선언됨
+
+  // 현재 날짜와 시간 설정
+  useEffect(() => {
+    const now = new Date()
+    const dateStr = now.toLocaleDateString('ko-KR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).replace(/\./g, '.').replace(/ /g, '')
+    
+    const timeStr = now.toLocaleTimeString('ko-KR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    })
+    
+    setCurrentDate(dateStr)
+    setCurrentTime(timeStr)
+  }, [])
+
+  // 미결 현황 데이터
+  // 중복 선언 제거됨
+
+  // 서비스 작업 관련 상태 변수들은 이미 위에서 선언됨
+
+  // 서비스 작업 목록 필터링 및 페이지네이션 (중복 제거됨)
+
+  // 페이지네이션 계산
+  // 부서 필터가 선택된 경우(전체 제외)에는 한 페이지에 모두 표시
+  // 이미 위에서 선언된 동일 변수 사용
+
+  // 미결 현황 데이터
+  const [pendingWorksData, setPendingWorksData] = useState<PendingWork[]>([
     {
       id: '1',
-      requestNumber: 'SR-20250831-007',
-      title: '모니터 전원 불량',
-      status: '진행중',
-      currentStatus: '오류발생',
-      requestDate: '2025.08.31',
-      requestTime: '09:30',
-      requester: '김영자',
-      department: '운영팀',
-      stage: '확인',
-      assignTime: '11:40',
-      assignDate: '2025.08.31 11:10',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '모니터에 전원이 들어 오지 않습니다.',
-      contact: '010-6543-9874',
-      location: '본사 2층 운영팀',
-      serviceType: '자산',
-      completionDate: '',
-      assignmentOpinion: '업무에 적합하여 배정',
-      actualRequester: '',
-      actualContact: ''
-    },
-    {
-      id: '2',
-      requestNumber: 'SR-20250830-006',
-      title: '이메일 첨부파일 다운로드 오류',
-      status: '진행중',
-      currentStatus: '정상작동',
-      requestDate: '2025.08.30',
-      requestTime: '14:15',
-      requester: '김철수',
-      department: '관리부',
-      stage: '확인',
-      assignTime: '10:40',
-      assignDate: '2025.08.30',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '이메일 첨부파일을 다운로드할 수 없습니다.',
-      contact: '010-2345-6789',
-      location: '2층 사무실',
-      serviceType: '문제',
-      completionDate: '2025.01.15 11:30'
-    },
-    {
-      id: '3',
-      requestNumber: 'SR-20250829-005',
-      title: 'VPN 접속 불가',
-      status: '진행중',
-      currentStatus: '점검요청',
-      requestDate: '2025.08.29',
-      requester: '이영희',
-      department: '생산부',
-      stage: '예정',
-      assignTime: '10:10',
-      assignDate: '2025.08.29',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: 'VPN에 접속이 되지 않습니다.',
-      contact: '010-3456-7890',
-      location: '1층 사무실',
-      serviceType: '요청',
-      completionDate: ''
-    },
-    {
-      id: '4',
-      requestNumber: 'SR-20250828-004',
-      title: '모니터 이상',
-      status: '진행중',
-      currentStatus: '전체불능',
-      requestDate: '2025.08.28',
-      requester: '강감찬',
-      department: '구매팀',
-      stage: '작업',
-      assignTime: '09:50',
-      assignDate: '2025.08.28',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '모니터 화면이 깨져서 보입니다.',
-      contact: '010-4567-8901',
-      location: '4층 사무실',
-      serviceType: '적용',
-      completionDate: ''
-    },
-    {
-      id: '5',
-      requestNumber: 'SR-20250827-003',
-      title: '프린터 인쇄 안됨',
-      status: '진행중',
-      currentStatus: '메시지창',
-      requestDate: '2025.08.27',
-      requester: '이율곡',
-      department: '관리부',
-      stage: '완료',
-      assignTime: '09:20',
-      assignDate: '2025.08.27',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '프린터에서 인쇄가 되지 않습니다.',
-      contact: '010-5678-9012',
-      location: '2층 사무실',
-      serviceType: '자산',
-      completionDate: '2025.01.12 10:10'
-    },
-    {
-      id: '6',
-      requestNumber: 'SR-20250826-002',
-      title: '마우스 오류',
-      status: '진행중',
-      currentStatus: '부분불능',
-      requestDate: '2025.08.26',
-      requester: '이목이',
-      department: '재무팀',
-      stage: '미결',
-      assignTime: '09:00',
-      assignDate: '2025.08.26',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '마우스가 제대로 작동하지 않습니다.',
-      contact: '010-6789-0123',
-      location: '3층 사무실',
-      serviceType: '자산',
-      completionDate: ''
-    },
-    {
-      id: '7',
-      requestNumber: 'SR-20250825-001',
-      title: '키보드 입력 오류',
-      status: '진행중',
-      currentStatus: '정상작동',
-      requestDate: '2025.08.25',
-      requester: '박민수',
-      department: '영업팀',
-      stage: '예정',
-      assignTime: '08:30',
-      assignDate: '2025.08.25',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '키보드에서 일부 키가 입력되지 않습니다.',
-      contact: '010-7890-1234',
-      location: '5층 사무실',
-      serviceType: '자산',
-      completionDate: ''
-    },
-    {
-      id: '8',
-      requestNumber: 'SR-20250824-008',
-      title: '네트워크 속도 저하',
-      status: '진행중',
-      currentStatus: '부분불능',
-      requestDate: '2025.08.24',
-      requester: '최수진',
-      department: '마케팅팀',
-      stage: '확인',
-      assignTime: '13:45',
-      assignDate: '2025.08.24',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '인터넷 속도가 매우 느려졌습니다.',
-      contact: '010-8901-2345',
-      location: '6층 사무실',
-      serviceType: '문제',
-      completionDate: ''
-    },
-    {
-      id: '9',
-      requestNumber: 'SR-20250823-009',
-      title: '스캐너 연결 오류',
-      status: '진행중',
-      currentStatus: '전체불능',
-      requestDate: '2025.08.23',
-      requester: '한지영',
-      department: '인사팀',
-      stage: '작업',
-      assignTime: '12:30',
-      assignDate: '2025.08.23',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '스캐너가 컴퓨터에 인식되지 않습니다.',
-      contact: '010-9012-3456',
-      location: '7층 사무실',
-      serviceType: '자산',
-      completionDate: ''
-    },
-    {
-      id: '10',
-      requestNumber: 'SR-20250822-010',
-      title: '웹캠 작동 불량',
-      status: '진행중',
-      currentStatus: '점검요청',
-      requestDate: '2025.08.22',
-      requester: '송민호',
-      department: '영업팀',
-      stage: '예정',
-      assignTime: '11:15',
-      assignDate: '2025.08.22',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '웹캠이 제대로 작동하지 않습니다.',
-      contact: '010-0123-4567',
-      location: '8층 사무실',
-      serviceType: '자산',
-      completionDate: ''
-    },
-    {
-      id: '11',
-      requestNumber: 'SR-20250821-011',
-      title: '소프트웨어 설치 오류',
-      status: '진행중',
-      currentStatus: '메시지창',
-      requestDate: '2025.08.21',
-      requester: '윤서연',
-      department: '재무팀',
-      stage: '완료',
-      assignTime: '10:50',
-      assignDate: '2025.08.21',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '새로운 소프트웨어 설치 중 오류가 발생했습니다.',
-      contact: '010-1234-5678',
-      location: '9층 사무실',
-      serviceType: '적용',
-      completionDate: '2025.01.06 11:20'
-    },
-    {
-      id: '12',
-      requestNumber: 'SR-20250820-012',
-      title: '데이터베이스 연결 실패',
-      status: '진행중',
-      currentStatus: '기타상태',
-      requestDate: '2025.08.20',
-      requester: '김태현',
-      department: '개발팀',
-      stage: '작업',
-      assignTime: '15:10',
-      assignDate: '2025.08.20',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '데이터베이스에 연결할 수 없습니다.',
-      contact: '010-2345-6789',
-      location: '10층 사무실',
-      serviceType: '문제',
-      completionDate: ''
-    },
-    {
-      id: '13',
-      requestNumber: 'SR-20250831-013',
-      title: '백업 시스템 오류',
-      status: '진행중',
-      currentStatus: '부분불능',
-      requestDate: '2025.08.31',
-      requester: '이수정',
-      department: '운영팀',
-      stage: '확인',
-      assignTime: '14:35',
-      assignDate: '2025.08.31',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '자동 백업이 실행되지 않습니다.',
-      contact: '010-3456-7890',
-      location: '서버실',
-      serviceType: '자산',
-      completionDate: ''
-    },
-    {
-      id: '14',
-      requestNumber: 'SR-20250830-014',
-      title: '보안 프로그램 업데이트',
-      status: '진행중',
-      currentStatus: '정상작동',
-      requestDate: '2025.08.30',
-      requester: '박준호',
-      department: '보안팀',
-      stage: '작업',
-      assignTime: '13:20',
-      assignDate: '2025.08.30',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '보안 프로그램을 최신 버전으로 업데이트해야 합니다.',
-      contact: '010-4567-8901',
-      location: '보안실',
-      serviceType: '적용',
-      completionDate: ''
-    },
-    {
-      id: '15',
-      requestNumber: 'SR-20250829-015',
-      title: '서버 성능 모니터링',
-      status: '진행중',
-      currentStatus: '전체불능',
-      requestDate: '2025.08.29',
-      requester: '최영수',
-      department: '운영팀',
-      stage: '예정',
-      assignTime: '12:45',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '서버 성능이 저하되어 모니터링이 필요합니다.',
-      contact: '010-5678-9012',
-      location: '서버실',
-      serviceType: '문제',
-      completionDate: ''
-    },
-    {
-      id: '16',
-      requestNumber: 'SR-20250831-016',
-      title: '오늘 신청된 긴급 작업',
-      status: '진행중',
-      currentStatus: '메시지창',
-      requestDate: '2025.08.31',
-      requester: '오늘신청',
-      department: '긴급팀',
-      stage: '미결',
-      assignTime: '14:30',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '오늘 신청된 긴급 작업입니다.',
-      contact: '010-9999-9999',
-      location: '긴급실',
-      serviceType: '긴급',
-      completionDate: ''
-    },
-    {
-      id: '17',
-      requestNumber: 'SR-20250831-017',
-      title: '오늘 완료된 작업',
-      status: '완료',
-      currentStatus: '정상작동',
-      requestDate: '2025.08.31',
-      requester: '완료자',
-      department: '완료팀',
-      stage: '완료',
-      assignTime: '09:00',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '오늘 완료된 작업입니다.',
-      contact: '010-8888-8888',
-      location: '완료실',
-      serviceType: '완료',
-      completionDate: '2025.08.31 15:30'
-    },
-    {
-      id: '18',
-      requestNumber: 'SR-20250831-018',
-      title: '운영팀 서버 점검',
-      status: '진행중',
-      currentStatus: '정상작동',
-      requestDate: '2025.08.31',
-      requestTime: '14:00',
-      requester: '김운영',
-      department: '운영팀',
-      stage: '작업',
-      assignTime: '14:30',
-      assignDate: '2025.08.31 14:15',
-      assignee: '박운영',
-      assigneeDepartment: '운영팀',
-      content: '운영팀 서버 정기 점검 작업입니다.',
-      contact: '010-1111-2222',
-      location: '운영팀 사무실',
-      serviceType: '서버',
-      completionDate: ''
-    },
-    {
-      id: '19',
-      requestNumber: 'SR-20250830-019',
-      title: '개발팀 코드 리뷰',
-      status: '완료',
-      currentStatus: '정상작동',
-      requestDate: '2025.08.30',
-      requestTime: '13:30',
-      requester: '이개발',
-      department: '개발팀',
-      stage: '완료',
-      assignTime: '13:45',
-      assignDate: '2025.08.30 13:40',
-      assignee: '최개발',
-      assigneeDepartment: '개발팀',
-      content: '새로운 기능 개발 코드 리뷰 요청입니다.',
-      contact: '010-3333-4444',
-      location: '개발팀 사무실',
-      serviceType: '개발',
-      completionDate: '2025.08.30 16:00'
-    },
-    {
-      id: '20',
-      requestNumber: 'SR-20250829-020',
-      title: '보안팀 보안 점검',
-      status: '진행중',
-      currentStatus: '점검요청',
-      requestDate: '2025.08.29',
-      requestTime: '12:00',
-      requester: '정보안',
-      department: '보안팀',
-      stage: '작업',
-      assignTime: '12:15',
-      assignDate: '2025.08.29 12:10',
-      assignee: '한보안',
-      assigneeDepartment: '보안팀',
-      content: '시스템 보안 점검 및 취약점 분석 작업입니다.',
-      contact: '010-5555-6666',
-      location: '보안팀 사무실',
-      serviceType: '보안',
-      completionDate: ''
-    },
-    {
-      id: '21',
-      requestNumber: 'SR-20250828-021',
-      title: '인사팀 시스템 업데이트',
-      status: '완료',
-      currentStatus: '정상작동',
-      requestDate: '2025.08.28',
-      requestTime: '11:00',
-      requester: '김인사',
-      department: '인사팀',
-      stage: '완료',
-      assignTime: '11:30',
-      assignDate: '2025.08.28 11:20',
-      assignee: '박인사',
-      assigneeDepartment: '인사팀',
-      content: '인사 관리 시스템 업데이트 작업입니다.',
-      contact: '010-7777-8888',
-      location: '인사팀 사무실',
-      serviceType: '시스템',
-      completionDate: '2025.08.28 15:00'
-    },
-    {
-      id: '22',
-      requestNumber: 'SR-20250827-022',
-      title: '재무팀 데이터 백업',
-      status: '진행중',
-      currentStatus: '정상작동',
-      requestDate: '2025.08.27',
-      requestTime: '10:30',
-      requester: '이재무',
-      department: '재무팀',
-      stage: '작업',
-      assignTime: '10:45',
-      assignDate: '2025.08.27 10:40',
-      assignee: '최재무',
-      assigneeDepartment: '재무팀',
-      content: '재무 데이터 정기 백업 작업입니다.',
-      contact: '010-9999-0000',
-      location: '재무팀 사무실',
-      serviceType: '데이터',
-      completionDate: ''
-    },
-    {
-      id: '23',
-      requestNumber: 'SR-20250826-023',
-      title: '시스템 장애 신고',
-      status: '접수',
-      currentStatus: '전체불능',
-      requestDate: '2025.08.26',
-      requestTime: '09:15',
-      requester: '김신고',
-      department: '영업팀',
-      stage: '접수',
-      assignTime: '',
-      assignDate: '',
-      assignee: '',
-      assigneeDepartment: '',
-      content: '영업팀 시스템이 완전히 작동하지 않습니다. 긴급 조치가 필요합니다.',
-      contact: '010-1234-5678',
-      location: '영업팀 사무실',
-      serviceType: '긴급',
-      completionDate: ''
-    },
-    {
-      id: '24',
-      requestNumber: 'SR-20250825-024',
-      title: '네트워크 연결 불안정',
-      status: '접수',
-      currentStatus: '부분불능',
-      requestDate: '2025.08.25',
-      requestTime: '14:30',
-      requester: '박네트워크',
-      department: '마케팅팀',
-      stage: '접수',
-      assignTime: '',
-      assignDate: '',
-      assignee: '',
-      assigneeDepartment: '',
-      content: '마케팅팀 네트워크 연결이 불안정하여 업무에 지장이 있습니다.',
-      contact: '010-2345-6789',
-      location: '마케팅팀 사무실',
-      serviceType: '네트워크',
-      completionDate: ''
-    },
-    {
-      id: '25',
-      requestNumber: 'SR-20250824-025',
-      title: '프린터 오류 재발',
-      status: '재배정',
-      currentStatus: '부분불능',
-      requestDate: '2025.08.24',
-      requestTime: '11:20',
-      requester: '이프린터',
-      department: '구매팀',
-      stage: '재배정',
-      assignTime: '',
-      assignDate: '',
-      assignee: '',
-      assigneeDepartment: '',
-      content: '이전에 수리했던 프린터에서 동일한 오류가 재발했습니다. 다른 담당자 배정이 필요합니다.',
-      contact: '010-3456-7890',
-      location: '구매팀 사무실',
-      serviceType: '하드웨어',
-      completionDate: ''
-    },
-    {
-      id: '26',
-      requestNumber: 'SR-20250823-026',
-      title: '소프트웨어 라이선스 갱신',
-      status: '접수',
-      currentStatus: '정상작동',
-      requestDate: '2025.08.23',
-      requestTime: '16:45',
-      requester: '최라이선스',
-      department: '법무팀',
-      stage: '접수',
-      assignTime: '',
-      assignDate: '',
-      assignee: '',
-      assigneeDepartment: '',
-      content: '법무팀에서 사용하는 소프트웨어 라이선스 갱신이 필요합니다.',
-      contact: '010-4567-8901',
-      location: '법무팀 사무실',
-      serviceType: '소프트웨어',
-      completionDate: ''
-    },
-    {
-      id: '27',
-      requestNumber: 'SR-20250822-027',
-      title: '데이터베이스 성능 저하',
-      status: '재배정',
-      currentStatus: '기타상태',
-      requestDate: '2025.08.22',
-      requestTime: '13:10',
-      requester: '한데이터',
-      department: '연구개발팀',
-      stage: '재배정',
-      assignTime: '',
-      assignDate: '',
-      assignee: '',
-      assigneeDepartment: '',
-      content: '연구개발팀 데이터베이스 성능이 저하되어 쿼리 실행이 매우 느립니다. 전문가 배정이 필요합니다.',
-      contact: '010-5678-9012',
-      location: '연구개발팀 사무실',
-      serviceType: '데이터베이스',
-      completionDate: ''
-    },
-    {
-      id: '28',
-      requestNumber: 'SR-20250831-028',
-      title: '테스트용 완료 단계 작업',
-      status: '진행중',
-      currentStatus: '정상작동',
-      requestDate: '2025.08.31',
-      requestTime: '10:00',
-      requester: '테스트사용자',
-      department: 'IT팀',
-      stage: '완료',
-      assignTime: '10:30',
-      assignDate: '2025.08.31 10:30',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '테스트를 위한 완료 단계 작업입니다. 작업정보등록 모달에서 완료 단계 테스트를 진행할 수 있습니다.',
-      contact: '010-1234-5678',
-      location: 'IT팀 사무실',
-      serviceType: '문제',
-      completionDate: '',
-      assignmentOpinion: '테스트용 배정 의견입니다.',
-      // 작업정보등록 관련 테스트 데이터
-      scheduledDate: '2025-08-31T10:30',
-      workStartDate: '2025-08-31T11:00',
-      workContent: '테스트용 작업내역입니다. 모니터 전원 문제를 해결하기 위해 전원 공급 장치를 점검하고 교체했습니다.',
-      workCompleteDate: '2025-08-31T12:00',
-      problemIssue: '',
-      isUnresolved: false,
-      currentWorkStage: '완료'
-    },
-    {
-      id: '29',
-      requestNumber: 'SR-20250831-029',
-      title: '테스트용 미결 단계 작업',
-      status: '진행중',
-      currentStatus: '부분불능',
-      requestDate: '2025.08.31',
-      requestTime: '14:00',
-      requester: '테스트사용자2',
-      department: '운영팀',
-      stage: '미결',
-      assignTime: '14:30',
-      assignDate: '2025.08.31 14:30',
-      assignee: '김기술',
-      assigneeDepartment: 'IT팀',
-      content: '테스트를 위한 미결 단계 작업입니다. 작업정보등록 모달에서 미결 단계 테스트를 진행할 수 있습니다.',
-      contact: '010-9876-5432',
-      location: '운영팀 사무실',
-      serviceType: '자산',
-      completionDate: '',
-      assignmentOpinion: '테스트용 미결 배정 의견입니다.',
-      // 작업정보등록 관련 테스트 데이터
-      scheduledDate: '2025-08-31T14:30',
-      workStartDate: '2025-08-31T15:00',
-      workContent: '테스트용 작업내역입니다. 네트워크 장비 점검을 진행했습니다.',
-      workCompleteDate: '2025-08-31T16:00',
-      problemIssue: '테스트용 문제사항입니다. 일부 네트워크 포트에서 연결 불안정 현상이 발견되었습니다.',
-      isUnresolved: true,
-      currentWorkStage: '미결'
+      technician: '김기술',
+      lastWeekPending: 0,
+      longTermPending: 1
     }
   ])
 
-  // 서비스 작업 목록 필터링 및 페이지네이션
-  const filteredServiceRequests = serviceRequests.filter(request => {
-    console.log('필터링 체크:', request)
-    
-    // 날짜 필터 (현재시점 기준 1주일)
-    if (serviceWorkSearchStartDate && serviceWorkSearchEndDate) {
-      const requestDate = new Date(request.requestDate.replace(/\./g, '-'))
-      const startDate = new Date(serviceWorkSearchStartDate)
-      const endDate = new Date(serviceWorkSearchEndDate)
-      if (requestDate < startDate || requestDate > endDate) return false
-    }
-    
-    // 미결 완료 조회 필터
-    if (showServiceIncompleteOnly) {
-      return request.stage !== '완료'
-    }
-    
-    // 관리매니저 권한 필터링 로직
-    // 1. 접수/재배정 단계: 조치담당자 미확정 상태 - 모든 데이터 표시 (관리매니저 권한)
-    if (request.stage === '접수' || request.stage === '재배정') {
-      return true
-    }
-    
-    // 2. 기타 단계: 조치소속 기준 필터링
-    if (serviceWorkSelectedDepartment !== '전체') {
-      return request.assigneeDepartment === serviceWorkSelectedDepartment
-    }
-    
-    // 전체 선택 시 모든 데이터 표시
-    return true
-  })
-  
-  // 페이지네이션 계산
-  const serviceWorkItemsPerPage = 10
-  const serviceWorkTotalPages = Math.ceil(filteredServiceRequests.length / serviceWorkItemsPerPage)
-  const serviceWorkStartIndex = (serviceWorkCurrentPage - 1) * serviceWorkItemsPerPage
-  const serviceWorkEndIndex = serviceWorkStartIndex + serviceWorkItemsPerPage
-  const paginatedServiceRequests = filteredServiceRequests.slice(serviceWorkStartIndex, serviceWorkEndIndex)
-  
+  /*
+  // 하드코딩된 데이터들 - 추후 완전 제거 예정
+  */
+
+  // 미결 현황 데이터
+  const pendingWorksFilter = useMemo(() => {
+    return serviceWorkSelectedDepartment
+  }, [
+    serviceWorkSelectedDepartment
+  ])
+
   // 디버깅용 로그
   console.log('전체 서비스 요청 수:', serviceRequests.length)
-  console.log('필터링된 요청 수:', filteredServiceRequests.length)
-  console.log('페이지네이션된 요청 수:', paginatedServiceRequests.length)
-  console.log('현재 페이지:', serviceWorkCurrentPage, '/', serviceWorkTotalPages)
   console.log('필터 조건들:', {
     serviceWorkSearchStartDate,
     serviceWorkSearchEndDate,
     showServiceIncompleteOnly,
     serviceWorkSelectedDepartment
   })
+    
+  // 서비스 작업 목록 필터링 및 페이지네이션
+  // useMemo 기반 필터링 및 페이징만 남김
+  const filteredServiceRequests = useMemo(() => {
+    return serviceRequests.filter((request) => {
+      // 날짜 필터
+      if (serviceWorkSearchStartDate && serviceWorkSearchEndDate) {
+        const requestDate = new Date(request.requestDate.replace(/\./g, '-'));
+        const startDate = new Date(serviceWorkSearchStartDate);
+        const endDate = new Date(serviceWorkSearchEndDate);
+        if (requestDate < startDate || requestDate > endDate) return false;
+      }
+      // 미결 완료 조회 필터
+      if (showServiceIncompleteOnly) {
+        return request.stage !== '완료';
+      }
+      // 접수/재배정 단계: 모든 데이터 표시
+      if (request.stage === '접수' || request.stage === '재배정') {
+        return true;
+      }
+      // 기타 단계: 조치소속 기준 필터링
+      if (serviceWorkSelectedDepartment !== '전체') {
+        return request.assigneeDepartment === serviceWorkSelectedDepartment;
+      }
+      // 전체 선택 시 모든 데이터 표시
+      return true;
+    });
+  }, [serviceRequests, serviceWorkSearchStartDate, serviceWorkSearchEndDate, showServiceIncompleteOnly, serviceWorkSelectedDepartment]);
+
+  const serviceWorkItemsPerPage = serviceWorkSelectedDepartment !== '전체' ? Math.max(1, filteredServiceRequests.length) : 10;
+  const serviceWorkTotalPages = Math.max(1, Math.ceil(filteredServiceRequests.length / serviceWorkItemsPerPage));
+  const serviceWorkStartIndex = (serviceWorkCurrentPage - 1) * serviceWorkItemsPerPage;
+  const serviceWorkEndIndex = serviceWorkStartIndex + serviceWorkItemsPerPage;
+  const paginatedServiceRequests = filteredServiceRequests.slice(serviceWorkStartIndex, serviceWorkEndIndex);
+  
+  // 페이지네이션 계산
 
   // 미결 현황 데이터
   const [pendingWorks, setPendingWorks] = useState<PendingWork[]>([
@@ -892,64 +759,6 @@ export default function ServiceManagerPage() {
     }
   ])
 
-  // 필터링된 서비스 요청 목록
-  const filteredRequests = serviceRequests.filter(request => {
-    // 미완료 조회 필터
-    if (showIncompleteOnly && request.completionDate) {
-      return false
-    }
-    
-    // 날짜 범위 필터 (배정일자 기준)
-    if (searchStartDate && searchEndDate) {
-      // assignDate가 있으면 assignDate 사용, 없으면 requestDate 사용
-      const dateToCheck = request.assignDate || request.requestDate
-      const formattedDate = dateToCheck.replace(/\./g, '-')
-      
-      // 디버깅용 로그
-      console.log('필터링 체크:', {
-        requestNumber: request.requestNumber,
-        assignDate: request.assignDate,
-        requestDate: request.requestDate,
-        dateToCheck,
-        formattedDate,
-        searchStartDate,
-        searchEndDate,
-        isInRange: formattedDate >= searchStartDate && formattedDate <= searchEndDate
-      })
-      
-      // 문자열 비교로 날짜 범위 체크
-      if (formattedDate < searchStartDate || formattedDate > searchEndDate) {
-        return false
-      }
-    }
-    
-    return true
-  })
-
-  // 페이지네이션
-  const itemsPerPage = 10
-  const totalPages = Math.ceil(filteredRequests.length / itemsPerPage)
-  const startIndex = (currentPage - 1) * itemsPerPage
-  const paginatedRequests = filteredRequests.slice(startIndex, startIndex + itemsPerPage)
-
-  const handleAssignmentConfirm = (request: ServiceRequest) => {
-    setSelectedRequest(request)
-    setShowAssignmentModal(true)
-  }
-
-  const handleInfoView = (request: ServiceRequest) => {
-    setSelectedRequest(request)
-    setShowInfoViewModal(true)
-  }
-
-  // 작업정보등록 모달 열기
-  const handleWorkRegistration = () => {
-    setShowInfoViewModal(false)
-    setShowWorkRegistrationModal(true)
-  }
-
-  // 정보확인 모달에서 작업정보등록 열기
-  const handleWorkRegistrationInInfo = () => {
     setShowWorkRegistrationInInfo(true)
     // 예정조율일시에 현재 시점 자동 설정 (한국 시간)
     const now = new Date()
@@ -1001,7 +810,6 @@ export default function ServiceManagerPage() {
       alert('작업내역과 작업완료일시를 모두 입력해주세요.')
     }
   }
-
   const handleUnresolvedProcess = () => {
     if (problemIssue) {
       setCurrentStage('미결')
@@ -1047,70 +855,37 @@ export default function ServiceManagerPage() {
     setShowInfoModal(true)
   }
 
-  // 차트 데이터 업데이트 함수
-  const updateChartData = () => {
-    // 부서와 날짜에 따른 데이터 시뮬레이션
-    const departmentData = {
-      'IT팀': { received: 5, assigned: 10, working: 6, completed: 5, failed: 2 },
-      '운영팀': { received: 8, assigned: 12, working: 4, completed: 8, failed: 1 },
-      '개발팀': { received: 3, assigned: 6, working: 8, completed: 3, failed: 0 },
-      '인사팀': { received: 2, assigned: 4, working: 2, completed: 2, failed: 1 },
-      '': { received: 18, assigned: 32, working: 20, completed: 18, failed: 4 } // 전체 부서
+  // 백엔드 기반: 일반문의 통계 가져오기 및 inquiryData 반영
+  const fetchManagerInquiryStatistics = async () => {
+    try {
+      const params = {
+        startDate: inquiryStartDate,
+        endDate: inquiryEndDate,
+        department: inquirySelectedDepartment || undefined
+      }
+      const response = await apiClient.getInquiryStatistics(params)
+      if (response.success && response.data && response.data.overview) {
+        const ov = response.data.overview
+        const answered = parseInt(String(ov.answered_inquiries)) || 0
+        const unanswered = parseInt(String(ov.pending_inquiries)) || 0
+        const total = parseInt(String(ov.total_inquiries)) || (answered + unanswered)
+        const completionRate = total > 0 ? Math.round((answered / total) * 1000) / 10 : 0
+        const avgResponseTime = parseFloat(String(ov.avg_response_hours)) || 0
+        setInquiryData({ answered, unanswered, total, completionRate, avgResponseTime })
+      }
+    } catch (e) {
+      console.error('관리매니저 일반문의 통계 로드 실패:', e)
     }
-    
-    const selectedDept = selectedDepartment || ''
-    const data = (departmentData as Record<string, any>)[selectedDept] || departmentData['IT팀']
-    
-    // 날짜에 따른 가중치 적용 (예시)
-    const daysDiff = Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24))
-    const dateMultiplier = Math.max(0.5, Math.min(2, daysDiff / 30)) // 30일 기준으로 가중치 계산
-    
-    setChartData({
-      received: Math.round(data.received * dateMultiplier),
-      assigned: Math.round(data.assigned * dateMultiplier),
-      working: Math.round(data.working * dateMultiplier),
-      completed: Math.round(data.completed * dateMultiplier),
-      failed: Math.round(data.failed * dateMultiplier)
-    })
-  }
-
-  // 일반문의현황 데이터 업데이트 함수
-  const updateInquiryData = () => {
-    // 부서와 날짜에 따른 일반문의 데이터 시뮬레이션 (답변/미답변만)
-    const departmentInquiryData = {
-      'IT팀': { answered: 15, unanswered: 10, total: 25, completionRate: 60.0, avgResponseTime: 2.3 },
-      '운영팀': { answered: 20, unanswered: 8, total: 28, completionRate: 71.4, avgResponseTime: 1.8 },
-      '개발팀': { answered: 12, unanswered: 15, total: 27, completionRate: 44.4, avgResponseTime: 3.2 },
-      '인사팀': { answered: 8, unanswered: 5, total: 13, completionRate: 61.5, avgResponseTime: 2.1 },
-      '': { answered: 55, unanswered: 38, total: 93, completionRate: 59.1, avgResponseTime: 2.4 } // 전체 부서
-    }
-    
-    const selectedDept = inquirySelectedDepartment || ''
-    const data = (departmentInquiryData as Record<string, any>)[selectedDept] || departmentInquiryData['']
-    
-    // 날짜에 따른 가중치 적용 (1주일 기준)
-    const daysDiff = Math.ceil((new Date(inquiryEndDate).getTime() - new Date(inquiryStartDate).getTime()) / (1000 * 60 * 60 * 24))
-    const dateMultiplier = Math.max(0.5, Math.min(2, daysDiff / 7)) // 7일 기준으로 가중치 계산
-    
-    const newData = {
-      answered: Math.round(data.answered * dateMultiplier),
-      unanswered: Math.round(data.unanswered * dateMultiplier),
-      total: Math.round(data.total * dateMultiplier),
-      completionRate: Math.round((data.completionRate * dateMultiplier) * 10) / 10,
-      avgResponseTime: Math.round((data.avgResponseTime * dateMultiplier) * 10) / 10
-    }
-    
-    setInquiryData(newData)
   }
 
   // 부서나 날짜 변경 시 차트 데이터 업데이트
   useEffect(() => {
-    updateChartData()
+    fetchAggregationServiceStatistics()
   }, [selectedDepartment, startDate, endDate])
 
   // 일반문의현황 부서나 날짜 변경 시 데이터 업데이트
   useEffect(() => {
-    updateInquiryData()
+    fetchManagerInquiryStatistics()
   }, [inquirySelectedDepartment, inquiryStartDate, inquiryEndDate])
 
   // 데이터 새로고침 함수 (검색 조건 유지)
@@ -1122,15 +897,9 @@ export default function ServiceManagerPage() {
       showIncompleteOnly
     })
     
-    // 실제 환경에서는 여기서 API 호출을 수행
-    // 예: fetchServiceRequests(searchStartDate, searchEndDate, showIncompleteOnly)
-    
-    // 현재는 더미 데이터이므로 검색 조건에 따른 필터링만 수행
-    // 실제로는 서버에서 새로운 데이터를 가져와야 함
-    console.log('검색 조건으로 데이터 필터링 중...')
-    
-    // 차트 데이터도 업데이트
-    updateChartData()
+    // 서버에서 최신 통계 재로드
+    fetchAggregationServiceStatistics()
+    fetchManagerInquiryStatistics()
     
     // 시각적 피드백을 위한 간단한 알림 (선택사항)
     // alert('데이터가 새로고침되었습니다.')
@@ -1179,7 +948,11 @@ export default function ServiceManagerPage() {
     setShowRejectionInAssignment(true)
   }
 
-  // 최종반려 처리
+  // 작업 등록 정보 모달 표시
+  const handleWorkRegistrationInInfo = () => {
+    setShowWorkRegistrationInInfo(true)
+  }
+
   const handleFinalReject = () => {
     if (selectedRequest) {
       const now = new Date()
@@ -1220,7 +993,6 @@ export default function ServiceManagerPage() {
     setSelectedRequest(null)
     setRejectionOpinion('')
   }
-
   return (
     <div className="min-h-screen bg-gray-100 relative">
       {/* 배경 이미지 */}
@@ -1288,7 +1060,10 @@ export default function ServiceManagerPage() {
                 <div className="mb-4">
                   <div className="flex items-center space-x-2 mb-2">
                     <button
-                      onClick={() => {/* 새로고침 로직 */}}
+                      onClick={() => {
+                        fetchAggregationServiceRequests();
+                        fetchAggregationServiceStatistics();
+                      }}
                       className="w-6 h-6 text-gray-600 hover:text-gray-800 transition-colors"
                     >
                       <Icon name="refresh" size={16} />
@@ -1314,18 +1089,19 @@ export default function ServiceManagerPage() {
                     {/* 부서 선택 */}
                     <div className="mb-4">
                       <select
-                        value={selectedDepartment}
+                        value={aggregationSelectedDepartment}
                         onChange={(e) => {
-                          setSelectedDepartment(e.target.value)
-                          setCurrentDepartment(e.target.value || 'IT팀')
+                          setAggregationSelectedDepartment(e.target.value)
                         }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        disabled={departmentsLoading}
                       >
                         <option value="">전체 부서</option>
-                        <option value="IT팀">IT팀</option>
-                        <option value="운영팀">운영팀</option>
-                        <option value="개발팀">개발팀</option>
-                        <option value="인사팀">인사팀</option>
+                        {departments.map((dept) => (
+                          <option key={dept.id} value={dept.name}>
+                            {dept.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
 
@@ -1335,15 +1111,33 @@ export default function ServiceManagerPage() {
                       <div className="flex items-center space-x-1">
                         <input
                           type="date"
-                          value={startDate}
-                          onChange={(e) => setStartDate(e.target.value)}
+                          value={aggregationStartDate}
+                          max={aggregationEndDate}
+                          onChange={(e) => {
+                            const newStart = e.target.value;
+                            // 시작일이 종료일보다 크면 종료일로 맞춤
+                            if (newStart > aggregationEndDate) {
+                              setAggregationStartDate(aggregationEndDate);
+                            } else {
+                              setAggregationStartDate(newStart);
+                            }
+                          }}
                           className="w-full px-2 py-2 border border-gray-300 rounded-lg text-xs"
                         />
                         <span className="text-gray-500 text-sm">~</span>
                         <input
                           type="date"
-                          value={endDate}
-                          onChange={(e) => setEndDate(e.target.value)}
+                          value={aggregationEndDate}
+                          min={aggregationStartDate}
+                          onChange={(e) => {
+                            const newEnd = e.target.value;
+                            // 종료일이 시작일보다 작으면 시작일로 맞춤
+                            if (newEnd < aggregationStartDate) {
+                              setAggregationEndDate(aggregationStartDate);
+                            } else {
+                              setAggregationEndDate(newEnd);
+                            }
+                          }}
                           className="w-full px-2 py-2 border border-gray-300 rounded-lg text-xs"
                         />
                       </div>
@@ -1354,30 +1148,116 @@ export default function ServiceManagerPage() {
                       <div className="w-[400px] h-[400px] relative">
                         <svg viewBox="0 0 200 200" className="w-full h-full">
                           {(() => {
-                            const total = chartData.received + chartData.assigned + chartData.working + chartData.completed + chartData.failed
+                            // 렌더링 시점에서 직접 계산
+                            let currentChartData: { [key: string]: number } = {};
+                            
+                            console.log('🎨 차트 렌더링 시작:', {
+                              hasAggregationServiceStatistics: !!aggregationServiceStatistics,
+                              stagesLength: stages.length,
+                              hasOverview: !!(aggregationServiceStatistics && aggregationServiceStatistics.overview),
+                              aggregationServiceStatistics,
+                              stages: stages.map(s => ({ id: s.id, name: s.name }))
+                            });
+                            
+                            if (aggregationServiceStatistics && stages.length > 0 && aggregationServiceStatistics.overview) {
+                              console.log('🔍 overview 데이터:', aggregationServiceStatistics.overview);
+                              stages.forEach(stage => {
+                                const key = stage.name;
+                                const backendField = `stage_${stage.name}`;
+                                const value = parseInt(aggregationServiceStatistics.overview[backendField]) || 0;
+                                currentChartData[key] = value;
+                                console.log(`📊 단계 ${key}: ${backendField} = ${value} (overview에서 찾은 값: ${aggregationServiceStatistics.overview[backendField]})`);
+                              });
+                            } else {
+                              console.log('⚠️ 차트 데이터 조건 불일치:', {
+                                hasAggregationServiceStatistics: !!aggregationServiceStatistics,
+                                stagesLength: stages.length,
+                                hasOverview: !!(aggregationServiceStatistics && aggregationServiceStatistics.overview)
+                              });
+                            }
+                            
+                            console.log('그래프 렌더링 - 직접 계산된 chartData:', currentChartData);
+                            const total = Object.values(currentChartData).reduce((sum, value) => sum + value, 0)
+                            console.log('그래프 렌더링 - 직접 계산된 total:', total);
+
                             const radius = 120
                             const centerX = 150
                             const centerY = 100
                             
-                            // 각 섹션의 각도 계산 (180도 반원)
-                            const receivedAngle = (chartData.received / total) * 180
-                            const assignedAngle = (chartData.assigned / total) * 180
-                            const workingAngle = (chartData.working / total) * 180
-                            const completedAngle = (chartData.completed / total) * 180
-                            const failedAngle = (chartData.failed / total) * 180
+                            // total이 0이면 빈 차트 표시
+                            if (total === 0) {
+                              return (
+                                <text x={centerX} y={centerY} textAnchor="middle" className="text-gray-500 text-sm">
+                                  데이터 없음
+                                </text>
+                              )
+                            }
                             
+                            // 각 섹션의 각도 계산 (180도 반원) - NaN 방지 (동적 처리)
+                            // stages 테이블에서 동적으로 색상과 순서 가져오기
+                            const stageColors: { [key: string]: string } = {};
+                            stages.forEach(stage => {
+                              // Tailwind CSS 클래스명을 hex 코드로 변환
+                              const colorMap: { [key: string]: string } = {
+                                'bg-purple-100 text-purple-800': '#8B5CF6',
+                                'bg-blue-100 text-blue-800': '#3B82F6',
+                                'bg-green-100 text-green-800': '#10B981',
+                                'bg-yellow-100 text-yellow-800': '#F59E0B',
+                                'bg-orange-100 text-orange-800': '#F97316',
+                                'bg-red-100 text-red-800': '#EF4444',
+                                'bg-indigo-100 text-indigo-800': '#6366F1'
+                              };
+                              stageColors[stage.name] = colorMap[stage.color || ''] || '#6B7280';
+                            });
+
+                            // stages 테이블의 id 순서대로 정렬 (그래프용 - 위에서부터 접수→미결)
+                            const sortedStages = [...stages].sort((a, b) => a.id - b.id);
+                            const stageData = sortedStages.map((stage, index) => {
+                              const key = stage.name; // 한글 이름을 직접 키로 사용
+                              const value = currentChartData[key] || 0;
+                              const result = {
+                                key: key,
+                                koreanName: stage.name,
+                                value,
+                                angle: total > 0 ? (value / total) * 180 : 0,
+                                color: stageColors[stage.name],
+                                order: stage.id // stages 테이블의 id를 순서로 사용
+                              };
+                              return result;
+                            }).filter(stage => stage.value > 0); // 값이 있는 단계만 표시
+
+                            // 극좌표를 직교좌표로 변환 (180도 회전)
+                            const polarToCartesian = (centerX: number, centerY: number, radius: number, angleInDegrees: number) => {
+                              // 각도가 유효하지 않으면 기본값 반환
+                              if (!isFinite(angleInDegrees)) {
+                                return { x: centerX, y: centerY }
+                              }
+                              const angleInRadians = (angleInDegrees + 90) * Math.PI / 180.0
+                              const x = centerX + (radius * Math.cos(angleInRadians))
+                              const y = centerY + (radius * Math.sin(angleInRadians))
+                              return { x, y }
+                            };
+
                             // 호 그리기 함수
-                            const createArc = (startAngle: number, endAngle: number, color: string, strokeWidth: number = 48) => {
+                            const createArc = (key: string, startAngle: number, endAngle: number, color: string, strokeWidth = 48) => {
+                              // 각도가 유효하지 않으면 빈 path 반환
+                              if (!isFinite(startAngle) || !isFinite(endAngle) || startAngle === endAngle) {
+                                return null
+                              }
                               const start = polarToCartesian(centerX, centerY, radius, endAngle)
                               const end = polarToCartesian(centerX, centerY, radius, startAngle)
+                              // 좌표가 유효하지 않으면 빈 path 반환
+                              if (!isFinite(start.x) || !isFinite(start.y) || !isFinite(end.x) || !isFinite(end.y)) {
+                                return null
+                              }
                               const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1"
                               const d = [
                                 "M", start.x, start.y,
                                 "A", radius, radius, 0, largeArcFlag, 0, end.x, end.y
                               ].join(" ")
-                              
                               return (
                                 <path
+                                  key={key}
                                   d={d}
                                   fill="none"
                                   stroke={color}
@@ -1386,75 +1266,104 @@ export default function ServiceManagerPage() {
                                 />
                               )
                             }
-                            
-                            // 극좌표를 직교좌표로 변환 (180도 회전)
-                            const polarToCartesian = (centerX: number, centerY: number, radius: number, angleInDegrees: number) => {
-                              const angleInRadians = (angleInDegrees + 90) * Math.PI / 180.0
-                              return {
-                                x: centerX + (radius * Math.cos(angleInRadians)),
-                                y: centerY + (radius * Math.sin(angleInRadians))
-                              }
-                            }
-                            
+
+                            // 호 그리기
                             let currentAngle = 0
-                            
+                            const arcs = stageData.slice().reverse().map((stage) => {
+                              if (stage.value === 0) return null;
+                              const startAngle = currentAngle
+                              const endAngle = currentAngle + stage.angle
+                              currentAngle += stage.angle
+                              return createArc(stage.key, startAngle, endAngle, stage.color)
+                            })
+
                             return (
                               <>
-                                {/* 접수대기 (보라색) */}
-                                {createArc(currentAngle, currentAngle + receivedAngle, "#8B5CF6")}
-                                {currentAngle += receivedAngle}
-                                
-                                {/* 배정진행 (주황색) */}
-                                {createArc(currentAngle, currentAngle + assignedAngle, "#F59E0B")}
-                                {currentAngle += assignedAngle}
-                                
-                                {/* 작업진행 (파란색) */}
-                                {createArc(currentAngle, currentAngle + workingAngle, "#3B82F6")}
-                                {currentAngle += workingAngle}
-                                
-                                {/* 처리완료 (초록색) */}
-                                {createArc(currentAngle, currentAngle + completedAngle, "#10B981")}
-                                {currentAngle += completedAngle}
-                                
-                                {/* 처리불가 (빨간색) */}
-                                {createArc(currentAngle, currentAngle + failedAngle, "#EF4444")}
+                                {arcs}
+                                {/* 중앙 텍스트 제거 */}
                               </>
                             )
                           })()}
                         </svg>
-                        
+
                         {/* 범례 오버레이 */}
                         <div className="absolute top-36 right-4 space-y-2 text-sm">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-3 h-3 rounded-full" style={{backgroundColor: '#EF4444'}}></div>
-                            <span className="text-gray-700 font-medium text-xs">불가: {chartData.failed}</span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <div className="w-3 h-3 rounded-full" style={{backgroundColor: '#10B981'}}></div>
-                            <span className="text-gray-700 font-medium text-xs">완료: {chartData.completed}</span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <div className="w-3 h-3 rounded-full" style={{backgroundColor: '#3B82F6'}}></div>
-                            <span className="text-gray-700 font-medium text-xs">작업: {chartData.working}</span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <div className="w-3 h-3 rounded-full" style={{backgroundColor: '#F59E0B'}}></div>
-                            <span className="text-gray-700 font-medium text-xs">배정: {chartData.assigned}</span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <div className="w-3 h-3 rounded-full" style={{backgroundColor: '#8B5CF6'}}></div>
-                            <span className="text-gray-700 font-medium text-xs">접수: {chartData.received}</span>
-                          </div>
+                        {/* 동적 범례 렌더링 */}
+                        {(() => {
+                          // stages가 로드되지 않았으면 로딩 표시
+                          if (!stages || stages.length === 0) {
+                            return (
+                              <div className="text-gray-500 text-xs">
+                                로딩 중...
+                              </div>
+                            );
+                          }
+
+                          // stages 테이블에서 동적으로 색상 가져오기
+                          const stageColors: { [key: string]: string } = {};
+                          stages.forEach(stage => {
+                            // Tailwind CSS 클래스명을 hex 코드로 변환
+                            const colorMap: { [key: string]: string } = {
+                              'bg-purple-100 text-purple-800': '#8B5CF6',
+                              'bg-blue-100 text-blue-800': '#3B82F6',
+                              'bg-green-100 text-green-800': '#10B981',
+                              'bg-yellow-100 text-yellow-800': '#F59E0B',
+                              'bg-orange-100 text-orange-800': '#F97316',
+                              'bg-red-100 text-red-800': '#EF4444',
+                              'bg-indigo-100 text-indigo-800': '#6366F1'
+                            };
+                              stageColors[stage.name] = colorMap[stage.color ?? ''] || '#6B7280';
+                          });
+
+                          // 범례용 데이터도 직접 계산
+                          let legendChartData: { [key: string]: number } = {};
+                          
+                          if (aggregationServiceStatistics && stages.length > 0 && aggregationServiceStatistics.overview) {
+                            stages.forEach(stage => {
+                              const key = stage.name;
+                              const backendField = `stage_${stage.name}`;
+                              const value = parseInt(aggregationServiceStatistics.overview[backendField]) || 0;
+                              legendChartData[key] = value;
+                            });
+                          }
+
+                          // stages 테이블의 id 순서대로 정렬하여 범례 생성
+                          const sortedStages = [...stages].sort((a, b) => a.id - b.id);
+                          
+                          const stageData = sortedStages.map((stage) => {
+                            const key = stage.name; // 한글 이름을 직접 키로 사용
+                            const value = legendChartData[key] || 0;
+                            return {
+                              key: key,
+                              koreanName: stage.name,
+                              value,
+                              color: stageColors[stage.name]
+                            };
+                          }).filter(stage => stage.value > 0); // 값이 있는 단계만 표시
+
+                          return stageData.map((stage, index) => {
+                            if (stage.value === 0) return null;
+
+                            return (
+                              <div key={stage.key} className="flex items-center space-x-2">
+                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: stage.color }}></div>
+                                <span className="text-gray-700 font-medium text-xs">
+                                  {stage.koreanName}: {stage.value}
+                                </span>
+                              </div>
+                            );
+                          });
+                        })()}
                         </div>
+
                       </div>
                     </div>
-
                   </>
                 )}
               </div>
-              </div>
             </div>
-
+          </div>
+          
           {/* 프레임 2: 서비스선택 */}
           <div className="mb-6" style={{marginLeft: '34px', marginTop: '-676px'}}>
             <div className="w-full" style={{maxWidth: '1170px'}}>
@@ -1798,7 +1707,6 @@ export default function ServiceManagerPage() {
               </div>
             </div>
           )}
-
           {/* 프레임 3: 일반문의 현황 */}
           <div className="absolute" style={{left: '1590px', top: '84px'}}>
             <div className="w-80" style={{width: '306px'}}>
@@ -1806,7 +1714,9 @@ export default function ServiceManagerPage() {
                 <div className="mb-4">
                   <div className="flex items-center space-x-2 mb-2">
                     <button
-                      onClick={() => {/* 새로고침 로직 */}}
+                      onClick={() => {
+                        fetchManagerInquiryStatistics();
+                      }}
                       className="w-6 h-6 text-gray-600 hover:text-gray-800 transition-colors"
                     >
                       <Icon name="refresh" size={16} />
@@ -1838,12 +1748,14 @@ export default function ServiceManagerPage() {
                           setInquiryCurrentDepartment(e.target.value || '전체 부서')
                         }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        disabled={departmentsLoading}
                       >
                         <option value="">전체 부서</option>
-                        <option value="IT팀">IT팀</option>
-                        <option value="운영팀">운영팀</option>
-                        <option value="개발팀">개발팀</option>
-                        <option value="인사팀">인사팀</option>
+                        {departments.map((dept) => (
+                          <option key={dept.id} value={dept.name}>
+                            {dept.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
 
@@ -1853,43 +1765,89 @@ export default function ServiceManagerPage() {
                         <input
                           type="date"
                           value={inquiryStartDate}
-                          onChange={(e) => setInquiryStartDate(e.target.value)}
+                          max={inquiryEndDate}
+                          onChange={(e) => {
+                            const startDate = e.target.value;
+                            setInquiryStartDate(startDate);
+                            // 시작일이 종료일보다 늦으면 종료일을 시작일로 설정
+                            if (startDate && inquiryEndDate && startDate > inquiryEndDate) {
+                              setInquiryEndDate(startDate);
+                            }
+                          }}
                           className="w-full px-2 py-2 border border-gray-300 rounded-lg text-xs"
                         />
                         <span className="text-gray-500 text-sm">~</span>
                         <input
                           type="date"
                           value={inquiryEndDate}
-                          onChange={(e) => setInquiryEndDate(e.target.value)}
+                          min={inquiryStartDate}
+                          onChange={(e) => {
+                            const endDate = e.target.value;
+                            setInquiryEndDate(endDate);
+                            // 종료일이 시작일보다 이르면 시작일을 종료일로 설정
+                            if (endDate && inquiryStartDate && endDate < inquiryStartDate) {
+                              setInquiryStartDate(endDate);
+                            }
+                          }}
                           className="w-full px-2 py-2 border border-gray-300 rounded-lg text-xs"
                         />
                       </div>
                     </div>
 
-                    {/* 스택 막대 차트 */}
+                    {/* 스택 막대 차트 (시스템관리 페이지와 동일) */}
                     <div className="flex justify-center items-center h-96">
                       <div className="w-full h-80 relative">
                         <div className="flex justify-center h-full">
                           {/* 스택 막대 */}
                           <div className="flex flex-col items-center">
-                            <div className="w-20 h-64 relative">
-                              {/* 미답변 (주황색) - 상단 */}
-                              <div 
-                                className="w-full bg-orange-500 rounded-t absolute top-0 flex items-center justify-center"
-                                style={{height: `${(inquiryData.unanswered / (inquiryData.answered + inquiryData.unanswered)) * 100}%`}}
-                              >
-                                <span className="text-white text-sm font-bold">{inquiryData.unanswered}</span>
-                              </div>
+                            {(() => {
+                              // 시스템관리 페이지와 동일: 프론트엔드에서 직접 계산 (숫자형 변환)
+                              const answered = inquiryData.answered || 0;
+                              const pending = inquiryData.unanswered || 0;
+                              const total = answered + pending;
                               
-                              {/* 답변 (초록색) - 하단 */}
-                              <div 
-                                className="w-full bg-green-500 rounded-b absolute bottom-0 flex items-center justify-center"
-                                style={{height: `${(inquiryData.answered / (inquiryData.answered + inquiryData.unanswered)) * 100}%`}}
-                              >
-                                <span className="text-white text-sm font-bold">{inquiryData.answered}</span>
-                              </div>
-                            </div>
-                            
+                              // 데이터가 없으면 "데이터 없음" 표시
+                              if (total === 0) {
+                                return (
+                                  <div className="w-32 h-32 flex items-center justify-center bg-gray-100 rounded-lg">
+                                    <span className="text-gray-500 text-sm">데이터 없음</span>
+                                  </div>
+                                );
+                              }
+                              
+                              // T값: 고정 박스 크기 (300px)
+                              const T = 300; // 항상 300px 고정                              
+                              // A값: 답변 비율에 따른 높이
+                              const A = (answered / total) * T;                              
+                              // B값: 미답변 비율에 따른 높이  
+                              const B = (pending / total) * T;                              
+                              return (
+                                <div className="w-32 relative" style={{ height: `${T}px` }}>
+                                  {/* 미답변 (주황색) - 상단 */}
+                                  <div
+                                    className="w-full bg-orange-500 rounded-t absolute top-0 flex items-center justify-center"
+                                    style={{ 
+                                      height: `${B}px`
+                                    }}
+                                  >
+                                    <span className="text-black text-sm font-bold">
+                                      {pending}
+                                    </span>
+                                  </div>
+                                  {/* 답변 (초록색) - 하단 */}
+                                  <div
+                                    className="w-full bg-green-500 rounded-b absolute bottom-0 flex items-center justify-center"
+                                    style={{ 
+                                      height: `${A}px` 
+                                    }}
+                                  >
+                                    <span className="text-black text-sm font-bold">
+                                      {answered}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })()}
                             {/* 라벨 */}
                             <div className="mt-3 text-center">
                               <div className="flex items-center space-x-3 text-sm">
@@ -1921,7 +1879,6 @@ export default function ServiceManagerPage() {
           <p className="text-sm">ⓒ 2025 IT 서비스 관리 시스템. 모든권리는 Juss 가 보유</p>
         </div>
       </footer>
-
       {/* 배정확인 모달 */}
       {showAssignmentModal && selectedRequest && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
@@ -2103,8 +2060,6 @@ export default function ServiceManagerPage() {
           </div>
         </div>
       )}
-
-
       {/* 정보확인 모달 */}
       {showInfoViewModal && selectedRequest && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
@@ -2534,8 +2489,12 @@ export default function ServiceManagerPage() {
                 취소
               </button>
               <button
-                onClick={() => {
+                onClick={async () => {
                   // 비밀번호 변경 로직
+                  if (!currentPassword || !newPassword || !confirmPassword) {
+                    alert('모든 필드를 입력해주세요.')
+                    return
+                  }
                   if (newPassword !== confirmPassword) {
                     alert('새 비밀번호가 일치하지 않습니다.')
                     return
@@ -2544,11 +2503,33 @@ export default function ServiceManagerPage() {
                     alert('비밀번호는 8자 이상이어야 합니다.')
                     return
                   }
-                  alert('비밀번호가 변경되었습니다.')
-                  setShowPasswordModal(false)
-                  setCurrentPassword('')
-                  setNewPassword('')
-                  setConfirmPassword('')
+
+                  try {
+                    if (!currentUserId) {
+                      alert('사용자 정보를 찾을 수 없습니다.')
+                      return
+                    }
+
+                    // API를 통해 비밀번호 변경
+                    const response = await apiClient.changeUserPassword(
+                      currentUserId,
+                      currentPassword,
+                      newPassword
+                    )
+
+                    if (response.success) {
+                      alert('비밀번호가 성공적으로 변경되었습니다.')
+                      setShowPasswordModal(false)
+                      setCurrentPassword('')
+                      setNewPassword('')
+                      setConfirmPassword('')
+                    } else {
+                      alert(response.message || '비밀번호 변경에 실패했습니다.')
+                    }
+                  } catch (error) {
+                    console.error('Password change error:', error)
+                    alert('비밀번호 변경 중 오류가 발생했습니다.')
+                  }
                 }}
                 className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg font-medium transition-all duration-200 button-smooth"
               >
@@ -2588,8 +2569,8 @@ export default function ServiceManagerPage() {
                 <input
                   type="email"
                   value={managerInfo.email}
-                  onChange={(e) => setManagerInfo({...managerInfo, email: e.target.value})}
-                  className="w-full px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  readOnly
+                  className="w-full px-3 py-1 border-0 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed focus:outline-none"
                 />
               </div>
 
@@ -2627,12 +2608,21 @@ export default function ServiceManagerPage() {
                   <Icon name="briefcase" size={16} className="mr-2" />
                   소속
                 </label>
-                <input
-                  type="text"
+                <select
                   value={managerInfo.department}
                   onChange={(e) => setManagerInfo({...managerInfo, department: e.target.value})}
                   className="w-full px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                  disabled={departmentsLoading}
+                >
+                  <option value="">
+                    {departmentsLoading ? '로딩 중...' : '소속을 선택하세요'}
+                  </option>
+                  {departments.map((dept) => (
+                    <option key={dept.id} value={dept.name}>
+                      {dept.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* 연락처 */}
@@ -2667,9 +2657,27 @@ export default function ServiceManagerPage() {
                 </label>
                 <input
                   type="text"
-                  value={managerInfo.createDate}
+                  value={(() => {
+                    // YYYY-MM-DD hh:mm 형식으로 변환
+                    if (managerInfo.createDate) {
+                      try {
+                        const date = new Date(managerInfo.createDate);
+                        if (!isNaN(date.getTime())) {
+                          const year = date.getFullYear();
+                          const month = String(date.getMonth() + 1).padStart(2, '0');
+                          const day = String(date.getDate()).padStart(2, '0');
+                          const hours = String(date.getHours()).padStart(2, '0');
+                          const minutes = String(date.getMinutes()).padStart(2, '0');
+                          return `${year}-${month}-${day} ${hours}:${minutes}`;
+                        }
+                      } catch (e) {
+                        console.error('Date parsing error:', e);
+                      }
+                    }
+                    return managerInfo.createDate || '-';
+                  })()}
                   readOnly
-                  className="w-full px-3 py-1 border border-gray-300 rounded-lg bg-gray-50 text-gray-600"
+                  className="w-full px-3 py-1 border-0 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed focus:outline-none"
                 />
               </div>
             </div>
@@ -2677,11 +2685,52 @@ export default function ServiceManagerPage() {
             {/* 모달 하단 버튼 */}
             <div className="flex justify-end py-4 px-6 border-t border-gray-200">
               <button
-                onClick={() => { 
-                  setShowInfoModal(false); 
-                  setShowInfoSuccessModal(true);
-                  // 관리매니저 이름 업데이트
-                  setManagerInfo({...managerInfo, name: managerInfo.fullName});
+                onClick={async () => {
+                  if (!currentUserId) {
+                    alert('사용자 ID를 찾을 수 없습니다.');
+                    return;
+                  }
+
+                  try {
+                    // API를 통해 사용자 정보 업데이트
+                    const updateData = {
+                      name: managerInfo.fullName,
+                      department: managerInfo.department,
+                      position: managerInfo.position,
+                      phone: managerInfo.phone
+                    };
+
+                    const response = await apiClient.updateUser(currentUserId, updateData);
+
+                    if (response.success) {
+                      // 로컬 스토리지의 사용자 정보도 업데이트
+                      const userStr = localStorage.getItem('user');
+                      if (userStr) {
+                        const currentUser = JSON.parse(userStr);
+                        const updatedUser = {
+                          ...currentUser,
+                          name: managerInfo.fullName,
+                          department: managerInfo.department,
+                          position: managerInfo.position,
+                          phone: managerInfo.phone,
+                          status: currentUser.status // status 명시적으로 유지
+                        };
+                        localStorage.setItem('user', JSON.stringify(updatedUser));
+                      }
+
+                      // 상태 업데이트
+                      setManagerInfo({ ...managerInfo, name: managerInfo.fullName });
+
+                      // 모달 닫기 및 성공 모달 표시
+                      setShowInfoModal(false);
+                      setShowInfoSuccessModal(true);
+                    } else {
+                      alert(response.error || '회원정보 수정에 실패했습니다.');
+                    }
+                  } catch (error) {
+                    console.error('회원정보 수정 오류:', error);
+                    alert('회원정보 수정 중 오류가 발생했습니다.');
+                  }
                 }}
                 className="bg-gray-800 hover:bg-gray-900 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200 button-smooth"
               >
@@ -2730,7 +2779,6 @@ export default function ServiceManagerPage() {
           </div>
         </div>
       )}
-
       {/* 배정승인 성공 모달 */}
       {showApprovalSuccessModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
@@ -3093,7 +3141,6 @@ export default function ServiceManagerPage() {
           </div>
         </div>
       )}
-
       {/* 배정작업 모달 */}
       {showServiceAssignmentModal && selectedWorkRequest && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
@@ -3513,7 +3560,6 @@ export default function ServiceManagerPage() {
           </div>
         </div>
       )}
-
       {/* 작업정보관리 모달 */}
       {showServiceWorkInfoModal && selectedWorkRequest && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
@@ -3866,7 +3912,6 @@ export default function ServiceManagerPage() {
           </div>
         </div>
       )}
-
       {/* 작업정보삭제 모달 */}
       {showServiceWorkDeleteModal && selectedWorkRequest && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
@@ -4135,7 +4180,6 @@ export default function ServiceManagerPage() {
           </div>
         </div>
       )}
-
       {/* 작업정보삭제 완료 모달 */}
       {showServiceWorkDeleteCompleteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
@@ -4174,7 +4218,6 @@ export default function ServiceManagerPage() {
           </div>
         </div>
       )}
-
       {/* 자주하는 질문 관리 프레임 */}
       {showFAQManagement && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
@@ -4666,7 +4709,6 @@ export default function ServiceManagerPage() {
           </div>
         </div>
       )}
-
       {/* 일반문의 List 관리 프레임 */}
       {showGeneralInquiryList && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
@@ -5116,7 +5158,6 @@ export default function ServiceManagerPage() {
           </div>
         </div>
       )}
-
       {/* 답변수정하기 프레임 */}
       {showGeneralInquiryEditModal && selectedInquiry && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
@@ -5313,7 +5354,6 @@ export default function ServiceManagerPage() {
           </div>
         </div>
       )}
-      
       {/* 애니메이션 스타일 */}
       <style jsx>{`
         @keyframes slideInLeft {
@@ -5349,6 +5389,9 @@ export default function ServiceManagerPage() {
           }
         }
       `}</style>
+
     </div>
   )
 }
+
+export default ServiceManagerPage;

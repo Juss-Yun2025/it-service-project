@@ -14,8 +14,15 @@ router.get('/', requireAdmin, getAllUsers);
 // Get user by ID
 router.get('/:id', getUserById);
 
-// Update user (admin only)
-router.put('/:id', requireAdmin, validateRequired(['name', 'department', 'position']), updateUser);
+// Update user (admin only or self-update)
+router.put('/:id', (req, res, next) => {
+  // 사용자가 자신의 정보를 수정하는 경우 허용
+  if (req.user && req.user.id === req.params.id) {
+    return next();
+  }
+  // 그 외의 경우 관리자 권한 필요
+  return requireAdmin(req, res, next);
+}, validateRequired(['name', 'department', 'position']), updateUser);
 
 // Delete user (admin only)
 router.delete('/:id', requireAdmin, deleteUser);

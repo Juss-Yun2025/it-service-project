@@ -1,0 +1,11 @@
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 자물쇠 몸체 -->
+  <rect x="6" y="10" width="12" height="10" rx="2" fill="currentColor"/>
+  <!-- 열린 고리 (U자형) -->
+  <path d="M8 10V6C8 3.79 9.79 2 12 2C14.21 2 16 3.79 16 6V8" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <!-- 열린 고리 끝부분 -->
+  <path d="M16 8L18 10" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <!-- 열쇠구멍 -->
+  <circle cx="12" cy="15" r="1.5" fill="white"/>
+  <rect x="11.5" y="15" width="1" height="2" fill="white"/>
+</svg>

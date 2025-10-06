@@ -388,6 +388,11 @@ const mapServiceRequestData = (rawData: any): ServiceRequest => {
 
 
 }
+
+
+
+
+
 function SystemAdminPageContent() {
 
 
@@ -1179,11 +1184,17 @@ function SystemAdminPageContent() {
 
 
   const [resetPasswordResult, setResetPasswordResult] = useState<{ temporaryPassword: string } | null>(null)
+
+
+
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
 
 
 
   const [editUserData, setEditUserData] = useState<UserUpdateRequest>({})
+
+
+
   const [users, setUsers] = useState<User[]>([])
 
 
@@ -1967,6 +1978,9 @@ function SystemAdminPageContent() {
     return stages[currentIndex + 1].name;
 
   };
+
+
+
   // 단계명 가져오기 함수 (완전 동적)
 
   const getStageName = (stageKey: string): string => {
@@ -2704,6 +2718,9 @@ function SystemAdminPageContent() {
 
 
   };
+
+
+
   const getNextStage = async () => {
 
 
@@ -3481,7 +3498,13 @@ function SystemAdminPageContent() {
 
 
     }
+
+
+
   }, [showServiceReport])
+
+
+
   // 서비스현황 리포트 검색 조건 변경 시 데이터 가져오기
 
 
@@ -3798,10 +3821,6 @@ function SystemAdminPageContent() {
 
 
 
-      const isDeptFilteredForFetch = serviceWorkSelectedDepartment !== '전체';
-
-
-
       const params = {
 
 
@@ -3814,7 +3833,7 @@ function SystemAdminPageContent() {
 
 
 
-        technician_department: isDeptFilteredForFetch ? serviceWorkSelectedDepartment : undefined,
+        technician_department: serviceWorkSelectedDepartment !== '전체' ? serviceWorkSelectedDepartment : undefined,
 
 
 
@@ -3822,17 +3841,15 @@ function SystemAdminPageContent() {
 
 
 
-        page: isDeptFilteredForFetch ? 1 : serviceRequestsPagination.page,
+        page: serviceRequestsPagination.page,
 
 
 
-        limit: isDeptFilteredForFetch ? 1000 : serviceRequestsPagination.limit
+        limit: serviceRequestsPagination.limit
 
 
 
       };
-
-
 
       const response = await apiClient.getServiceRequests(params);
 
@@ -3856,17 +3873,15 @@ function SystemAdminPageContent() {
 
         if (response.pagination) {
 
-
-
           setServiceRequestsPagination({
 
 
 
-            page: isDeptFilteredForFetch ? 1 : response.pagination.page,
+            page: response.pagination.page,
 
 
 
-            limit: isDeptFilteredForFetch ? response.pagination.total : response.pagination.limit,
+            limit: response.pagination.limit,
 
 
 
@@ -3874,7 +3889,7 @@ function SystemAdminPageContent() {
 
 
 
-            totalPages: isDeptFilteredForFetch ? 1 : response.pagination.totalPages
+            totalPages: response.pagination.totalPages
 
 
 
@@ -3923,117 +3938,37 @@ function SystemAdminPageContent() {
 
 
   // 서비스 집계 현황용 통계 데이터 가져오기
-
-
-
   const fetchAggregationServiceStatistics = async () => {
-
-
-
     try {
-
-
-
       const params = {
-
-
-
         startDate: aggregationStartDate,
-
-
-
         endDate: aggregationEndDate,
-
-
-
         department: aggregationSelectedDepartment !== '' ? aggregationSelectedDepartment : undefined,
-
-
-
       };
-
-
       
       const response = await apiClient.getServiceStatistics(params);
-
-
       
       if (response.success && response.data) {
-
-
-
         console.log('백엔드에서 받은 통계 데이터:', response.data);
-
-
-
       if (response.data && response.data.overview) {
-
-
-
         console.log('overview 데이터:', response.data.overview);
-
-
-
         console.log('overview 키들:', Object.keys(response.data.overview));
-
-
         
         // stage 관련 필드들만 확인
-
-
-
         const stageFields = Object.keys(response.data.overview).filter(key => key.startsWith('stage_'));
-
-
-
         console.log('stage 필드들:', stageFields);
-
-
-
         stageFields.forEach(field => {
-
-
-
           console.log(`${field}:`, response.data.overview[field]);
-
-
-
         });
-
-
-
       }
-
-
-
         setAggregationServiceStatistics(response.data);
-
-
-
       }
-
-
-
     } catch (error) {
-
-
-
       console.error('서비스 집계현황 통계 가져오기 실패:', error);
-
-
-
     }
-
-
-
   };
 
-
-
   // 서비스 집계 현황용 별도 데이터 가져오기 (서비스 작업 List와 완전 분리)
-
-
-
   const fetchAggregationServiceRequests = async () => {
 
 
@@ -4061,7 +3996,6 @@ function SystemAdminPageContent() {
         department: aggregationSelectedDepartment !== '' ? aggregationSelectedDepartment : undefined,
 
 
-
         showIncompleteOnly: false, // 집계 현황에서는 모든 상태 포함
 
 
@@ -4075,8 +4009,6 @@ function SystemAdminPageContent() {
 
 
       };
-
-
 
       const response = await apiClient.getServiceRequests(params);
 
@@ -4139,37 +4071,14 @@ function SystemAdminPageContent() {
 
 
   // 검색 조건 변경 시 페이지를 1로 리셋하고 데이터 가져오기
-
-
-
   useEffect(() => {
-
-
-
     setServiceRequestsPagination(prev => ({ ...prev, page: 1 }));
-
-
-
     fetchServiceRequests();
-
-
-
   }, [serviceWorkSearchStartDate, serviceWorkSearchEndDate, serviceWorkSelectedDepartment, serviceWorkSelectedStage]);
 
-
-
   // 페이지 변경 시에만 데이터 가져오기
-
-
-
   useEffect(() => {
-
-
-
     fetchServiceRequests();
-
-
-
   }, [serviceRequestsPagination.page]);
 
 
@@ -4183,121 +4092,43 @@ function SystemAdminPageContent() {
 
 
     fetchAggregationServiceRequests();
-
-
-
     fetchAggregationServiceStatistics();
 
 
 
   }, [aggregationStartDate, aggregationEndDate, aggregationSelectedDepartment]);
 
-
-
   // aggregationServiceStatistics 데이터가 변경되면 chartData 업데이트
-
-
-
   useEffect(() => {
-
-
-
     console.log('chartData 업데이트 시도:', {
-
-
-
       hasStatistics: !!aggregationServiceStatistics,
-
-
-
       stagesLength: stages.length,
-
-
-
       hasOverview: !!(aggregationServiceStatistics && aggregationServiceStatistics.overview),
-
-
-
       stages: stages
-
-
-
     });
-
-
     
     if (aggregationServiceStatistics && stages.length > 0) {
-
-
-
       const newChartData: { [key: string]: number } = {};
-
-
       
       // 백엔드 데이터는 overview 객체 안에 stage_접수, stage_배정 등의 필드가 있음
-
-
-
       const overview = aggregationServiceStatistics.overview;
-
-
       
       if (overview) {
-
-
-
         stages.forEach(stage => {
-
-
-
           const key = stage.name; // 한글 이름을 직접 키로 사용
-
-
-
           const backendField = `stage_${stage.name}`;
-
-
-
           const value = parseInt(overview[backendField]) || 0;
-
-
           
           newChartData[key] = value;
-
-
-
           console.log(`매핑: ${stage.name} -> ${key} (필드: ${backendField}) = ${value}`);
-
-
-
         });
-
-
-
       }
-
-
       
       console.log('최종 chartData:', newChartData);
-
-
-
       const total = Object.values(newChartData).reduce((sum, value) => sum + value, 0);
-
-
-
       console.log('chartData 총합:', total);
-
-
-
       setChartData(newChartData);
-
-
-
     }
-
-
-
   }, [aggregationServiceStatistics, stages]);
 
 
@@ -4371,6 +4202,9 @@ function SystemAdminPageContent() {
 
 
   };
+
+
+
   // 일반문의 데이터 가져오기
 
 
@@ -4865,7 +4699,13 @@ function SystemAdminPageContent() {
 
 
   // 더미 데이터 제거됨 - API 기반으로 교체
+
+
+
   // 더미 데이터 제거됨 - serviceRequests는 API에서 가져옴
+
+
+
   // 서비스현황 리포트 데이터 생성 (서비스현황 리포트 전용 데이터를 기반으로)
 
 
@@ -5655,7 +5495,13 @@ function SystemAdminPageContent() {
 
 
     loadUsers()
+
+
+
   }, [userManagementCurrentPage, userManagementSearchDepartment, userManagementSearchRole, userManagementSearchStartDate, userManagementSearchEndDate])
+
+
+
   // 사용자관리 필터링 (API 데이터 사용)
 
 
@@ -5872,15 +5718,7 @@ function SystemAdminPageContent() {
 
 
 
-  // 부서 필터가 선택된 경우(전체 제외)에는 한 페이지에 모두 표시
-
-
-
-  const isDepartmentFiltered = serviceWorkSelectedDepartment !== '전체';
-
-
-
-  const serviceWorkTotalPages = isDepartmentFiltered ? 1 : serviceRequestsPagination.totalPages;
+  const serviceWorkTotalPages = serviceRequestsPagination.totalPages;
 
 
 
@@ -6407,6 +6245,9 @@ function SystemAdminPageContent() {
 
 
   }
+
+
+
   const handleInfoSubmit = () => {
 
 
@@ -6460,6 +6301,9 @@ function SystemAdminPageContent() {
 
 
   }
+
+
+
   const handleInfoChange = () => {
 
     // departments 데이터 새로고침
@@ -7114,6 +6958,9 @@ function SystemAdminPageContent() {
 
 
   }
+
+
+
   return (
 
 
@@ -7524,7 +7371,13 @@ function SystemAdminPageContent() {
 
 
                       </div>
+
+
+
                     </div>
+
+
+
                     {/* 반원 호 차트 */}
                     <div className="flex items-center h-40" style={{ marginTop: '100px' }}>
 
@@ -7992,7 +7845,13 @@ function SystemAdminPageContent() {
 
 
           </div>
+
+
+
           {/* 프레임 2: 서비스선택 */}
+
+
+
           <div className="mb-6" style={{ marginLeft: '34px', marginTop: '-676px' }}>
 
 
@@ -8414,7 +8273,13 @@ function SystemAdminPageContent() {
 
 
           </div>
+
+
+
           {/* 서비스작업 List 관리 프레임 */}
+
+
+
           {showServiceWorkList && (
 
 
@@ -8792,7 +8657,11 @@ function SystemAdminPageContent() {
 
 
                 </div>
+
+
+
                 {/* 테이블 영역 */}
+
                 <div className="flex-1 overflow-hidden">
 
                   <div className="overflow-x-auto overflow-y-auto px-4" style={{ height: '450px' }}>
@@ -9234,7 +9103,13 @@ function SystemAdminPageContent() {
 
 
                                   )}
+
+
+
                                   {/* 확인/예정/작업/완료/미결 단계: 조치담당자 확정 - 수정/삭제 버튼 (시스템 관리자 전체 권한) */}
+
+
+
                                   {stageButtons[request.stage]?.includes('edit') && stageButtons[request.stage]?.includes('delete') && (
 
 
@@ -9864,7 +9739,13 @@ function SystemAdminPageContent() {
 
 
           )}
+
+
+
           {/* 서비스현황 리포트 프레임 */}
+
+
+
           {showServiceReport && (
 
 
@@ -10632,7 +10513,13 @@ function SystemAdminPageContent() {
 
 
           )}
+
+
+
           {/* 사용자관리 프레임 */}
+
+
+
           {showUserManagement && (
 
 
@@ -11114,7 +11001,13 @@ function SystemAdminPageContent() {
 
 
                   </div>
+
+
+
                   {/* 테이블 영역 */}
+
+
+
                   <div className="flex-1 overflow-hidden">
 
 
@@ -11680,7 +11573,13 @@ function SystemAdminPageContent() {
 
 
           )}
+
+
+
           {/* 프레임 3: 일반문의 현황 */}
+
+
+
           <div className="absolute" style={{ left: '1590px', top: '84px' }}>
 
 
@@ -12154,7 +12053,13 @@ function SystemAdminPageContent() {
 
 
       </footer>
+
+
+
       {/* 사용자 정보 수정 모달 */}
+
+
+
       {showUserEditModal && selectedUser && (
 
 
@@ -12900,7 +12805,13 @@ function SystemAdminPageContent() {
 
 
       )}
+
+
+
       {/* 비밀번호 초기화 성공 모달 */}
+
+
+
       {showPasswordResetSuccessModal && resetPasswordResult && selectedUser && (
 
 
@@ -13486,7 +13397,13 @@ function SystemAdminPageContent() {
 
 
       )}
+
+
+
       {/* 배정확인 모달 */}
+
+
+
       {showAssignmentModal && selectedRequest && (
 
 
@@ -14168,7 +14085,13 @@ function SystemAdminPageContent() {
 
 
       )}
+
+
+
       {/* 정보확인 모달 */}
+
+
+
       {showInfoViewModal && selectedRequest && (
 
 
@@ -14542,7 +14465,13 @@ function SystemAdminPageContent() {
 
 
                 </div>
+
+
+
                 {/* 오른쪽: 작업정보등록 (작업정보등록 버튼 클릭 시에만 표시) */}
+
+
+
                 {showWorkRegistrationInInfo && (
 
 
@@ -15300,7 +15229,13 @@ function SystemAdminPageContent() {
 
 
             </div>
+
+
+
             {/* 모달 하단 버튼 */}
+
+
+
             <div className="flex gap-3 py-4 px-6 border-t border-gray-200">
 
 
@@ -15942,7 +15877,13 @@ function SystemAdminPageContent() {
 
 
       )}
+
+
+
       {/* 정보변경 모달 */}
+
+
+
       {showInfoModal && !showPasswordModal && (
 
 
@@ -16678,7 +16619,13 @@ function SystemAdminPageContent() {
 
 
       )}
+
+
+
       {/* 배정승인 성공 모달 */}
+
+
+
       {showApprovalSuccessModal && (
 
 
@@ -17028,7 +16975,13 @@ function SystemAdminPageContent() {
 
 
             </div>
+
+
+
             {/* 모달 내용 - 2열 레이아웃 */}
+
+
+
             <div className="py-4 px-6">
 
 
@@ -17334,7 +17287,13 @@ function SystemAdminPageContent() {
 
 
                 </div>
+
+
+
                 {/* 오른쪽: 작업정보등록 */}
+
+
+
                 <div className="space-y-4">
 
 
@@ -18056,7 +18015,13 @@ function SystemAdminPageContent() {
 
 
       )}
+
+
+
       {/* 배정작업 모달 */}
+
+
+
       {showServiceAssignmentModal && selectedWorkRequest && (
 
 
@@ -18722,7 +18687,13 @@ function SystemAdminPageContent() {
 
 
             </div>
+
+
+
             {/* 모달 하단 버튼 */}
+
+
+
             <div className="flex justify-end py-4 px-6 border-t border-gray-200 space-x-3">
 
 
@@ -19020,7 +18991,13 @@ function SystemAdminPageContent() {
 
 
       {/* 재배정작업 모달 */}
+
+
+
       {showServiceReassignmentModal && selectedWorkRequest && (
+
+
+
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
 
 
@@ -19386,7 +19363,13 @@ function SystemAdminPageContent() {
 
 
                 </div>
+
+
+
                 {/* 재배정정보 */}
+
+
+
                 <div className="space-y-4">
 
 
@@ -19940,7 +19923,13 @@ function SystemAdminPageContent() {
 
 
             </div>
+
+
+
             {/* 모달 하단 버튼 */}
+
+
+
             <div className="flex justify-end py-4 px-6 border-t border-gray-200 space-x-3">
 
 
@@ -20290,7 +20279,13 @@ function SystemAdminPageContent() {
 
 
       )}
+
+
+
       {/* 작업정보관리 모달 */}
+
+
+
       {showServiceWorkInfoModal && selectedWorkRequest && (
 
 
@@ -20684,7 +20679,13 @@ function SystemAdminPageContent() {
 
 
                 </div>
+
+
+
                 {/* 오른쪽: 작업정보등록 */}
+
+
+
                 <div className="space-y-4">
 
 
@@ -21446,7 +21447,13 @@ function SystemAdminPageContent() {
 
 
             </div>
+
+
+
             {/* 모달 하단 버튼 */}
+
+
+
             <div className="flex justify-between py-4 px-6 border-t border-gray-200">
 
 
@@ -22012,7 +22019,13 @@ function SystemAdminPageContent() {
 
 
                 </div>
+
+
+
                 {/* 작업정보등록 */}
+
+
+
                 <div className="space-y-4">
 
 
@@ -22748,7 +22761,11 @@ function SystemAdminPageContent() {
       {/* FAQ 추가 모달 - 시스템관리에서는 제거됨 */}
 
       {/* FAQ 완료 모달 - 시스템관리에서는 제거됨 */}
+
+
+
       {/* 일반문의 List 관리 프레임 */}
+
       {showGeneralInquiryList && (
 
 
@@ -22787,10 +22804,7 @@ function SystemAdminPageContent() {
 
                     fetchInquiries();
 
-
-
                     fetchInquiryStatistics(); // 통계도 함께 새로고침
-
 
 
                   }}
@@ -23050,7 +23064,14 @@ function SystemAdminPageContent() {
 
 
             </div>
+
+
+
+
             {/* 테이블 영역 */}
+
+
+
             <div className="flex-1 overflow-hidden">
 
 
@@ -23620,7 +23641,13 @@ function SystemAdminPageContent() {
 
 
       )}
+
+
+
       {/* 답변하기 프레임 */}
+
+
+
       {showGeneralInquiryAnswerModal && selectedInquiry && (
 
 
@@ -24334,7 +24361,13 @@ function SystemAdminPageContent() {
 
 
       )}
+
+
+
       {/* 답변삭제하기 프레임 */}
+
+
+
       {showGeneralInquiryDeleteAnswerModal && selectedInquiry && (
 
 
@@ -24900,3 +24933,4 @@ export default function SystemAdminPage() {
 
 
 }
+
