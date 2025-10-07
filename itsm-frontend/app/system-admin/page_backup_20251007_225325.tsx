@@ -58,6 +58,10 @@ interface ServiceRequest {
   assigneeDepartment?: string
   technician?: string
   technicianDepartment?: string
+  workStartDate?: string
+  workStartTime?: string
+  workCompleteDate?: string
+  workCompleteTime?: string
   assignmentHours?: string
   workHours?: string
   content: string
@@ -114,6 +118,10 @@ const mapServiceRequestData = (rawData: any): ServiceRequest => {
     assigneeDepartment: rawData.assignee_department || '',
     technician: rawData.technician_name || '',
     technicianDepartment: rawData.technician_department || '',
+    workStartDate: rawData.work_start_date || '',
+    workStartTime: rawData.work_start_time || '',
+    workCompleteDate: rawData.work_complete_date || '',
+    workCompleteTime: rawData.work_complete_time || '',
     content: rawData.content || '',
     contact: rawData.contact || '',
     location: rawData.location || '',
@@ -194,7 +202,7 @@ function SystemAdminPageContent() {
         page: 1,
         limit: 1000,
         department: departmentName,
-        role: technicianRoleId?.toString() // 동적으로 가져온 조치담당자 권한 ID 사용
+        roleId: technicianRoleId // 동적으로 가져온 조치담당자 권한 ID 사용
       })
 
       console.log('부서별 조치담당자 조회 응답:', response)
@@ -1453,7 +1461,9 @@ function SystemAdminPageContent() {
       technician: request.technician || '',
       technicianDepartment: request.technicianDepartment || '',
       workStartDate: request.workStartDate,
+      workStartTime: request.workStartTime,
       workCompleteDate: request.workCompleteDate,
+      workCompleteTime: request.workCompleteTime,
       assignmentHours: assignmentHours,
       workHours: workHours,
       content: request.content || '',
@@ -1499,11 +1509,11 @@ function SystemAdminPageContent() {
         report.technician || '-',
         report.technicianDepartment || '-',
         report.workHours,
-        report.requestDate,
-        report.assignDate,
-        report.scheduledDate,
-        report.workStartDate,
-        report.workCompleteDate
+        report.requestDateTime,
+        report.assignDateTime,
+        report.scheduledDateTime,
+        report.workStartDateTime,
+        report.workCompleteDateTime
       ])
     ];
     // 워크시트 생성
