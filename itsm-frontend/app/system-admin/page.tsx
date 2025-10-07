@@ -6059,12 +6059,7 @@ function SystemAdminPageContent() {
                                   alert('데이터베이스 업데이트 중 오류가 발생했습니다.');
                                 }
                               }}
-                              disabled={!serviceWorkIsUnresolved || !serviceWorkProblemIssue}
-                              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                                serviceWorkIsUnresolved && serviceWorkProblemIssue
-                                  ? 'bg-pink-500 hover:bg-pink-600 text-white'
-                                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                              }`}
+                              className="px-4 py-2 bg-pink-500 hover:bg-pink-600 text-white rounded-lg font-medium transition-all duration-200"
                             >
                               등재
                             </button>

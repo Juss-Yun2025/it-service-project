@@ -4169,12 +4169,7 @@ function ServiceManagerPage() {
                                   alert('미해결 체크박스를 선택하고 문제사항을 입력해주세요.')
                                 }
                               }}
-                              disabled={!serviceWorkIsUnresolved || !serviceWorkProblemIssue}
-                              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                                serviceWorkIsUnresolved && serviceWorkProblemIssue
-                                  ? 'bg-pink-500 hover:bg-pink-600 text-white'
-                                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                              }`}
+                              className="px-4 py-2 bg-pink-500 hover:bg-pink-600 text-white rounded-lg font-medium transition-all duration-200"
                             >
                               등재
                             </button>
