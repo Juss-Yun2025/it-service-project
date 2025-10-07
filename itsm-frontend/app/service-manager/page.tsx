@@ -564,6 +564,24 @@ function ServiceManagerPage() {
     };
   }
 
+  // stages에서 단계명 가져오기 함수 (시스템관리와 동일)
+  const getStageName = (stageKey: string): string => {
+    // stages가 로드되었으면 stages에서 직접 찾기
+    if (stages && stages.length > 0) {
+      const stage = stages.find(s => s.name === stageKey);
+      return stage ? stage.name : stageKey; // 찾지 못하면 stageKey 그대로 반환
+    }
+
+    // stages가 아직 로드되지 않았으면 stageKey 그대로 반환
+    return stageKey;
+  };
+
+  // 단계별 버튼 매핑 (시스템관리와 동일)
+  const stageButtons: { [key: string]: string[] } = {
+    '완료': ['edit'],
+    '미결': ['edit']
+  };
+
   // 서비스 요청 데이터 가져오기 함수 - 부서 필터링에도 페이지네이션 적용
   const fetchServiceRequests = async () => {
     setServiceRequestsLoading(true);
@@ -4104,53 +4122,88 @@ function ServiceManagerPage() {
 
               {/* 모달 하단 버튼 */}
             <div className="flex gap-3 py-4 px-6 border-t border-gray-200">
-                <button
-                  onClick={() => setShowServiceWorkInfoModal(false)}
+              <button
+                onClick={() => {
+                  console.log('나가기 버튼 클릭 - 서비스작업List 새로고침');
+                  setShowServiceWorkInfoModal(false);
+                }}
                 className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
-                >
-                  취소
-                </button>
+              >
+                나가기
+              </button>
+              {/* 작업 전체 수정 버튼 - 완료/미결 단계에서만 표시 */}
+              {selectedWorkRequest?.stage && stageButtons[selectedWorkRequest.stage]?.includes('edit') && (
                 <button
                   onClick={async () => {
+                    // stage_id를 "확인"으로 변경
                     try {
-                      if (!selectedWorkRequest) return;
-                      
-                      // 시스템관리 페이지와 동일한 데이터 구조로 작업정보 업데이트
                       const updateData = {
-                        stage: selectedWorkRequest.stage, // 현재 단계 유지
-                        scheduled_date: serviceWorkScheduledDate || null,
-                        work_start_date: serviceWorkStartDate || null,
-                        work_complete_date: serviceWorkCompleteDate || null,
-                        work_content: serviceWorkContent || null,
-                        problem_issue: serviceWorkProblemIssue || null,
-                        is_unresolved: serviceWorkIsUnresolved
+                        stage: getStageName('확인')
                       };
-                      
-                      console.log('작업정보 수정 시작:', selectedWorkRequest.id);
-                      console.log('수정 데이터:', updateData);
-                      
-                      // 시스템관리와 동일하게 apiClient.put 사용
+                      console.log('작업 전체 수정 - stage를 확인으로 변경:', updateData);
                       const response = await apiClient.put(`/service-requests/${selectedWorkRequest?.id}`, updateData);
-                      
                       if (response.success) {
-                        console.log('작업정보 수정 성공');
-                        setShowServiceWorkInfoModal(false);
-                        setSelectedWorkRequest(null);
-                        await fetchServiceRequests(); // 목록 새로고침
-                        setShowServiceWorkCompleteModal(true);
+                        // selectedWorkRequest 업데이트
+                        setSelectedWorkRequest(prev => prev ? { ...prev, stage: getStageName('확인') } : null);
+                        // 알림 메시지
+                        alert('예정조율일시부터 단계적으로 다시 작업하세요!');
+                        // 서비스작업List 새로고침
+                        await fetchServiceRequests();
+                        // 모달은 그대로 유지 - 닫지 않음
                       } else {
-                        console.error('작업정보 수정 실패:', response.error);
-                        alert('작업정보 수정 중 오류가 발생했습니다: ' + (response.error || '알 수 없는 오류'));
+                        alert('작업 전체 수정 중 오류가 발생했습니다: ' + response.error);
                       }
                     } catch (error) {
-                      console.error('작업정보 수정 오류:', error);
-                      alert('작업정보 수정 중 오류가 발생했습니다.');
+                      console.error('작업 전체 수정 오류:', error);
+                      alert('작업 전체 수정 중 오류가 발생했습니다.');
                     }
                   }}
-                className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
+                  className="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
                 >
-                  수정완료
+                  작업 전체 수정
                 </button>
+              )}
+              <button
+                onClick={async () => {
+                  try {
+                    if (!selectedWorkRequest) return;
+                    
+                    // 시스템관리 페이지와 동일한 데이터 구조로 작업정보 업데이트
+                    const updateData = {
+                      stage: selectedWorkRequest.stage, // 현재 단계 유지
+                      scheduled_date: serviceWorkScheduledDate || null,
+                      work_start_date: serviceWorkStartDate || null,
+                      work_complete_date: serviceWorkCompleteDate || null,
+                      work_content: serviceWorkContent || null,
+                      problem_issue: serviceWorkProblemIssue || null,
+                      is_unresolved: serviceWorkIsUnresolved
+                    };
+                    
+                    console.log('작업정보 수정 시작:', selectedWorkRequest.id);
+                    console.log('수정 데이터:', updateData);
+                    
+                    // 시스템관리와 동일하게 apiClient.put 사용
+                    const response = await apiClient.put(`/service-requests/${selectedWorkRequest?.id}`, updateData);
+                    
+                    if (response.success) {
+                      console.log('작업정보 수정 성공');
+                      setShowServiceWorkInfoModal(false);
+                      setSelectedWorkRequest(null);
+                      await fetchServiceRequests(); // 목록 새로고침
+                      setShowServiceWorkCompleteModal(true);
+                    } else {
+                      console.error('작업정보 수정 실패:', response.error);
+                      alert('작업정보 수정 중 오류가 발생했습니다: ' + (response.error || '알 수 없는 오류'));
+                    }
+                  } catch (error) {
+                    console.error('작업정보 수정 오류:', error);
+                    alert('작업정보 수정 중 오류가 발생했습니다.');
+                  }
+                }}
+                className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
+              >
+                수정완료
+              </button>
             </div>
           </div>
         </div>
