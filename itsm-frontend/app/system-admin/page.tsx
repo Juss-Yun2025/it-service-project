@@ -58,9 +58,7 @@ interface ServiceRequest {
   assigneeDepartment?: string
   technician?: string
   technicianDepartment?: string
-  workStartDate?: string
   workStartTime?: string
-  workCompleteDate?: string
   workCompleteTime?: string
   assignmentHours?: string
   workHours?: string

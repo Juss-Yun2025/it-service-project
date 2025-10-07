@@ -3411,32 +3411,38 @@ function ServiceManagerPage() {
                   <div className="space-y-0">
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-1">조치담당 소속</label>
-                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <select 
+                        value={assignmentDepartment}
+                        onChange={(e) => handleAssignmentDepartmentChange(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
                         <option value="">부서를 선택하세요</option>
-                        <option value="IT팀">IT팀</option>
-                        <option value="운영팀">운영팀</option>
-                        <option value="개발팀">개발팀</option>
-                        <option value="보안팀">보안팀</option>
-                        <option value="인사팀">인사팀</option>
-                        <option value="재무팀">재무팀</option>
+                        {departments.map(dept => (
+                          <option key={dept.id} value={dept.name}>{dept.name}</option>
+                        ))}
                       </select>
                     </div>
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-1">조치담당자</label>
-                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <select 
+                        value={assignmentTechnician}
+                        onChange={(e) => setAssignmentTechnician(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={!assignmentDepartment}
+                      >
                         <option value="">담당자를 선택하세요</option>
-                        <option value="김기술">김기술</option>
-                        <option value="박기술">박기술</option>
-                        <option value="홍기술">홍기술</option>
-                        <option value="최기술">최기술</option>
-                        <option value="정기술">정기술</option>
+                        {Array.isArray(assignmentTechnicians) && assignmentTechnicians.map(technician => (
+                          <option key={technician.id} value={technician.name}>{technician.name}</option>
+                        ))}
                       </select>
                     </div>
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-1">배정의견</label>
                       <textarea 
+                        value={assignmentOpinion}
+                        onChange={(e) => setAssignmentOpinion(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 h-20"
                         placeholder="배정 담당자 의견"
                       />
@@ -3460,14 +3466,17 @@ function ServiceManagerPage() {
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-1">서비스 조치 유형</label>
-                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="요청">요청</option>
-                        <option value="장애">장애</option>
-                        <option value="변경">변경</option>
-                        <option value="문제">문제</option>
-                        <option value="적용">적용</option>
-                        <option value="구성">구성</option>
-                        <option value="자산">자산</option>
+                      <select 
+                        value={assignmentServiceType}
+                        onChange={(e) => setAssignmentServiceType(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">선택</option>
+                        {serviceTypes.map(serviceType => (
+                          <option key={serviceType.id} value={serviceType.name}>
+                            {serviceType.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>
@@ -3484,10 +3493,7 @@ function ServiceManagerPage() {
                 취소
               </button>
               <button
-                onClick={() => {
-                  alert('배정이 완료되었습니다.')
-                  setShowServiceAssignmentModal(false)
-                }}
+                onClick={handleAssignmentSubmit}
                 className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all duration-200"
               >
                 배정하기
@@ -3605,32 +3611,38 @@ function ServiceManagerPage() {
                   <div className="space-y-0">
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-1">조치담당 소속</label>
-                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <select 
+                        value={reassignmentDepartment}
+                        onChange={(e) => handleReassignmentDepartmentChange(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
                         <option value="">부서를 선택하세요</option>
-                        <option value="IT팀">IT팀</option>
-                        <option value="운영팀">운영팀</option>
-                        <option value="개발팀">개발팀</option>
-                        <option value="보안팀">보안팀</option>
-                        <option value="인사팀">인사팀</option>
-                        <option value="재무팀">재무팀</option>
+                        {departments.map(dept => (
+                          <option key={dept.id} value={dept.name}>{dept.name}</option>
+                        ))}
                       </select>
                     </div>
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-1">조치담당자</label>
-                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                      <select 
+                        value={reassignmentTechnician}
+                        onChange={(e) => setReassignmentTechnician(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        disabled={!reassignmentDepartment}
+                      >
                         <option value="">담당자를 선택하세요</option>
-                        <option value="김기술">김기술</option>
-                        <option value="박기술">박기술</option>
-                        <option value="홍기술">홍기술</option>
-                        <option value="최기술">최기술</option>
-                        <option value="정기술">정기술</option>
+                        {Array.isArray(reassignmentTechnicians) && reassignmentTechnicians.map(technician => (
+                          <option key={technician.id} value={technician.name}>{technician.name}</option>
+                        ))}
                       </select>
                     </div>
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-1">재배정의견</label>
                       <textarea 
+                        value={reassignmentOpinion}
+                        onChange={(e) => setReassignmentOpinion(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 h-20"
                         placeholder="배정 담당자 의견"
                       />
@@ -3654,14 +3666,17 @@ function ServiceManagerPage() {
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-600 mb-1">서비스 조치 유형</label>
-                      <select className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="구성">구성</option>
-                        <option value="요청">요청</option>
-                        <option value="장애">장애</option>
-                        <option value="변경">변경</option>
-                        <option value="문제">문제</option>
-                        <option value="적용">적용</option>
-                        <option value="자산">자산</option>
+                      <select 
+                        value={reassignmentServiceType}
+                        onChange={(e) => setReassignmentServiceType(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">선택</option>
+                        {serviceTypes.map(serviceType => (
+                          <option key={serviceType.id} value={serviceType.name}>
+                            {serviceType.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     
@@ -3672,27 +3687,54 @@ function ServiceManagerPage() {
                       <div className="space-y-0">
                         <div>
                           <span className="text-xs font-medium text-gray-500">전) 배정일시: </span>
-                          <span className="text-xs ml-2">{selectedWorkRequest.assignTime || '2025.08.31 11:40'}</span>
+                          <span className="text-xs ml-2">
+                            {(() => {
+                              const dateStr = (selectedWorkRequest as any)?.previous_assign_date || selectedWorkRequest.previousAssignDate;
+                              if (dateStr) {
+                                try {
+                                  const date = new Date(dateStr);
+                                  return date.toLocaleString('ko-KR', { 
+                                    year: 'numeric', 
+                                    month: '2-digit', 
+                                    day: '2-digit', 
+                                    hour: '2-digit', 
+                                    minute: '2-digit' 
+                                  });
+                                } catch (e) {
+                                  return dateStr;
+                                }
+                              }
+                              return selectedWorkRequest.assignTime || '-';
+                            })()}
+                          </span>
                         </div>
                         
                         <div>
                           <span className="text-xs font-medium text-gray-500">전) 배정담당자: </span>
-                          <span className="text-xs ml-2">이배정 (관리팀)</span>
+                          <span className="text-xs ml-2">
+                            {(selectedWorkRequest as any)?.previous_assignee || selectedWorkRequest.previousAssignee || '-'}
+                          </span>
                         </div>
                         
                         <div>
                           <span className="text-xs font-medium text-gray-500">전) 배정의견: </span>
-                          <span className="text-xs ml-2">업무에 적합하여 배정</span>
+                          <span className="text-xs ml-2">
+                            {(selectedWorkRequest as any)?.previous_assignment_opinion || selectedWorkRequest.previousAssignmentOpinion || '-'}
+                          </span>
                         </div>
                         
                         <div>
                           <span className="text-xs font-medium text-gray-500">전) 조치담당자: </span>
-                          <span className="text-xs ml-2">{selectedWorkRequest.assignee || '홍기술'}</span>
+                          <span className="text-xs ml-2">
+                            {(selectedWorkRequest as any)?.rejection_name || selectedWorkRequest.rejectionName || '-'}
+                          </span>
                         </div>
                         
                         <div>
                           <span className="text-xs font-medium text-red-600">반려의견: </span>
-                          <span className="text-xs ml-2 text-red-600">금일 휴가 입니다.</span>
+                          <span className="text-xs ml-2 text-red-600">
+                            {(selectedWorkRequest as any)?.rejection_opinion || selectedWorkRequest.rejectionOpinion || '-'}
+                          </span>
                         </div>
                       </div>
                     </div>
