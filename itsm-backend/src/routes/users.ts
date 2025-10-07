@@ -1,6 +1,6 @@
 import express from 'express';
 import { getAllUsers, getUserById, updateUser, deleteUser, resetUserPassword, changeUserPassword } from '../controllers/userController';
-import { authenticateToken, requireAdmin } from '../middleware/auth';
+import { authenticateToken, requireAdmin, requireManager } from '../middleware/auth';
 import { validateRequired } from '../middleware/validation';
 
 const router = express.Router();
@@ -8,8 +8,8 @@ const router = express.Router();
 // All user routes require authentication
 router.use(authenticateToken);
 
-// Get all users (admin only)
-router.get('/', requireAdmin, getAllUsers);
+// Get all users (admin and manager allowed)
+router.get('/', requireManager, getAllUsers);
 
 // Get user by ID
 router.get('/:id', getUserById);

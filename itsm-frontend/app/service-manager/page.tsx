@@ -890,42 +890,53 @@ function ServiceManagerPage() {
     }
 
     try {
-      // 현재 시간을 한국 시간으로 설정
-      const now = new Date();
-      const kstOffset = 9 * 60; // 한국은 UTC+9
-      const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000));
-      const kstDateTime = kstTime.toISOString().slice(0, 19).replace('T', ' ');
-      const kstDate = kstTime.toISOString().split('T')[0];
-      const kstTimeOnly = kstTime.toTimeString().slice(0, 8);
-
-      // 재배정 담당자 정보 가져오기 (현재 로그인 사용자)
+      // 현재 로그인 사용자 정보 가져오기
       const userStr = localStorage.getItem('user');
       let currentUser = null;
       if (userStr) {
         currentUser = JSON.parse(userStr);
       }
 
+      if (!currentUser) {
+        alert('사용자 정보를 찾을 수 없습니다.');
+        return;
+      }
+
+      // 선택된 기술자 ID 찾기
+      const technicianId = reassignmentTechnicians.find((t: any) => t.name === reassignmentTechnician)?.id;
+
+      // 디버깅 로그
+      console.log('=== 재배정하기 디버깅 ===');
+      console.log('selectedWorkRequest:', selectedWorkRequest);
+      console.log('reassignmentDepartment:', reassignmentDepartment);
+      console.log('reassignmentTechnician:', reassignmentTechnician);
+      console.log('reassignmentOpinion:', reassignmentOpinion);
+      console.log('technicianId:', technicianId);
+
+      // 재배정(3)에서 배정(2)으로 돌아가기 - 시스템 관리와 동일한 구조
       const updateData = {
-        // 이전 배정 정보 저장
-        previous_assign_date: selectedWorkRequest.assignDate,
-        previous_assignee: selectedWorkRequest.assignee,
-        previous_assignment_opinion: selectedWorkRequest.assignmentOpinion,
-        // 새로운 배정 정보
-        assign_date: kstDate,
-        assign_time: kstTimeOnly,
-        assignee_id: reassignmentTechnicians.find((t: any) => t.name === reassignmentTechnician)?.id,
-        assignee_name: currentUser?.name || '',
-        assignee_department: currentUser?.department || '',
-        technician_id: reassignmentTechnicians.find((t: any) => t.name === reassignmentTechnician)?.id,
-        technician_name: reassignmentTechnician,
+        stage_id: 2, // 배정 단계 ID 직접 사용
+        // 배정담당자 정보 (재배정하기를 클릭한 현재 로그인 사용자)
+        assignee_id: currentUser.id,
+        assignee_name: currentUser.name,
+        assignee_department: currentUser.department,
+        // 배정 일시 (현재시점 기준)
+        assign_date: new Date().toISOString().replace('T', ' ').substring(0, 19), // YYYY-MM-DD HH:mm:ss 형식
+        assign_time: new Date().toTimeString().split(' ')[0].substring(0, 5), // HH:MM 형식
+        // 조치소속은 technician_department에 저장
         technician_department: reassignmentDepartment,
-        assignment_opinion: reassignmentOpinion.trim(),
-        service_type: reassignmentServiceType,
-        stage_id: stages.find(s => s.name === '배정')?.id || 2, // 배정 단계로 변경
-        current_status: '배정'
+        // 조치자는 technician_name과 technician_id에 저장
+        technician_name: reassignmentTechnician,
+        technician_id: technicianId,
+        // 재배정의견은 assignment_opinion에 저장
+        assignment_opinion: reassignmentOpinion,
+        // 서비스 타입
+        service_type: reassignmentServiceType
       };
 
-      const response = await apiClient.updateServiceRequest(selectedWorkRequest.id, updateData);
+      console.log('재배정 업데이트 데이터:', updateData);
+
+      const response = await apiClient.put(`/service-requests/${selectedWorkRequest?.id}`, updateData);
       if (response.success) {
         alert('재배정이 완료되었습니다.');
         setShowServiceReassignmentModal(false);
@@ -935,14 +946,13 @@ function ServiceManagerPage() {
         setReassignmentOpinion('');
         setReassignmentServiceType('');
         setReassignmentTechnicians([]);
-        setSelectedWorkRequest(null);
         // 목록 새로고침
         await fetchServiceRequests();
       } else {
         alert('재배정 중 오류가 발생했습니다: ' + response.error);
       }
     } catch (error) {
-      console.error('재배정 실패:', error);
+      console.error('재배정 오류:', error);
       alert('재배정 중 오류가 발생했습니다.');
     }
   };
