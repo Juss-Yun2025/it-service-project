@@ -366,6 +366,9 @@ function ServiceManagerPage() {
       setAggregationSelectedDepartment(userDepartment);
       // 서비스작업List관리 검색조건도 소속 부서로 초기설정
       setServiceWorkSelectedDepartment(userDepartment || '전체');
+      // 일반문의 현황도 소속 부서로 초기설정
+      setInquirySelectedDepartment(userDepartment);
+      setInquiryCurrentDepartment(userDepartment || '전체 부서');
     } else {
       setCurrentUserId('관리매니저');
       setManagerInfo({
@@ -380,6 +383,9 @@ function ServiceManagerPage() {
       setCurrentDepartment('전체 부서');
       setAggregationSelectedDepartment(''); // 기본값은 전체 부서
       setServiceWorkSelectedDepartment('전체'); // 기본값은 전체 부서
+      // 일반문의 현황 기본값도 전체 부서
+      setInquirySelectedDepartment('');
+      setInquiryCurrentDepartment('전체 부서');
     }
     // 그래프(검색) 일자 초기값: 최근 한 달
     const today = new Date();
