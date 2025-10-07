@@ -575,10 +575,21 @@ function ServiceManagerPage() {
     return stageKey;
   };
 
-  // 단계별 버튼 매핑 (시스템관리와 동일)
+  // 현재 한국 시간을 datetime-local 형식으로 반환
+  const getCurrentDateTime = () => {
+    const now = new Date();
+    const kstOffset = 9 * 60; // 한국은 UTC+9
+    const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000));
+    return kstTime.toISOString().slice(0, 16);
+  };
+
+  // 단계별 버튼 매핑 (시스템관리와 동일하지만 관리매니저 권한 제한)
   const stageButtons: { [key: string]: string[] } = {
-    '완료': ['edit'],
-    '미결': ['edit']
+    '확인': ['edit', 'delete'],
+    '예정': ['edit', 'delete'], 
+    '작업': ['edit', 'delete'],
+    '완료': ['edit', 'delete'],
+    '미결': ['edit', 'delete']
   };
 
   // 서비스 요청 데이터 가져오기 함수 - 부서 필터링에도 페이지네이션 적용
@@ -1748,32 +1759,101 @@ function ServiceManagerPage() {
                                   <>
                                     <button
                                       onClick={() => {
-                                        setSelectedWorkRequest(request);
-                                        
-                                        // 기존 데이터가 있으면 불러오기, 없으면 현재 시점으로 설정
-                                        if (request.scheduledDate) {
-                                          setServiceWorkScheduledDate(request.scheduledDate)
-                                          setServiceWorkStartDate(request.workStartDate || '')
-                                          setServiceWorkContent(request.workContent || '')
-                                          setServiceWorkCompleteDate(request.workCompleteDate || '')
-                                          setServiceWorkProblemIssue(request.problemIssue || '')
-                                          setServiceWorkIsUnresolved(request.isUnresolved || false)
-                                          setServiceWorkCurrentStage(request.currentWorkStage || '예정')
-                                        } else {
-                                          // 현재 시점으로 자동 설정 (한국 시간)
-                                          const now = new Date()
-                                          const kstOffset = 9 * 60 // 한국은 UTC+9
-                                          const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000))
-                                          const formattedNow = kstTime.toISOString().slice(0, 16)
-                                          setServiceWorkScheduledDate(formattedNow)
-                                          setServiceWorkStartDate('')
-                                          setServiceWorkContent('')
-                                          setServiceWorkCompleteDate('')
-                                          setServiceWorkProblemIssue('')
-                                          setServiceWorkIsUnresolved(false)
-                                          setServiceWorkCurrentStage('예정')
+                                        console.log('수정 모달 열기 - 신청번호:', request?.requestNumber);
+                                        console.log('원본 request 데이터:', JSON.stringify(request, null, 2));
+                                        // request 객체가 유효한지 확인
+                                        if (!request) {
+                                          console.error('request 객체가 undefined입니다!');
+                                          return;
                                         }
-                                        
+                                        // 먼저 상태 초기화
+                                        setServiceWorkScheduledDate('')
+                                        setServiceWorkStartDate('')
+                                        setServiceWorkContent('')
+                                        setServiceWorkCompleteDate('')
+                                        setServiceWorkProblemIssue('')
+                                        setServiceWorkIsUnresolved(false)
+                                        // request 객체를 로컬 변수로 저장
+                                        const currentRequest = request;
+                                        // 약간의 지연 후 데이터 설정 (React 상태 업데이트 보장)
+                                        setTimeout(() => {
+                                          setSelectedWorkRequest(currentRequest);
+                                          // datetime-local 형식에 맞게 변환 (YYYY-MM-DDTHH:MM)
+                                          const formatForDateTimeLocal = (dateStr: string) => {
+                                            console.log('formatForDateTimeLocal 입력:', dateStr);
+                                            if (!dateStr) {
+                                              console.log('빈 문자열 반환');
+                                              return '';
+                                            }
+                                            // API에서 받은 형식: "2025-08-23T00:00" 또는 "2025-08-23T14:00"
+                                            // datetime-local 형식: "2025-08-23T00:00" (초 없음)
+                                            const result = dateStr.slice(0, 16);
+                                            console.log('formatForDateTimeLocal 결과:', result);
+                                            return result;
+                                          };
+                                          const formattedScheduledDate = formatForDateTimeLocal(currentRequest.scheduledDate || '');
+                                          const formattedWorkStartDate = formatForDateTimeLocal(currentRequest.workStartDate || '');
+                                          const formattedWorkCompleteDate = formatForDateTimeLocal(currentRequest.workCompleteDate || '');
+                                          console.log('수정 모달 데이터 로딩:');
+                                          console.log('원본 데이터:', JSON.stringify({
+                                            scheduledDate: currentRequest.scheduledDate,
+                                            workStartDate: currentRequest.workStartDate,
+                                            workCompleteDate: currentRequest.workCompleteDate,
+                                            workContent: currentRequest.workContent,
+                                            problemIssue: currentRequest.problemIssue,
+                                            isUnresolved: currentRequest.isUnresolved,
+                                            stage: currentRequest.stage
+                                          }, null, 2));
+                                          console.log('변환된 데이터:', JSON.stringify({
+                                            scheduled_date: formattedScheduledDate,
+                                            work_start_date: formattedWorkStartDate,
+                                            work_complete_date: formattedWorkCompleteDate
+                                          }, null, 2));
+                                          // 단계별 초기값 설정
+                                          const currentStageId = stages.find(s => s.name === currentRequest.stage)?.id || 5;
+                                          const currentDateTime = getCurrentDateTime();
+                                          console.log('단계별 초기값 설정:', {
+                                            currentStage: currentRequest.stage,
+                                            currentStageId,
+                                            currentDateTime,
+                                            hasScheduledDate: !!formattedScheduledDate,
+                                            hasWorkStartDate: !!formattedWorkStartDate,
+                                            hasWorkCompleteDate: !!formattedWorkCompleteDate
+                                          });
+                                          // 예정조율일시: 확인 단계(id=4)에서 활성화, 데이터가 없으면 현재 일시
+                                          const scheduledDateValue = (currentStageId === 4 && !formattedScheduledDate)
+                                            ? currentDateTime
+                                            : formattedScheduledDate;
+                                          // 작업시작일시: 예정 단계(id=5)에서 활성화, 데이터가 없으면 현재 일시
+                                          const workStartDateValue = (currentStageId === 5 && !formattedWorkStartDate)
+                                            ? currentDateTime
+                                            : formattedWorkStartDate;
+                                          // 작업완료일시: 작업 단계(id=6)에서 활성화, 데이터가 없으면 현재 일시
+                                          const workCompleteDateValue = (currentStageId === 6 && !formattedWorkCompleteDate)
+                                            ? currentDateTime
+                                            : formattedWorkCompleteDate;
+                                          console.log('설정된 초기값:', {
+                                            scheduledDateValue,
+                                            workStartDateValue,
+                                            workCompleteDateValue
+                                          });
+                                          setServiceWorkScheduledDate(scheduledDateValue)
+                                          setServiceWorkStartDate(workStartDateValue)
+                                          setServiceWorkContent(currentRequest.workContent || '')
+                                          setServiceWorkCompleteDate(workCompleteDateValue)
+                                          setServiceWorkProblemIssue(currentRequest.problemIssue || '')
+                                          setServiceWorkIsUnresolved(currentRequest.isUnresolved || false)
+                                          // stage는 selectedWorkRequest.stage를 사용하므로 별도 설정 불필요
+                                          console.log('상태 변수 설정 완료:', JSON.stringify({
+                                            serviceWorkScheduledDate: formattedScheduledDate,
+                                            serviceWorkStartDate: formattedWorkStartDate,
+                                            serviceWorkCompleteDate: formattedWorkCompleteDate,
+                                            serviceWorkContent: currentRequest.workContent || '',
+                                            serviceWorkProblemIssue: currentRequest.problemIssue || '',
+                                            serviceWorkIsUnresolved: currentRequest.isUnresolved || false,
+                                            stage: currentRequest.stage
+                                          }, null, 2));
+                                        }, 100);
                                         setShowServiceWorkInfoModal(true);
                                       }}
                                       className="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
