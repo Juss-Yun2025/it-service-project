@@ -401,8 +401,9 @@ function SystemAdminPageContent() {
   // 드래그 이벤트 핸들러
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true)
-    setStartX(e.pageX - e.currentTarget.offsetLeft)
-    setScrollLeft(e.currentTarget.scrollLeft)
+    const target = e.currentTarget as HTMLElement
+    setStartX(e.pageX - target.offsetLeft)
+    setScrollLeft(target.scrollLeft)
   }
   const handleMouseLeave = () => {
     setIsDragging(false)
@@ -413,9 +414,10 @@ function SystemAdminPageContent() {
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDragging) return
     e.preventDefault()
-    const x = e.pageX - e.currentTarget.offsetLeft
+    const target = e.currentTarget as HTMLElement
+    const x = e.pageX - target.offsetLeft
     const walk = (x - startX) * 2
-    e.currentTarget.scrollLeft = scrollLeft - walk
+    target.scrollLeft = scrollLeft - walk
   }
   // 카드 클릭 핸들러 (드래그와 구분)
   const handleCardClick = (e: React.MouseEvent, action: () => void) => {
@@ -843,11 +845,11 @@ function SystemAdminPageContent() {
     // DB의 stages 데이터를 기반으로 다음 단계 찾기
     const currentStage = getCurrentStage();
     const currentStageData = stages.find(s => s.name === currentStage);
-    if (currentStageData) {
+    if (currentStageData && currentStageData.sort_order !== undefined) {
       // 현재 단계의 sort_order보다 큰 첫 번째 단계를 다음 단계로 사용
       const nextStage = stages
-        .filter(s => s.sort_order > currentStageData.sort_order)
-        .sort((a, b) => a.sort_order - b.sort_order)[0];
+        .filter(s => s.sort_order !== undefined && s.sort_order > currentStageData.sort_order!)
+        .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0))[0];
       if (nextStage) {
         return nextStage;
       }
@@ -1073,12 +1075,12 @@ function SystemAdminPageContent() {
         const transformedData = response.data.map((item: any) => mapServiceRequestData(item));
         // 서비스현황 리포트 전용 상태에 저장
         setServiceReportData(transformedData);
-        if (response.pagination) {
+        if ((response as any).pagination) {
           setServiceReportPagination({
-            page: response.pagination.page,
-            limit: response.pagination.limit,
-            total: response.pagination.total,
-            totalPages: response.pagination.totalPages
+            page: (response as any).pagination.page,
+            limit: (response as any).pagination.limit,
+            total: (response as any).pagination.total,
+            totalPages: (response as any).pagination.totalPages
           });
         }
       } else {
@@ -1132,12 +1134,12 @@ function SystemAdminPageContent() {
         // API 응답 데이터를 프론트엔드 형식으로 변환 (mapServiceRequestData 함수 사용)
         const transformedData = response.data.map((item: any) => mapServiceRequestData(item));
         setServiceRequests(transformedData);
-        if (response.pagination) {
+        if ((response as any).pagination) {
           setServiceRequestsPagination({
-            page: isDeptFilteredForFetch ? 1 : response.pagination.page,
-            limit: isDeptFilteredForFetch ? response.pagination.total : response.pagination.limit,
-            total: response.pagination.total,
-            totalPages: isDeptFilteredForFetch ? 1 : response.pagination.totalPages
+            page: isDeptFilteredForFetch ? 1 : (response as any).pagination.page,
+            limit: isDeptFilteredForFetch ? (response as any).pagination.total : (response as any).pagination.limit,
+            total: (response as any).pagination.total,
+            totalPages: isDeptFilteredForFetch ? 1 : (response as any).pagination.totalPages
           });
         }
       } else {
@@ -1159,17 +1161,6 @@ function SystemAdminPageContent() {
       };
       const response = await apiClient.getServiceStatistics(params);
       if (response.success && response.data) {
-        console.log('백엔드에서 받은 통계 데이터:', response.data);
-        if (response.data && response.data.overview) {
-          console.log('overview 데이터:', response.data.overview);
-          console.log('overview 키들:', Object.keys(response.data.overview));
-          // stage 관련 필드들만 확인
-          const stageFields = Object.keys(response.data.overview).filter(key => key.startsWith('stage_'));
-          console.log('stage 필드들:', stageFields);
-          stageFields.forEach(field => {
-            console.log(`${field}:`, response.data.overview[field]);
-          });
-        }
         setAggregationServiceStatistics(response.data);
       }
     } catch (error) {
@@ -1219,12 +1210,6 @@ function SystemAdminPageContent() {
   }, [aggregationStartDate, aggregationEndDate, aggregationSelectedDepartment]);
   // aggregationServiceStatistics 데이터가 변경되면 chartData 업데이트
   useEffect(() => {
-    console.log('chartData 업데이트 시도:', {
-      hasStatistics: !!aggregationServiceStatistics,
-      stagesLength: stages.length,
-      hasOverview: !!(aggregationServiceStatistics && aggregationServiceStatistics.overview),
-      stages: stages
-    });
     if (aggregationServiceStatistics && stages.length > 0) {
       const newChartData: { [key: string]: number } = {};
       // 백엔드 데이터는 overview 객체 안에 stage_접수, stage_배정 등의 필드가 있음
@@ -1235,12 +1220,9 @@ function SystemAdminPageContent() {
           const backendField = `stage_${stage.name}`;
           const value = parseInt(overview[backendField]) || 0;
           newChartData[key] = value;
-          console.log(`매핑: ${stage.name} -> ${key} (필드: ${backendField}) = ${value}`);
         });
       }
-      console.log('최종 chartData:', newChartData);
       const total = Object.values(newChartData).reduce((sum, value) => sum + value, 0);
-      console.log('chartData 총합:', total);
       setChartData(newChartData);
     }
   }, [aggregationServiceStatistics, stages]);
@@ -1284,12 +1266,12 @@ function SystemAdminPageContent() {
       if (response.success && response.data) {
         const transformedData = response.data.map((item: any) => mapInquiryData(item));
         setInquiries(transformedData);
-        if (response.pagination) {
+        if ((response as any).pagination) {
           setInquiriesPagination({
-            page: response.pagination.page,
-            limit: response.pagination.limit,
-            total: response.pagination.total,
-            totalPages: response.pagination.totalPages
+            page: (response as any).pagination.page,
+            limit: (response as any).pagination.limit,
+            total: (response as any).pagination.total,
+            totalPages: (response as any).pagination.totalPages
           });
         }
       } else {
@@ -1612,7 +1594,7 @@ function SystemAdminPageContent() {
     // 부서 필터
     if (userManagementSearchDepartment !== '전체' && user.department !== userManagementSearchDepartment) return false;
     // 권한 필터
-    if (userManagementSearchRole !== '전체' && !user.roles?.includes(userManagementSearchRole)) return false;
+    if (userManagementSearchRole !== '전체' && user.role !== userManagementSearchRole) return false;
     // 성명 검색
     if (userManagementSearchName && !user.name.includes(userManagementSearchName)) return false;
     // 기간 필터 (기간이 설정된 경우에만)
@@ -1856,7 +1838,7 @@ function SystemAdminPageContent() {
     // 선택된 부서에 따른 필터링
     if (aggregationSelectedDepartment !== '') {
       const filteredRequests = aggregationServiceRequests.filter(request => 
-        request.technician_department === aggregationSelectedDepartment
+        request.technicianDepartment === aggregationSelectedDepartment
       );
       
       // 필터링된 데이터로 다시 계산
@@ -1899,7 +1881,7 @@ function SystemAdminPageContent() {
     const selectedDept = inquirySelectedDepartment || ''
     const data = departmentInquiryData[selectedDept] || departmentInquiryData['']
     // 날짜에 따른 가중치 적용 (1주일 기준)
-    const daysDiff = Math.ceil((new Date(inquiryEndDate) - new Date(inquiryStartDate)) / (1000 * 60 * 60 * 24))
+    const daysDiff = Math.ceil((new Date(inquiryEndDate).getTime() - new Date(inquiryStartDate).getTime()) / (1000 * 60 * 60 * 24))
     const dateMultiplier = Math.max(0.5, Math.min(2, daysDiff / 7)) // 7일 기준으로 가중치 계산
     const newData = {
       answered: Math.round(data.answered * dateMultiplier),
@@ -2189,9 +2171,7 @@ function SystemAdminPageContent() {
                               });
                             }
                             
-                            console.log('그래프 렌더링 - 직접 계산된 chartData:', currentChartData);
                             const total = Object.values(currentChartData).reduce((sum, value) => sum + value, 0)
-                            console.log('그래프 렌더링 - 직접 계산된 total:', total);
                             const radius = 120
                             const centerX = 150
                             const centerY = 100
@@ -2217,7 +2197,7 @@ function SystemAdminPageContent() {
                                 'bg-red-100 text-red-800': '#EF4444',
                                 'bg-indigo-100 text-indigo-800': '#6366F1'
                               };
-                              stageColors[stage.name] = colorMap[stage.color] || '#6B7280';
+                              stageColors[stage.name] = colorMap[stage.color || ''] || '#6B7280';
                             });
 
                             // stages 테이블의 id 순서대로 정렬 (그래프용 - 위에서부터 접수→미결)
@@ -2239,7 +2219,7 @@ function SystemAdminPageContent() {
                               return result;
                             }).filter(stage => stage.value > 0); // 값이 있는 단계만 표시
                             // 호 그리기 함수
-                            const createArc = (key, startAngle, endAngle, color, strokeWidth = 48) => {
+                            const createArc = (key: string, startAngle: number, endAngle: number, color: string, strokeWidth: number = 48) => {
                               // 각도가 유효하지 않으면 빈 path 반환
                               if (!isFinite(startAngle) || !isFinite(endAngle) || startAngle === endAngle) {
                                 return null
@@ -2267,7 +2247,7 @@ function SystemAdminPageContent() {
                               )
                             }
                             // 극좌표를 직교좌표로 변환 (180도 회전)
-                            const polarToCartesian = (centerX, centerY, radius, angleInDegrees) => {
+                            const polarToCartesian = (centerX: number, centerY: number, radius: number, angleInDegrees: number) => {
                               // 각도가 유효하지 않으면 기본값 반환
                               if (!isFinite(angleInDegrees)) {
                                 return { x: centerX, y: centerY }
@@ -2322,7 +2302,7 @@ function SystemAdminPageContent() {
                                 'bg-red-100 text-red-800': '#EF4444',
                                 'bg-indigo-100 text-indigo-800': '#6366F1'
                               };
-                              stageColors[stage.name] = colorMap[stage.color] || '#6B7280';
+                              stageColors[stage.name] = colorMap[stage.color || ''] || '#6B7280';
                             });
 
                             // 범례용 데이터도 직접 계산
@@ -2394,9 +2374,9 @@ function SystemAdminPageContent() {
                   style={{
                     scrollbarWidth: 'none',
                     msOverflowStyle: 'none',
-                    WebkitScrollbar: { display: 'none' },
+                    WebkitScrollbar: 'none',
                     cursor: isDragging ? 'grabbing' : 'grab'
-                  }}
+                  } as React.CSSProperties}
                   onMouseDown={handleMouseDown}
                   onMouseLeave={handleMouseLeave}
                   onMouseUp={handleMouseUp}
@@ -2716,11 +2696,8 @@ function SystemAdminPageContent() {
                                       <>
                                         <button
                                           onClick={() => {
-                                            console.log('수정 모달 열기 - 신청번호:', request?.request_number);
-                                            console.log('원본 request 데이터:', JSON.stringify(request, null, 2));
                                             // request 객체가 유효한지 확인
                                             if (!request) {
-                                              console.error('request 객체가 undefined입니다!');
                                               return;
                                             }
                                             // 먼저 상태 초기화
@@ -3276,9 +3253,9 @@ function SystemAdminPageContent() {
                                 <td className="px-2 py-2 text-gray-900 text-center">{user.name}</td>
                                 <td className="px-2 py-2 text-gray-900 text-center">{user.department}</td>
                                 <td className="px-2 py-2 text-gray-900 text-center">{user.position}</td>
-                                <td className="px-2 py-2 text-gray-900 text-center">{user.phone || '-'}</td>
+                                <td className="px-2 py-2 text-gray-900 text-center">-</td>
                                 <td className="px-2 py-2 text-gray-900 text-center">
-                                  {user.roles ? user.roles : <span className="text-gray-400">권한 없음</span>}
+                                  {user.role ? user.role : <span className="text-gray-400">권한 없음</span>}
                                 </td>
                                 <td className="px-2 py-2 text-gray-900 text-center">
                                   {(() => {
@@ -3312,8 +3289,8 @@ function SystemAdminPageContent() {
                                           name: user.name,
                                           department: user.department,
                                           position: user.position,
-                                          phone: user.phone || '',
-                                          role: user.roles ? user.roles.split(',')[0] : '', // 첫 번째 권한만 사용
+                                          phone: '',
+                                          role: user.role || '', // User 인터페이스의 role 속성 사용
                                           status: user.status
                                         });
                                         setShowUserEditModal(true);
@@ -3462,8 +3439,8 @@ function SystemAdminPageContent() {
                           <div className="flex flex-col items-center">
                             {(() => {
                               // 프론트엔드에서 직접 계산 (숫자형 변환)
-                              const answered = inquiryStatistics ? parseInt(inquiryStatistics.overview.answered_inquiries) : 0;
-                              const pending = inquiryStatistics ? parseInt(inquiryStatistics.overview.pending_inquiries) : 0;
+                              const answered = inquiryStatistics ? Number(inquiryStatistics.overview.answered_inquiries) || 0 : 0;
+                              const pending = inquiryStatistics ? Number(inquiryStatistics.overview.pending_inquiries) || 0 : 0;
                               const total = answered + pending; // 숫자형 변환 후 계산
                               
                               // 데이터가 없으면 "데이터 없음" 표시
@@ -5818,7 +5795,7 @@ function SystemAdminPageContent() {
                                       scheduled_date: serviceWorkScheduledDate
                                     };
                                     
-                                    const response = await apiClient.updateServiceRequest(selectedWorkRequest?.id || 0, updateData);
+                                    const response = await apiClient.updateServiceRequest(Number(selectedWorkRequest?.id) || 0, updateData);
                                     
                                     if (response.success) {
                                       setServiceWorkCurrentStage('작업')  // 다음 단계 UI 활성화
@@ -5832,7 +5809,7 @@ function SystemAdminPageContent() {
                                       
                                       // 선택된 요청 업데이트
                                       if (selectedWorkRequest) {
-                                        setSelectedWorkRequest({...selectedWorkRequest, stage: '예정', scheduled_date: serviceWorkScheduledDate});
+                                        setSelectedWorkRequest({...selectedWorkRequest, stage: '예정', scheduledDate: serviceWorkScheduledDate});
                                       }
                                     } else {
                                       alert('업데이트 실패: ' + (response.error || '알 수 없는 오류'));
@@ -5887,7 +5864,7 @@ function SystemAdminPageContent() {
                                       work_start_date: serviceWorkStartDate
                                     };
                                     
-                                    const response = await apiClient.updateServiceRequest(selectedWorkRequest?.id || 0, updateData);
+                                    const response = await apiClient.updateServiceRequest(Number(selectedWorkRequest?.id) || 0, updateData);
                                     
                                     if (response.success) {
                                       setServiceWorkCurrentStage('완료')  // 다음 단계 UI 활성화
@@ -5901,7 +5878,7 @@ function SystemAdminPageContent() {
                                       
                                       // 선택된 요청 업데이트
                                       if (selectedWorkRequest) {
-                                        setSelectedWorkRequest({...selectedWorkRequest, stage: '작업', work_start_date: serviceWorkStartDate});
+                                        setSelectedWorkRequest({...selectedWorkRequest, stage: '작업', workStartDate: serviceWorkStartDate});
                                       }
                                     } else {
                                       alert('업데이트 실패: ' + (response.error || '알 수 없는 오류'));
@@ -5969,7 +5946,7 @@ function SystemAdminPageContent() {
                                       work_complete_date: serviceWorkCompleteDate
                                     };
                                     
-                                    const response = await apiClient.updateServiceRequest(selectedWorkRequest?.id || 0, updateData);
+                                    const response = await apiClient.updateServiceRequest(Number(selectedWorkRequest?.id) || 0, updateData);
                                     
                                     if (response.success) {
                                       setServiceWorkCurrentStage('미결')  // 다음 단계 UI 활성화
@@ -5980,8 +5957,8 @@ function SystemAdminPageContent() {
                                         setSelectedWorkRequest({
                                           ...selectedWorkRequest, 
                                           stage: '완료', 
-                                          work_content: serviceWorkContent,
-                                          work_complete_date: serviceWorkCompleteDate
+                                          workContent: serviceWorkContent,
+                                          workCompleteDate: serviceWorkCompleteDate
                                         });
                                       }
                                     } else {
@@ -6037,7 +6014,7 @@ function SystemAdminPageContent() {
                                     is_unresolved: serviceWorkIsUnresolved
                                   };
                                   
-                                  const response = await apiClient.updateServiceRequest(selectedWorkRequest?.id || 0, updateData);
+                                  const response = await apiClient.updateServiceRequest(Number(selectedWorkRequest?.id) || 0, updateData);
                                   
                                   if (response.success) {
                                     alert('미결 단계로 처리되었습니다.')
@@ -6047,8 +6024,8 @@ function SystemAdminPageContent() {
                                       setSelectedWorkRequest({
                                         ...selectedWorkRequest, 
                                         stage: '미결',
-                                        problem_issue: serviceWorkProblemIssue,
-                                        is_unresolved: serviceWorkIsUnresolved
+                                        problemIssue: serviceWorkProblemIssue,
+                                        isUnresolved: serviceWorkIsUnresolved
                                       });
                                     }
                                   } else {
@@ -6803,7 +6780,7 @@ function SystemAdminPageContent() {
             {/* 모달 하단 버튼 */}
             <div className="flex gap-3 py-4 px-6 border-t border-gray-200">
               <button
-                onClick={() => setShowGeneralInquiryEditModal(false)}
+                onClick={() => setShowGeneralInquiryEditAnswerModal(false)}
                 className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
               >
                 취소
