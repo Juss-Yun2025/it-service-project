@@ -58,9 +58,7 @@ interface ServiceRequest {
   assigneeDepartment?: string
   technician?: string
   technicianDepartment?: string
-  workStartDate?: string
   workStartTime?: string
-  workCompleteDate?: string
   workCompleteTime?: string
   assignmentHours?: string
   workHours?: string
@@ -320,7 +318,6 @@ function SystemAdminPageContent() {
   const [problemIssue, setProblemIssue] = useState('')
   const [isUnresolved, setIsUnresolved] = useState(false)
   const [currentStage, setCurrentStage] = useState('')
-  const [serviceWorkCurrentStage, setServiceWorkCurrentStage] = useState('확인')  // 작업정보등록 단계 관리
   const [selectedRequest, setSelectedRequest] = useState<ServiceRequest | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [showPasswordModal, setShowPasswordModal] = useState(false)
@@ -839,14 +836,21 @@ function SystemAdminPageContent() {
   };
   const getNextStage = async () => {
     const currentStageId = getCurrentStageId();
-    
-    // DB의 stages 데이터를 기반으로 다음 단계 찾기
+    try {
+      const response = await apiClient.getNextStage(currentStageId);
+      if (response.success && response.data) {
+        return response.data; // Stage 객체 전체 반환
+      }
+    } catch (error) {
+      console.error('다음 단계 조회 실패:', error);
+    }
+    // fallback: DB의 stages 데이터를 기반으로 다음 단계 찾기
     const currentStage = getCurrentStage();
     const currentStageData = stages.find(s => s.name === currentStage);
     if (currentStageData) {
       // 현재 단계의 sort_order보다 큰 첫 번째 단계를 다음 단계로 사용
       const nextStage = stages
-        .filter(s => s.sort_order > currentStageData.sort_order)
+        .filter(s => s.is_active && s.sort_order > currentStageData.sort_order)
         .sort((a, b) => a.sort_order - b.sort_order)[0];
       if (nextStage) {
         return nextStage;
@@ -2811,21 +2815,6 @@ function SystemAdminPageContent() {
                                                 stage: currentRequest.stage
                                               }, null, 2));
                                             }, 100);
-                                            
-                                            // 현재 단계에 따라 serviceWorkCurrentStage 설정
-                                            const currentStage = currentRequest.stage;
-                                            if (currentStage === '접수' || currentStage === '배정' || currentStage === '확인') {
-                                              setServiceWorkCurrentStage('예정');
-                                            } else if (currentStage === '예정') {
-                                              setServiceWorkCurrentStage('작업');
-                                            } else if (currentStage === '작업') {
-                                              setServiceWorkCurrentStage('완료');
-                                            } else if (currentStage === '완료') {
-                                              setServiceWorkCurrentStage('미결');
-                                            } else {
-                                              setServiceWorkCurrentStage('예정'); // 기본값
-                                            }
-                                            
                                             setShowServiceWorkInfoModal(true);
                                           }}
                                           className="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
@@ -5791,66 +5780,34 @@ function SystemAdminPageContent() {
                       </div>
                     </div>
                     {/* 예정 조율 일시 */}
-                    <div className={`px-4 py-0 rounded-lg border-2 ${serviceWorkCurrentStage === '예정' ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
+                    <div className={`px-4 py-0 rounded-lg border-2 ${isFieldEnabled('scheduledDate') ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
                       <div className="flex items-center gap-4">
                         <div className="flex-1">
                           <label className="block text-sm font-medium text-gray-600 mb-2">예정 조율 일시</label>
                           <input
+                            key={`scheduled-${selectedWorkRequest?.id || 'new'}`}
                             type="datetime-local"
                             value={serviceWorkScheduledDate}
-                            onChange={(e) => setServiceWorkScheduledDate(e.target.value)}
-                            disabled={serviceWorkCurrentStage !== '예정'}
-                            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                              serviceWorkCurrentStage !== '예정' ? 'bg-gray-100 cursor-not-allowed' : ''
-                            }`}
+                            onChange={(e) => {
+                              console.log('예정조율일시 입력 변경:', e.target.value);
+                              setServiceWorkScheduledDate(e.target.value);
+                            }}
+                            disabled={!isFieldEnabled('scheduledDate')}
+                            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${!isFieldEnabled('scheduledDate') ? 'bg-gray-100 cursor-not-allowed' : ''
+                              }`}
+                            onFocus={() => {}}
                           />
                         </div>
-                        {serviceWorkCurrentStage === '예정' && (
+                        {isFieldEnabled('scheduledDate') && (
                           <div className="flex items-center gap-2">
                             <Icon name="calendar" className="w-5 h-5 text-gray-400" />
                             <button
-                              onClick={async () => {
-                                if (serviceWorkScheduledDate) {
-                                  try {
-                                    // 데이터베이스에 업데이트 - 예정 단계로 변경
-                                    const updateData = {
-                                      stage: '예정',
-                                      scheduled_date: serviceWorkScheduledDate
-                                    };
-                                    
-                                    const response = await apiClient.updateServiceRequest(selectedWorkRequest?.id || 0, updateData);
-                                    
-                                    if (response.success) {
-                                      setServiceWorkCurrentStage('작업')  // 다음 단계 UI 활성화
-                                      // 작업시작일시에 현재 시점 자동 설정 (한국 시간)
-                                      const now = new Date()
-                                      const kstOffset = 9 * 60 // 한국은 UTC+9
-                                      const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000))
-                                      const formattedNow = kstTime.toISOString().slice(0, 16)
-                                      setServiceWorkStartDate(formattedNow)
-                                      alert('예정 단계로 진행되었습니다. 작업시작일시에서 처리하세요.')
-                                      
-                                      // 선택된 요청 업데이트
-                                      if (selectedWorkRequest) {
-                                        setSelectedWorkRequest({...selectedWorkRequest, stage: '예정', scheduled_date: serviceWorkScheduledDate});
-                                      }
-                                    } else {
-                                      alert('업데이트 실패: ' + (response.error || '알 수 없는 오류'));
-                                    }
-                                  } catch (error) {
-                                    console.error('데이터베이스 업데이트 오류:', error);
-                                    alert('데이터베이스 업데이트 중 오류가 발생했습니다.');
-                                  }
-                                } else {
-                                  alert('예정조율일시를 입력해주세요.')
-                                }
-                              }}
-                              disabled={!serviceWorkScheduledDate}
-                              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                                serviceWorkScheduledDate
-                                  ? 'bg-blue-500 hover:bg-blue-600 text-white'
-                                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                              }`}
+                              onClick={handleStageProgression}
+                              disabled={!canProceedToNextStage()}
+                              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${serviceWorkScheduledDate
+                                ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                }`}
                             >
                               처리
                             </button>
@@ -5858,68 +5815,31 @@ function SystemAdminPageContent() {
                         )}
                       </div>
                     </div>
-
                     {/* 작업 시작 일시 */}
-                    <div className={`px-4 py-0 rounded-lg border-2 ${serviceWorkCurrentStage === '작업' ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
+                    <div className={`px-4 py-0 rounded-lg border-2 ${isFieldEnabled('workStartDate') ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
                       <div className="flex items-center gap-4">
                         <div className="flex-1">
                           <label className="block text-sm font-medium text-gray-600 mb-2">작업 시작 일시</label>
                           <input
+                            key={`work-start-${selectedWorkRequest?.id || 'new'}`}
                             type="datetime-local"
                             value={serviceWorkStartDate}
                             onChange={(e) => setServiceWorkStartDate(e.target.value)}
-                            disabled={serviceWorkCurrentStage !== '작업'}
-                            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                              serviceWorkCurrentStage !== '작업' ? 'bg-gray-100 cursor-not-allowed' : ''
-                            }`}
+                            disabled={!isFieldEnabled('workStartDate')}
+                            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${!isFieldEnabled('workStartDate') ? 'bg-gray-100 cursor-not-allowed' : ''
+                              }`}
                           />
                         </div>
-                        {serviceWorkCurrentStage === '작업' && (
+                        {isFieldEnabled('workStartDate') && (
                           <div className="flex items-center gap-2">
                             <Icon name="calendar" className="w-5 h-5 text-gray-400" />
                             <button
-                              onClick={async () => {
-                                if (serviceWorkStartDate) {
-                                  try {
-                                    // 데이터베이스에 업데이트 - 작업 단계로 변경
-                                    const updateData = {
-                                      stage: '작업',
-                                      work_start_date: serviceWorkStartDate
-                                    };
-                                    
-                                    const response = await apiClient.updateServiceRequest(selectedWorkRequest?.id || 0, updateData);
-                                    
-                                    if (response.success) {
-                                      setServiceWorkCurrentStage('완료')  // 다음 단계 UI 활성화
-                                      // 작업완료일시에 현재 시점 자동 설정 (한국 시간)
-                                      const now = new Date()
-                                      const kstOffset = 9 * 60 // 한국은 UTC+9
-                                      const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000))
-                                      const formattedNow = kstTime.toISOString().slice(0, 16)
-                                      setServiceWorkCompleteDate(formattedNow)
-                                      alert('작업 단계로 진행되었습니다. 작업내역과 완료일시를 입력 후 처리하세요.')
-                                      
-                                      // 선택된 요청 업데이트
-                                      if (selectedWorkRequest) {
-                                        setSelectedWorkRequest({...selectedWorkRequest, stage: '작업', work_start_date: serviceWorkStartDate});
-                                      }
-                                    } else {
-                                      alert('업데이트 실패: ' + (response.error || '알 수 없는 오류'));
-                                    }
-                                  } catch (error) {
-                                    console.error('데이터베이스 업데이트 오류:', error);
-                                    alert('데이터베이스 업데이트 중 오류가 발생했습니다.');
-                                  }
-                                } else {
-                                  alert('작업시작일시를 입력해주세요.')
-                                }
-                              }}
-                              disabled={!serviceWorkStartDate}
-                              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                                serviceWorkStartDate
-                                  ? 'bg-blue-500 hover:bg-blue-600 text-white'
-                                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                              }`}
+                              onClick={handleStageProgression}
+                              disabled={!canProceedToNextStage()}
+                              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${serviceWorkStartDate
+                                ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                }`}
                             >
                               처리
                             </button>
@@ -5927,144 +5847,71 @@ function SystemAdminPageContent() {
                         )}
                       </div>
                     </div>
-
                     {/* 작업 내역 및 완료 일시 */}
-                    <div className={`px-4 py-0 rounded-lg border-2 ${serviceWorkCurrentStage === '완료' ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
+                    <div className={`px-4 py-0 rounded-lg border-2 ${(isFieldEnabled('workContent') || isFieldEnabled('workCompleteDate')) ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
                       <div className="space-y-0">
                         <div>
                           <label className="block text-sm font-medium text-gray-600 mb-2">작업 내역</label>
-                          <textarea
-                            value={serviceWorkContent}
-                            onChange={(e) => setServiceWorkContent(e.target.value)}
-                            disabled={serviceWorkCurrentStage !== '완료'}
-                            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                              serviceWorkCurrentStage !== '완료' ? 'bg-gray-100 cursor-not-allowed' : ''
-                            }`}
-                            rows={3}
-                            placeholder="작업 내용 입력"
-                          />
+                          <div className="flex gap-2">
+                            <textarea
+                              key={`work-content-${selectedWorkRequest?.id || 'new'}`}
+                              value={serviceWorkContent}
+                              onChange={(e) => setServiceWorkContent(e.target.value)}
+                              disabled={!isFieldEnabled('workContent')}
+                              className={`flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${!isFieldEnabled('workContent') ? 'bg-gray-100 cursor-not-allowed' : ''
+                                }`}
+                              rows={3}
+                              placeholder="작업 내용 입력"
+                            />
+                            {isFieldEnabled('workContent') && (
+                              <button
+                                onClick={handleStageProgression}
+                                disabled={!canProceedToNextStage()}
+                                className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${serviceWorkContent && serviceWorkCompleteDate
+                                  ? 'bg-blue-500 hover:bg-blue-600 text-white'
+                                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                  }`}
+                              >
+                                처리
+                              </button>
+                            )}
+                          </div>
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-gray-600 mb-2">작업 완료 일시</label>
                           <input
+                            key={`work-complete-${selectedWorkRequest?.id || 'new'}`}
                             type="datetime-local"
                             value={serviceWorkCompleteDate}
                             onChange={(e) => setServiceWorkCompleteDate(e.target.value)}
-                            disabled={serviceWorkCurrentStage !== '완료'}
-                            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                              serviceWorkCurrentStage !== '완료' ? 'bg-gray-100 cursor-not-allowed' : ''
-                            }`}
+                            disabled={!isFieldEnabled('workCompleteDate')}
+                            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${!isFieldEnabled('workCompleteDate') ? 'bg-gray-100 cursor-not-allowed' : ''
+                              }`}
                           />
                         </div>
-                        {serviceWorkCurrentStage === '완료' && (
-                          <div className="flex justify-end">
-                            <button
-                              onClick={async () => {
-                                if (serviceWorkContent && serviceWorkCompleteDate) {
-                                  try {
-                                    // 데이터베이스에 업데이트 - 완료 단계로 변경
-                                    const updateData = {
-                                      stage: '완료',
-                                      work_content: serviceWorkContent,
-                                      work_complete_date: serviceWorkCompleteDate
-                                    };
-                                    
-                                    const response = await apiClient.updateServiceRequest(selectedWorkRequest?.id || 0, updateData);
-                                    
-                                    if (response.success) {
-                                      setServiceWorkCurrentStage('미결')  // 다음 단계 UI 활성화
-                                      alert('완료 단계로 진행되었습니다. 문제사항이 있으면 등재하세요.')
-                                      
-                                      // 선택된 요청 업데이트
-                                      if (selectedWorkRequest) {
-                                        setSelectedWorkRequest({
-                                          ...selectedWorkRequest, 
-                                          stage: '완료', 
-                                          work_content: serviceWorkContent,
-                                          work_complete_date: serviceWorkCompleteDate
-                                        });
-                                      }
-                                    } else {
-                                      alert('업데이트 실패: ' + (response.error || '알 수 없는 오류'));
-                                    }
-                                  } catch (error) {
-                                    console.error('데이터베이스 업데이트 오류:', error);
-                                    alert('데이터베이스 업데이트 중 오류가 발생했습니다.');
-                                  }
-                                } else {
-                                  alert('작업내역과 작업완료일시를 모두 입력해주세요.')
-                                }
-                              }}
-                              disabled={!serviceWorkContent || !serviceWorkCompleteDate}
-                              className={`px-6 py-2 rounded-lg font-medium transition-all duration-200 ${
-                                serviceWorkContent && serviceWorkCompleteDate
-                                  ? 'bg-blue-500 hover:bg-blue-600 text-white'
-                                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                              }`}
-                            >
-                              처리
-                            </button>
-                          </div>
-                        )}
                       </div>
                     </div>
-
                     {/* 문제 사항 */}
-                    <div className={`px-4 py-0 rounded-lg border-2 ${serviceWorkCurrentStage === '미결' ? 'border-orange-300 bg-orange-50' : 'border-gray-200 bg-gray-50'}`}>
+                    <div className={`px-4 py-0 rounded-lg border-2 ${(isFieldEnabled('problemIssue') || isFieldEnabled('isUnresolved')) ? 'border-orange-300 bg-orange-50' : 'border-gray-200 bg-gray-50'}`}>
                       <div className="flex items-start gap-4">
                         <div className="flex-1">
                           <label className="block text-sm font-medium text-gray-600 mb-2">문제 사항</label>
                           <textarea
+                            key={`problem-issue-${selectedWorkRequest?.id || 'new'}`}
                             value={serviceWorkProblemIssue}
                             onChange={(e) => setServiceWorkProblemIssue(e.target.value)}
-                            disabled={serviceWorkCurrentStage !== '미결'}
-                            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 ${
-                              serviceWorkCurrentStage !== '미결' ? 'bg-gray-100 cursor-not-allowed' : ''
-                            }`}
+                            disabled={!isFieldEnabled('problemIssue')}
+                            className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 ${!isFieldEnabled('problemIssue') ? 'bg-gray-100 cursor-not-allowed' : ''
+                              }`}
                             rows={3}
                             placeholder="작업 중 발견 된 문제점 입력"
                           />
                         </div>
-                        {serviceWorkCurrentStage === '미결' && (
+                        {(isFieldEnabled('problemIssue') || isFieldEnabled('isUnresolved')) && (
                           <div className="flex items-start gap-2">
                             <button
-                              onClick={async () => {
-                                try {
-                                  // 데이터베이스에 업데이트 - 미결 단계로 변경
-                                  const updateData = {
-                                    stage: '미결',
-                                    problem_issue: serviceWorkProblemIssue,
-                                    is_unresolved: serviceWorkIsUnresolved
-                                  };
-                                  
-                                  const response = await apiClient.updateServiceRequest(selectedWorkRequest?.id || 0, updateData);
-                                  
-                                  if (response.success) {
-                                    alert('미결 단계로 처리되었습니다.')
-                                    
-                                    // 선택된 요청 업데이트
-                                    if (selectedWorkRequest) {
-                                      setSelectedWorkRequest({
-                                        ...selectedWorkRequest, 
-                                        stage: '미결',
-                                        problem_issue: serviceWorkProblemIssue,
-                                        is_unresolved: serviceWorkIsUnresolved
-                                      });
-                                    }
-                                  } else {
-                                    alert('등재 실패: ' + (response.error || '알 수 없는 오류'));
-                                  }
-                                } catch (error) {
-                                  console.error('데이터베이스 업데이트 오류:', error);
-                                  alert('데이터베이스 업데이트 중 오류가 발생했습니다.');
-                                }
-                              }}
-                              disabled={!serviceWorkIsUnresolved || !serviceWorkProblemIssue}
-                              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                                serviceWorkIsUnresolved && serviceWorkProblemIssue
-                                  ? 'bg-pink-500 hover:bg-pink-600 text-white'
-                                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                              }`}
+                              onClick={handleStageProgression}
+                              className="px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-pink-500 hover:bg-pink-600 text-white"
                             >
                               등재
                             </button>
@@ -6073,20 +5920,24 @@ function SystemAdminPageContent() {
                       </div>
                       <div className="mt-3 flex items-center">
                         <input
+                          key={`unresolved-${selectedWorkRequest?.id || 'new'}`}
                           type="checkbox"
+                          id="serviceWorkUnresolved"
                           checked={serviceWorkIsUnresolved}
                           onChange={(e) => setServiceWorkIsUnresolved(e.target.checked)}
-                          disabled={serviceWorkCurrentStage !== '미결'}
-                          className="mr-2"
+                          disabled={!isFieldEnabled('isUnresolved')}
+                          className={`mr-2 ${!isFieldEnabled('isUnresolved') ? 'cursor-not-allowed' : ''}`}
                         />
-                        <label className="text-sm text-gray-600">미해결</label>
+                        <label htmlFor="serviceWorkUnresolved" className={`text-sm font-medium ${!isFieldEnabled('isUnresolved') ? 'text-gray-400' : 'text-gray-700'
+                          }`}>
+                          미결 완료
+                        </label>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-
             {/* 모달 하단 버튼 */}
             <div className="flex justify-between py-4 px-6 border-t border-gray-200">
               {/* 나가기 버튼 */}
@@ -6116,8 +5967,6 @@ function SystemAdminPageContent() {
                       if (response.success) {
                         // selectedWorkRequest 업데이트
                         setSelectedWorkRequest(prev => prev ? { ...prev, stage: getStageName('확인') } : null);
-                        // serviceWorkCurrentStage를 '예정'으로 설정하여 예정조율일시 처리 버튼 활성화
-                        setServiceWorkCurrentStage('예정');
                         // 알림 메시지
                         alert('예정조율일시부터 단계적으로 다시 작업하세요!');
                         // 서비스작업List 새로고침

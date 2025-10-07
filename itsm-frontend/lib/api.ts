@@ -80,6 +80,26 @@ export interface StageUpdateRequest {
   sort_order?: number;
 }
 
+// ===== 단계-진행 매칭 인터페이스 =====
+export interface StageProgressMapping {
+  id: number;
+  stage_id: number;
+  stage_name: string;
+  progress_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StageProgressMappingCreateRequest {
+  stage_id: number;
+  progress_name: string;
+}
+
+export interface StageProgressMappingUpdateRequest {
+  stage_id?: number;
+  progress_name?: string;
+}
+
 export interface Department {
   id: number;
   name: string;
@@ -320,12 +340,6 @@ export interface ServiceRequestUpdateRequest {
   previous_assignment_opinion?: string;
   rejection_date?: string;
   rejection_opinion?: string;
-  scheduled_date?: string;
-  work_start_date?: string;
-  work_content?: string;
-  work_complete_date?: string;
-  problem_issue?: string;
-  is_unresolved?: boolean;
 }
 
 export interface ServiceRequestListParams {
@@ -819,6 +833,11 @@ class ApiClient {
     return this.request<void>(`/api/stages/${id}`, {
       method: 'DELETE'
     });
+  }
+
+  // 다음 단계 조회
+  async getNextStage(currentStageId: number): Promise<ApiResponse<Stage>> {
+    return this.request<Stage>(`/api/stages/${currentStageId}/next`);
   }
 
   // ===== 권한 관련 API =====

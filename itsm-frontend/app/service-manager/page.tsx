@@ -4162,14 +4162,19 @@ function ServiceManagerPage() {
                           <div className="flex items-start gap-2">
                             <button
                               onClick={() => {
-                                if (serviceWorkProblemIssue) {
+                                if (serviceWorkIsUnresolved && serviceWorkProblemIssue) {
                                   alert('미결 처리가 완료되었습니다.')
                                   setServiceWorkCurrentStage('미결완료')
                                 } else {
-                                  alert('문제사항을 입력해주세요.')
+                                  alert('미해결 체크박스를 선택하고 문제사항을 입력해주세요.')
                                 }
                               }}
-                              className="px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-pink-500 hover:bg-pink-600 text-white"
+                              disabled={!serviceWorkIsUnresolved || !serviceWorkProblemIssue}
+                              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                                serviceWorkIsUnresolved && serviceWorkProblemIssue
+                                  ? 'bg-pink-500 hover:bg-pink-600 text-white'
+                                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                              }`}
                             >
                               등재
                             </button>
