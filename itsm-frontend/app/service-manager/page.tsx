@@ -3762,10 +3762,7 @@ function ServiceManagerPage() {
                 취소
               </button>
               <button
-                onClick={() => {
-                  alert('재배정이 완료되었습니다.')
-                  setShowServiceReassignmentModal(false)
-                }}
+                onClick={handleReassignmentSubmit}
                 className="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-all duration-200"
               >
                 재배정하기
