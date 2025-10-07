@@ -4,9 +4,43 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Icon from '@/components/ui/Icon'
 import { apiClient } from '@/lib/api'
-import type { Stage, Department } from '@/lib/api'
+import type { Stage, Department, Position, ServiceType, GeneralInquiry, InquiryStatistics } from '@/lib/api'
 
 function ServiceManagerPage() {
+  const router = useRouter()
+  
+  // 시간을 hh:mm 형식으로 변환하는 함수
+  const formatTimeToHHMM = (timeString: string | undefined) => {
+    if (!timeString) return '-';
+    try {
+      // 다양한 시간 형식을 처리
+      let date: Date;
+      if (timeString.includes('T')) {
+        // ISO 형식: "2025-01-01T14:30:00" 또는 "2025-01-01T14:30"
+        date = new Date(timeString);
+      } else if (timeString.includes(' ')) {
+        // 날짜와 시간이 공백으로 구분된 형식: "2025-01-01 14:30:00"
+        date = new Date(timeString);
+      } else if (timeString.includes(':')) {
+        // 시간만 있는 형식: "14:30:00" 또는 "14:30"
+        const [hours, minutes] = timeString.split(':');
+        const today = new Date();
+        date = new Date(today.getFullYear(), today.getMonth(), today.getDate(),
+          parseInt(hours), parseInt(minutes));
+      } else {
+        return timeString; // 변환할 수 없는 형식은 그대로 반환
+      }
+      if (isNaN(date.getTime())) {
+        return timeString; // 유효하지 않은 날짜는 원본 반환
+      }
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${hours}:${minutes}`;
+    } catch (error) {
+      return timeString; // 오류 발생 시 원본 반환
+    }
+  };
+  
   // 모든 상태 변수 선언 (최상단)
   const [selectedInquiry, setSelectedInquiry] = useState<any>(null)
   const [showGeneralInquiryEditModal, setShowGeneralInquiryEditModal] = useState(false)
@@ -28,14 +62,31 @@ function ServiceManagerPage() {
   const [inquiryCurrentDepartment, setInquiryCurrentDepartment] = useState('전체 부서')
   const [showServiceWorkInfoModal, setShowServiceWorkInfoModal] = useState(false)
   const [showServiceWorkDeleteModal, setShowServiceWorkDeleteModal] = useState(false)
-  const [serviceWorkTotalPages, setServiceWorkTotalPages] = useState(1)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [paginatedServiceRequests, setPaginatedServiceRequests] = useState<ServiceRequest[]>([])
   const [selectedWorkRequest, setSelectedWorkRequest] = useState<ServiceRequest | null>(null)
   const [showServiceAssignmentModal, setShowServiceAssignmentModal] = useState(false)
   const [showServiceReassignmentModal, setShowServiceReassignmentModal] = useState(false)
+  
+  // 배정작업 모달 상태
+  const [assignmentDepartment, setAssignmentDepartment] = useState('')
+  const [assignmentTechnician, setAssignmentTechnician] = useState('')
+  const [assignmentOpinion, setAssignmentOpinion] = useState('')
+  const [assignmentServiceType, setAssignmentServiceType] = useState('')
+  const [assignmentTechnicians, setAssignmentTechnicians] = useState<any[]>([])
+  
+  // 재배정작업 모달 상태
+  const [reassignmentDepartment, setReassignmentDepartment] = useState('')
+  const [reassignmentTechnician, setReassignmentTechnician] = useState('')
+  const [reassignmentOpinion, setReassignmentOpinion] = useState('')
+  const [reassignmentServiceType, setReassignmentServiceType] = useState('')
+  const [reassignmentTechnicians, setReassignmentTechnicians] = useState<any[]>([])
+  
+  // 서비스 타입 관련 상태
+  const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([])
+  const [serviceTypesLoading, setServiceTypesLoading] = useState(false)
+  
   const [serviceWorkScheduledDate, setServiceWorkScheduledDate] = useState('')
   const [serviceWorkStartDate, setServiceWorkStartDate] = useState('')
   const [serviceWorkContent, setServiceWorkContent] = useState('')
@@ -46,7 +97,6 @@ function ServiceManagerPage() {
   const [aggregationServiceStatistics, setAggregationServiceStatistics] = useState<any>(null)
   const [isUnresolved, setIsUnresolved] = useState(false)
   const [showApprovalSuccessModal, setShowApprovalSuccessModal] = useState(false)
-  const router = useRouter()
   const [showServiceAggregation, setShowServiceAggregation] = useState(true)
   const [currentDepartment, setCurrentDepartment] = useState('')
   const [showServiceWorkList, setShowServiceWorkList] = useState(false)
@@ -89,16 +139,43 @@ function ServiceManagerPage() {
     phone: '',
     createDate: ''
   })
+
+  // 상태별 색상 매핑 (동적 처리)
+  const [statusColors, setStatusColors] = useState<{[key: string]: string}>({})
+  const [statusList, setStatusList] = useState<string[]>([])
+
+  // 단계별 아이콘 매핑 (동적 처리)
+  const [stageIcons, setStageIcons] = useState<{[key: string]: {icon: string, iconColor: string}}>({})
+
+  // 단계별 버튼 매핑 (동적 처리)
+  const [stageButtons, setStageButtons] = useState<{[key: string]: string[]}>({})
+
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [departments, setDepartments] = useState<Department[]>([])
   const [departmentsLoading, setDepartmentsLoading] = useState<boolean>(false)
+  const [positions, setPositions] = useState<Position[]>([])
+  const [positionsLoading, setPositionsLoading] = useState<boolean>(false)
   const [stages, setStages] = useState<Stage[]>([])
   const [stageColors, setStageColors] = useState<{[key: string]: string}>({})
-  const [serviceWorkSearchStartDate, setServiceWorkSearchStartDate] = useState('')
-  const [serviceWorkSearchEndDate, setServiceWorkSearchEndDate] = useState('')
+  const [serviceWorkSearchStartDate, setServiceWorkSearchStartDate] = useState(() => {
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    return oneWeekAgo.toISOString().split('T')[0];
+  })
+  const [serviceWorkSearchEndDate, setServiceWorkSearchEndDate] = useState(() => {
+    return new Date().toISOString().split('T')[0];
+  })
   const [showServiceIncompleteOnly, setShowServiceIncompleteOnly] = useState(false)
   const [serviceWorkSelectedDepartment, setServiceWorkSelectedDepartment] = useState('전체')
   const [serviceWorkCurrentPage, setServiceWorkCurrentPage] = useState(1)
+  const [serviceWorkSelectedStage, setServiceWorkSelectedStage] = useState('전체')
+  const [serviceRequestsLoading, setServiceRequestsLoading] = useState(false)
+  const [serviceRequestsPagination, setServiceRequestsPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 1
+  })
   const [currentDate, setCurrentDate] = useState('')
   const [currentTime, setCurrentTime] = useState('')
   const [searchStartDate, setSearchStartDate] = useState('')
@@ -163,13 +240,6 @@ function ServiceManagerPage() {
 
   // 시스템관리 페이지와 동일: 서비스 집계 통계 가져오기
   const fetchAggregationServiceStatistics = async () => {
-    console.log('🔄 fetchAggregationServiceStatistics 시작:', {
-      aggregationStartDate,
-      aggregationEndDate,
-      aggregationSelectedDepartment,
-      currentUserId,
-      managerDepartment: managerInfo.department
-    });
     try {
       const params = {
         startDate: aggregationStartDate,
@@ -177,24 +247,9 @@ function ServiceManagerPage() {
         department: aggregationSelectedDepartment !== '' ? aggregationSelectedDepartment : undefined,
         dateField: 'request_date' // 검색 기준 컬럼 변경
       }
-      console.log('📡 API 호출 파라미터:', {
-        ...params,
-        departmentValue: aggregationSelectedDepartment,
-        willSendDepartment: aggregationSelectedDepartment !== '' ? aggregationSelectedDepartment : 'undefined(전체부서)'
-      });
       const response = await apiClient.getServiceStatistics(params)
-      console.log('📊 API 응답:', response);
       if (response.success && response.data) {
         setAggregationServiceStatistics(response.data)
-        console.log('✅ aggregationServiceStatistics 설정됨:', response.data);
-        console.log('🔍 상세 데이터 구조:', {
-          hasOverview: !!response.data.overview,
-          overview: response.data.overview,
-          allKeys: Object.keys(response.data),
-          overviewKeys: response.data.overview ? Object.keys(response.data.overview) : []
-        });
-      } else {
-        console.error('❌ API 응답 실패:', response);
       }
     } catch (e) {
       console.error('❌ 서비스 집계현황 통계 가져오기 실패:', e)
@@ -203,15 +258,29 @@ function ServiceManagerPage() {
 
   // 시스템관리 페이지와 동일: stages 로드 함수
   const loadStages = async () => {
-    console.log('🚀 stages 로드 시작');
     try {
       const response = await apiClient.getStages();
       if (response.success && response.data) {
-        console.log('📋 stages 로드 성공:', response.data);
         setStages(response.data);
-        console.log('🎯 stages 설정 완료, length:', response.data.length);
-      } else {
-        console.error('❌ stages 로드 실패:', response.error);
+        
+        // 단계별 아이콘 매핑 설정 (시스템관리 페이지와 동일 패턴)
+        const iconsMapping: {[key: string]: {icon: string, iconColor: string}} = {};
+        const buttonsMapping: {[key: string]: string[]} = {};
+        response.data.forEach((stage: any) => {
+          if (stage.icon && stage.iconColor) {
+            iconsMapping[stage.name] = {
+              icon: stage.icon,
+              iconColor: stage.iconColor
+            };
+          }
+          if (stage.buttons) {
+            buttonsMapping[stage.name] = stage.buttons;
+          }
+        });
+        setStageIcons(iconsMapping);
+        setStageButtons(buttonsMapping);
+        console.log('단계별 아이콘 매핑 설정 (백엔드 기반):', iconsMapping);
+        console.log('단계별 버튼 매핑 설정 (백엔드 기반):', buttonsMapping);
       }
     } catch (error) {
       console.error('❌ stages 로드 중 오류:', error);
@@ -220,29 +289,15 @@ function ServiceManagerPage() {
 
   // 특정 부서로 통계 가져오기 (초기 로드용)
   const fetchAggregationServiceStatisticsWithDepartment = async (departmentName: string) => {
-    console.log('🔄 fetchAggregationServiceStatisticsWithDepartment 시작:', {
-      departmentName,
-      aggregationStartDate,
-      aggregationEndDate
-    });
     try {
       const params = {
         startDate: aggregationStartDate,
         endDate: aggregationEndDate,
         department: departmentName !== '' ? departmentName : undefined
       }
-      console.log('📡 직접 부서 API 호출 파라미터:', {
-        ...params,
-        departmentValue: departmentName,
-        willSendDepartment: departmentName !== '' ? departmentName : 'undefined(전체부서)'
-      });
       const response = await apiClient.getServiceStatistics(params)
-      console.log('📊 직접 부서 API 응답:', response)
       if (response.success && response.data) {
         setAggregationServiceStatistics(response.data)
-        console.log('✅ 직접 부서 aggregationServiceStatistics 설정됨:', response.data);
-      } else {
-        console.error('❌ 직접 부서 API 응답 실패:', response);
       }
     } catch (e) {
       console.error('❌ 직접 부서 서비스 집계현황 통계 가져오기 실패:', e)
@@ -292,11 +347,8 @@ function ServiceManagerPage() {
   useEffect(() => {
     // 시스템관리 페이지 패턴 참고: 로그인 사용자 정보 localStorage에서 가져오기
     const userStr = window.localStorage.getItem('user');
-    console.log('🔍 localStorage에서 가져온 사용자 정보:', userStr);
     if (userStr) {
       const currentUser = JSON.parse(userStr);
-      console.log('👤 파싱된 사용자 정보:', currentUser);
-      console.log('🏢 사용자 부서:', currentUser.department);
       
       setCurrentUserId(currentUser.id || '관리매니저');
       setManagerInfo({
@@ -311,10 +363,10 @@ function ServiceManagerPage() {
       setCurrentDepartment(currentUser.department || '전체 부서');
       // 관리매니저는 소속 책임자로 소속 조치담당자들의 업무를 관리할 부서 권한을 가진다
       const userDepartment = currentUser.department || '';
-      console.log('🎯 설정할 aggregationSelectedDepartment:', userDepartment);
       setAggregationSelectedDepartment(userDepartment);
+      // 서비스작업List관리 검색조건도 소속 부서로 초기설정
+      setServiceWorkSelectedDepartment(userDepartment || '전체');
     } else {
-      console.log('⚠️ localStorage에 사용자 정보가 없음');
       setCurrentUserId('관리매니저');
       setManagerInfo({
         name: '관리매니저',
@@ -327,6 +379,7 @@ function ServiceManagerPage() {
       });
       setCurrentDepartment('전체 부서');
       setAggregationSelectedDepartment(''); // 기본값은 전체 부서
+      setServiceWorkSelectedDepartment('전체'); // 기본값은 전체 부서
     }
     // 그래프(검색) 일자 초기값: 최근 한 달
     const today = new Date();
@@ -337,19 +390,37 @@ function ServiceManagerPage() {
     
     // 초기값 설정 후 서비스 통계 자동 로드
     setTimeout(() => {
-      console.log('🚀 페이지 로드 시 초기 데이터 로딩');
       loadStages(); // stages 먼저 로드
       fetchDepartments(); // departments 로드
+      fetchPositions(); // positions 로드
+      fetchServiceTypes(); // service types 로드
+      loadStatuses(); // 상태 정보 로드
     }, 100);
     
     // 부서 설정이 완료된 후 통계 로드 (사용자 부서값 직접 사용)
     const userDepartment = userStr ? JSON.parse(userStr).department || '' : '';
     setTimeout(() => {
-      console.log('📊 부서 설정 완료 후 통계 로드, 직접 사용자 부서:', userDepartment);
       // aggregationSelectedDepartment 상태값 대신 직접 사용자 부서값 사용
       fetchAggregationServiceStatisticsWithDepartment(userDepartment);
     }, 300);
   }, []);
+
+  // 차트 데이터 메모이제이션
+  const chartDataMemo = useMemo(() => {
+    let currentChartData: { [key: string]: number } = {};
+    
+    if (aggregationServiceStatistics && stages.length > 0 && aggregationServiceStatistics.overview) {
+      stages.forEach(stage => {
+        const key = stage.name;
+        const backendField = `stage_${stage.name}`;
+        const value = parseInt(aggregationServiceStatistics.overview[backendField]) || 0;
+        currentChartData[key] = value;
+      });
+    }
+    
+    const total = Object.values(currentChartData).reduce((sum, value) => sum + value, 0);
+    return { chartData: currentChartData, total };
+  }, [aggregationServiceStatistics, stages]);
 
   // 검색 조건 변경 시 자동으로 데이터 재조회
   useEffect(() => {
@@ -382,16 +453,11 @@ function ServiceManagerPage() {
 
   // 부서 목록 불러오기 함수
   const fetchDepartments = async () => {
-    console.log('🏢 fetchDepartments 시작');
     setDepartmentsLoading(true)
     try {
       const response = await apiClient.getDepartments()
-      console.log('🏢 부서 API 응답:', response);
       if (response.success && response.data) {
         setDepartments(response.data)
-        console.log('✅ departments 설정됨:', response.data);
-      } else {
-        console.error('❌ Failed to fetch departments:', response.error)
       }
     } catch (error) {
       console.error('❌ Error fetching departments:', error)
@@ -400,460 +466,486 @@ function ServiceManagerPage() {
     }
   }
 
-  // 데이터 타입 정의
-  // 서비스 작업 관련 상태 변수들 (컴포넌트 최상단에 선언)
-  const filteredServiceRequests = useMemo(() => {
-    return serviceRequests.filter((request) => {
-      // 날짜 필터
-      if (serviceWorkSearchStartDate && serviceWorkSearchEndDate) {
-        const requestDate = new Date(request.requestDate.replace(/\./g, '-'));
-        const startDate = new Date(serviceWorkSearchStartDate);
-        const endDate = new Date(serviceWorkSearchEndDate);
-        if (requestDate < startDate || requestDate > endDate) return false;
+  // 직급 목록 불러오기 함수
+  const fetchPositions = async () => {
+    setPositionsLoading(true)
+    try {
+      const response = await apiClient.getPositions()
+      if (response.success && response.data) {
+        setPositions(response.data)
       }
-      // 미결 완료 조회 필터
-      if (showServiceIncompleteOnly) {
-        return request.stage !== '완료';
-      }
-      // 접수/재배정 단계: 모든 데이터 표시
-      if (request.stage === '접수' || request.stage === '재배정') {
-        return true;
-      }
-      // 기타 단계: 조치소속 기준 필터링
-      if (serviceWorkSelectedDepartment !== '전체') {
-        return request.assigneeDepartment === serviceWorkSelectedDepartment;
-      }
-      // 전체 선택 시 모든 데이터 표시
-      return true;
-    });
-  }, [serviceRequests, serviceWorkSearchStartDate, serviceWorkSearchEndDate, showServiceIncompleteOnly, serviceWorkSelectedDepartment]);
+    } catch (error) {
+      console.error('❌ Error fetching positions:', error)
+    } finally {
+      setPositionsLoading(false)
+    }
+  }
 
+  // 상태 정보 로드
+  const loadStatuses = async () => {
+    try {
+      const response = await apiClient.getAllCurrentStatuses();
+      if (response.success && response.data) {
+        // 상태별 색상 매핑 설정
+        const colorMapping: {[key: string]: string} = {};
+        response.data.forEach((status: any) => {
+          if (status.color) {
+            colorMapping[status.name] = status.color;
+          }
+        });
+        setStatusColors(colorMapping);
 
-
-// 데이터 매핑 함수 (시스템관리 페이지 참고)
-const mapServiceRequestData = (rawData: any): ServiceRequest => {
-  return {
-    id: rawData.id?.toString() || '',
-    requestNumber: rawData.request_number || '',
-    title: rawData.title || '',
-    currentStatus: rawData.current_status || '',
-    requestDate: rawData.request_date || '',
-    requestTime: rawData.request_time || '',
-    requester: rawData.requester || '',
-    department: rawData.department || '',
-    requesterDepartment: rawData.requester_department || '',
-    stage: rawData.stage || '',
-    assignTime: rawData.assign_time || '',
-    assignDate: rawData.assign_date || '',
-    assignee: rawData.assignee || '',
-    assigneeDepartment: rawData.assignee_department || '',
-    technician: rawData.technician || '',
-    technicianDepartment: rawData.technician_department || '',
-    workStartDate: rawData.work_start_date || '',
-    workStartTime: rawData.work_start_time || '',
-    workCompleteDate: rawData.work_complete_date || '',
-    workCompleteTime: rawData.work_complete_time || '',
-    assignmentHours: rawData.assignment_hours || '',
-    workHours: rawData.work_hours || '',
-    content: rawData.content || '',
-    contact: rawData.contact || '',
-    location: rawData.location || '',
-    actualRequester: rawData.actual_requester || '',
-    actualContact: rawData.actual_contact || '',
-    actualRequesterDepartment: rawData.actual_requester_department || '',
-    serviceType: rawData.service_type || '',
-    completionDate: rawData.completion_date || '',
-    assignmentOpinion: rawData.assignment_opinion || '',
-    previousAssignDate: rawData.previous_assign_date || '',
-    previousAssignee: rawData.previous_assignee || '',
-    previousAssignmentOpinion: rawData.previous_assignment_opinion || '',
-    rejectionDate: rawData.rejection_date || '',
-    rejectionOpinion: rawData.rejection_opinion || '',
-    rejectionName: rawData.rejection_name || '',
-    scheduledDate: rawData.scheduled_date || '',
-    workContent: rawData.work_content || '',
-    problemIssue: rawData.problem_issue || '',
-    isUnresolved: rawData.is_unresolved || false,
-    stageId: rawData.stage_id || 0
+        // 상태 목록 설정
+        const statusNames = response.data.map((status: any) => status.name);
+        setStatusList(statusNames);
+        console.log('상태별 색상 매핑 설정 (백엔드 기반):', colorMapping);
+        console.log('상태 목록 설정 (백엔드 기반):', statusNames);
+      }
+    } catch (error) {
+      console.error('상태 정보 로드 실패:', error);
+      // 오류 발생 시 빈 객체로 설정 (기본 회색 색상 사용)
+      setStatusColors({});
+    }
   };
 
-  const [showServiceAggregation, setShowServiceAggregation] = useState(true)
-  const [showGeneralInquiryStatus, setShowGeneralInquiryStatus] = useState(true)
-  const [selectedDepartment, setSelectedDepartment] = useState('')
-  const [currentDepartment, setCurrentDepartment] = useState('')
-  // stages, stageColors, departments, departmentsLoading은 이미 위에서 선언됨
-  const [aggregationServiceStatistics, setAggregationServiceStatistics] = useState<any>(null)
-  const [startDate, setStartDate] = useState(new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().split('T')[0])
-  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0])
-  const [inquiryCurrentDepartment, setInquiryCurrentDepartment] = useState('전체 부서')
-  const [chartData, setChartData] = useState({
-    received: 0,
-    assigned: 0,
-    working: 0,
-    completed: 0,
-    failed: 0
-  })
-  const [inquiryData, setInquiryData] = useState({
-    answered: 0,
-    unanswered: 0,
-    total: 0,
-    completionRate: 0,
-    avgResponseTime: 0
-  })
+  // 데이터 타입 정의
+  // 서비스 작업 목록은 API에서 직접 필터링된 데이터를 사용 (하드코딩 필터링 제거)
+  // 페이지네이션도 서버에서 처리된 데이터 사용
 
-  // 현재 날짜와 시간 설정
-  useEffect(() => {
-    const updateDateTime = () => {
-      const now = new Date()
-      const dateStr = now.toLocaleDateString('ko-KR', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      }).replace(/\./g, '.').replace(/\s/g, '')
-      const timeStr = now.toLocaleTimeString('ko-KR', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      })
-      setCurrentDate(dateStr)
-      setCurrentTime(timeStr)
-    }
+  // mapServiceRequestData 함수
+  const mapServiceRequestData = (rawData: any) => {
+    return {
+      id: rawData.id?.toString() || '',
+      requestNumber: rawData.request_number || '',
+      title: rawData.title || '',
+      currentStatus: rawData.current_status || '',
+      requestDate: rawData.request_date || '',
+      requestTime: rawData.request_time || '',
+      requester: rawData.requester_name || '',
+      department: rawData.requester_department || '',
+      requesterDepartment: rawData.requester_department || '',
+      stage: rawData.stage || '',
+      assignTime: rawData.assign_time || '',
+      assignDate: rawData.assign_date || '',
+      assignee: rawData.assignee_name || '',
+      assigneeDepartment: rawData.assignee_department || '',
+      technician: rawData.technician_name || '',
+      technicianDepartment: rawData.technician_department || '',
+      workStartDate: rawData.work_start_date || '',
+      workStartTime: rawData.work_start_time || '',
+      workCompleteDate: rawData.work_complete_date || '',
+      workCompleteTime: rawData.work_complete_time || '',
+      content: rawData.content || '',
+      contact: rawData.contact || '',
+      location: rawData.location || '',
+      actualRequester: rawData.actual_requester_name || '',
+      actualContact: rawData.actual_contact || '',
+      actualRequesterDepartment: rawData.actual_requester_department || '',
+      serviceType: rawData.service_type || '',
+      completionDate: rawData.completion_date || '',
+      assignmentOpinion: rawData.assignment_opinion || '',
+      previousAssignDate: rawData.previous_assign_date || '',
+      previousAssignee: rawData.previous_assignee || '',
+      previousAssignmentOpinion: rawData.previous_assignment_opinion || '',
+      rejectionDate: rawData.rejection_date || '',
+      rejectionOpinion: rawData.rejection_opinion || '',
+      rejectionName: rawData.rejection_name || '',
+      scheduledDate: rawData.scheduled_date || '',
+      workContent: rawData.work_content || '',
+      problemIssue: rawData.problem_issue || '',
+      isUnresolved: rawData.is_unresolved || false,
+      stageId: rawData.stage_id || 0
+    };
+  }
 
-    updateDateTime()
-    const interval = setInterval(updateDateTime, 1000)
-    return () => clearInterval(interval)
-  }, [])
-
-  // 검색 기간 기본값 설정 (2025.08.25 ~ 2025.08.31)
-  useEffect(() => {
-    // 현재시점 기준 1주일 설정
-    const today = new Date()
-    const oneWeekAgo = new Date(today)
-    oneWeekAgo.setDate(today.getDate() - 7)
-    
-    const formatDate = (date: Date) => {
-      return date.toISOString().split('T')[0]
-    }
-    
-    setSearchStartDate(formatDate(oneWeekAgo))
-    setSearchEndDate(formatDate(today))
-    setServiceWorkSearchStartDate(formatDate(oneWeekAgo))
-    setServiceWorkSearchEndDate(formatDate(today))
-  }, [])
-  
-  // 검색 조건 변경 시 페이지 리셋
-  useEffect(() => {
-    setServiceWorkCurrentPage(1)
-  }, [serviceWorkSearchStartDate, serviceWorkSearchEndDate, showServiceIncompleteOnly, serviceWorkSelectedDepartment])
-
-  // 로그인 사용자 정보로 초기 설정
-  useEffect(() => {
-    const user = apiClient.getCurrentUser();
-    if (user) {
-      setCurrentUserId(user.id);
-      setManagerInfo({
-        name: user.name || '',
-        email: user.email || '',
-        fullName: user.name || '',
-        position: user.position || '',
-        department: user.department || '',
-        phone: (user as any).phone || '',
-        createDate: user.created_at || ''
+  // 서비스 요청 데이터 가져오기 함수 - 부서 필터링에도 페이지네이션 적용
+  const fetchServiceRequests = async () => {
+    setServiceRequestsLoading(true);
+    try {
+      // 선택된 단계의 ID 찾기
+      const selectedStageId = serviceWorkSelectedStage !== '전체'
+        ? stages.find(s => s.name === serviceWorkSelectedStage)?.id
+        : undefined;
+      const isDeptFilteredForFetch = serviceWorkSelectedDepartment !== '전체';
+      const params = {
+        startDate: serviceWorkSearchStartDate,
+        endDate: serviceWorkSearchEndDate,
+        department: isDeptFilteredForFetch ? serviceWorkSelectedDepartment : undefined, // technician_department 대신 department 사용
+        stage_id: selectedStageId,
+        showIncompleteOnly: showServiceIncompleteOnly, // 미결완료 필터링 추가
+        page: serviceRequestsPagination.page, // 부서 필터링에 관계없이 현재 페이지 사용
+        limit: 10 // 고정된 limit 사용
+      };
+      
+      console.log('🔍 fetchServiceRequests 파라미터:', {
+        ...params,
+        isDeptFilteredForFetch,
+        serviceWorkSelectedDepartment,
+        currentPage: serviceRequestsPagination.page
       });
       
-      if (user.department) {
-        setSelectedDepartment(user.department);
-        setCurrentDepartment(user.department);
-        // 일반문의 현황 초기값도 로그인 소속으로 동기화
-        setInquirySelectedDepartment(user.department);
-        setInquiryCurrentDepartment(user.department);
-      }
-    }
-  }, [])
-
-  // 부서 목록 로드
-  // 이미 위에서 선언된 fetchDepartments만 사용
-
-  // 단계 목록 로드
-  useEffect(() => {
-    (async () => {
-      console.log('🎯 stages 로드 시작');
-      try {
-        const res = await apiClient.getStages();
-        console.log('📋 stages API 응답:', res);
-        if (res.success && res.data) {
-          console.log('✅ stages 데이터 설정:', res.data);
-          setStages(res.data);
-          // 시스템관리 페이지와 동일한 색상 매핑 생성
-          const colors: {[key: string]: string} = {}
-          const colorMap: { [key: string]: string } = {
-            'bg-purple-100 text-purple-800': '#8B5CF6',
-            'bg-blue-100 text-blue-800': '#3B82F6',
-            'bg-green-100 text-green-800': '#10B981',
-            'bg-yellow-100 text-yellow-800': '#F59E0B',
-            'bg-red-100 text-red-800': '#EF4444',
-            'bg-gray-100 text-gray-800': '#6B7280',
-            'bg-indigo-100 text-indigo-800': '#6366F1',
-            'bg-pink-100 text-pink-800': '#EC4899',
-          }
-          res.data.forEach((st: any) => {
-            if (st?.name && st?.color) {
-              colors[st.name] = colorMap[st.color] || '#6B7280'
-            }
-          })
-          setStageColors(colors)
-        }
-      } catch (e) {
-        console.error('❌ 단계 목록 로드 실패:', e);
-        console.error('❌ stages 로드 에러 상세:', e);
-      }
-    })();
-    fetchDepartments()
-    
-    // 시스템관리 페이지와 동일: 초기 집계 데이터 로딩
-    console.log('🚀 페이지 로드 시 초기 데이터 로딩');
-    fetchAggregationServiceRequests();
-    fetchAggregationServiceStatistics();
-  }, [])
-
-  // 시스템관리 페이지와 동일: 집계 조건 변경 시 데이터 새로고침
-  useEffect(() => {
-    fetchAggregationServiceRequests();
-    fetchAggregationServiceStatistics();
-  }, [aggregationStartDate, aggregationEndDate, aggregationSelectedDepartment]);
-
-  // 시스템관리 페이지와 동일: 서비스 집계 요청 데이터 가져오기
-  const fetchAggregationServiceRequests = async () => {
-    setAggregationLoading(true);
-    try {
-      const params = {
-        startDate: aggregationStartDate,
-        endDate: aggregationEndDate,
-        department: aggregationSelectedDepartment !== '' ? aggregationSelectedDepartment : undefined,
-        showIncompleteOnly: false, // 집계 현황에서는 모든 상태 포함
-        page: 1,
-        limit: 1000 // 집계용이므로 충분한 데이터 가져오기
-      };
       const response = await apiClient.getServiceRequests(params);
+      console.log('📡 API 응답:', response);
+      console.log('📊 응답 데이터 개수:', response.data?.length);
+      console.log('📄 페이지네이션 정보:', (response as any).pagination);
+      
       if (response.success && response.data) {
         // API 응답 데이터를 프론트엔드 형식으로 변환
         const transformedData = response.data.map((item: any) => mapServiceRequestData(item));
-        setAggregationServiceRequests(transformedData);
+        setServiceRequests(transformedData);
+        
+        if ((response as any).pagination) {
+          console.log('✅ 백엔드에서 페이지네이션 정보 수신:', (response as any).pagination);
+          setServiceRequestsPagination({
+            page: (response as any).pagination.page,
+            limit: (response as any).pagination.limit,
+            total: (response as any).pagination.total,
+            totalPages: (response as any).pagination.totalPages
+          });
+        } else {
+          console.log('⚠️ 백엔드에서 페이지네이션 정보 없음 - 클라이언트에서 계산');
+          // 페이지네이션 정보가 없으면 기본값 설정
+          const itemsPerPage = 10;
+          const totalItems = transformedData.length;
+          const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+          
+          setServiceRequestsPagination(prev => ({
+            ...prev,
+            total: totalItems,
+            totalPages: totalPages,
+            limit: itemsPerPage
+          }));
+          console.log('📊 클라이언트 계산 페이지네이션:', { totalItems, totalPages, itemsPerPage });
+        }
       } else {
-        console.error('Failed to fetch aggregation service requests:', response.error);
+        console.error('Failed to fetch service requests:', response.error);
+        setServiceRequests([]);
+        setServiceRequestsPagination(prev => ({ ...prev, total: 0, totalPages: 1 }));
       }
     } catch (error) {
-      console.error('Error fetching aggregation service requests:', error);
+      console.error('Error fetching service requests:', error);
+      setServiceRequests([]);
+      setServiceRequestsPagination(prev => ({ ...prev, total: 0, totalPages: 1 }));
     } finally {
-      setAggregationLoading(false);
+      setServiceRequestsLoading(false);
     }
   };
 
-  // 서비스 요청 데이터는 이미 위에서 선언됨
-  // 차트 데이터는 이미 위에서 선언됨
-  // 문의 데이터는 이미 위에서 선언됨
-
-  // 현재 날짜와 시간 설정
+  // 검색 조건 변경 시 페이지를 1로 리셋하고 데이터 가져오기
   useEffect(() => {
-    const now = new Date()
-    const dateStr = now.toLocaleDateString('ko-KR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    }).replace(/\./g, '.').replace(/ /g, '')
-    
-    const timeStr = now.toLocaleTimeString('ko-KR', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    })
-    
-    setCurrentDate(dateStr)
-    setCurrentTime(timeStr)
-  }, [])
-
-  // 미결 현황 데이터
-  // 중복 선언 제거됨
-
-  // 서비스 작업 관련 상태 변수들은 이미 위에서 선언됨
-
-  // 서비스 작업 목록 필터링 및 페이지네이션 (중복 제거됨)
-
-  // 페이지네이션 계산
-  // 부서 필터가 선택된 경우(전체 제외)에는 한 페이지에 모두 표시
-  // 이미 위에서 선언된 동일 변수 사용
-
-  // 미결 현황 데이터
-  const [pendingWorksData, setPendingWorksData] = useState<PendingWork[]>([
-    {
-      id: '1',
-      technician: '김기술',
-      lastWeekPending: 0,
-      longTermPending: 1
+    if (stages.length > 0) {
+      setServiceRequestsPagination(prev => ({ ...prev, page: 1 }));
+      fetchServiceRequests();
     }
-  ])
+  }, [serviceWorkSearchStartDate, serviceWorkSearchEndDate, serviceWorkSelectedDepartment, serviceWorkSelectedStage, showServiceIncompleteOnly, stages.length]);
 
-  /*
-  // 하드코딩된 데이터들 - 추후 완전 제거 예정
-  */
-
-  // 미결 현황 데이터
-  const pendingWorksFilter = useMemo(() => {
-    return serviceWorkSelectedDepartment
-  }, [
-    serviceWorkSelectedDepartment
-  ])
-
-  // 디버깅용 로그
-  console.log('전체 서비스 요청 수:', serviceRequests.length)
-  console.log('필터 조건들:', {
-    serviceWorkSearchStartDate,
-    serviceWorkSearchEndDate,
-    showServiceIncompleteOnly,
-    serviceWorkSelectedDepartment
-  })
-    
-  // 서비스 작업 목록 필터링 및 페이지네이션
-  // useMemo 기반 필터링 및 페이징만 남김
-  const filteredServiceRequests = useMemo(() => {
-    return serviceRequests.filter((request) => {
-      // 날짜 필터
-      if (serviceWorkSearchStartDate && serviceWorkSearchEndDate) {
-        const requestDate = new Date(request.requestDate.replace(/\./g, '-'));
-        const startDate = new Date(serviceWorkSearchStartDate);
-        const endDate = new Date(serviceWorkSearchEndDate);
-        if (requestDate < startDate || requestDate > endDate) return false;
-      }
-      // 미결 완료 조회 필터
-      if (showServiceIncompleteOnly) {
-        return request.stage !== '완료';
-      }
-      // 접수/재배정 단계: 모든 데이터 표시
-      if (request.stage === '접수' || request.stage === '재배정') {
-        return true;
-      }
-      // 기타 단계: 조치소속 기준 필터링
-      if (serviceWorkSelectedDepartment !== '전체') {
-        return request.assigneeDepartment === serviceWorkSelectedDepartment;
-      }
-      // 전체 선택 시 모든 데이터 표시
-      return true;
-    });
-  }, [serviceRequests, serviceWorkSearchStartDate, serviceWorkSearchEndDate, showServiceIncompleteOnly, serviceWorkSelectedDepartment]);
-
-  const serviceWorkItemsPerPage = serviceWorkSelectedDepartment !== '전체' ? Math.max(1, filteredServiceRequests.length) : 10;
-  const serviceWorkTotalPages = Math.max(1, Math.ceil(filteredServiceRequests.length / serviceWorkItemsPerPage));
-  const serviceWorkStartIndex = (serviceWorkCurrentPage - 1) * serviceWorkItemsPerPage;
-  const serviceWorkEndIndex = serviceWorkStartIndex + serviceWorkItemsPerPage;
-  const paginatedServiceRequests = filteredServiceRequests.slice(serviceWorkStartIndex, serviceWorkEndIndex);
-  
-  // 페이지네이션 계산
-
-  // 미결 현황 데이터
-  const [pendingWorks, setPendingWorks] = useState<PendingWork[]>([
-    {
-      id: '1',
-      technician: '김기술',
-      lastWeekPending: 0,
-      longTermPending: 1
+  // 페이지 변경 시에만 데이터 가져오기
+  useEffect(() => {
+    if (stages.length > 0) {
+      fetchServiceRequests();
     }
-  ])
+  }, [serviceRequestsPagination.page]);
 
+  const openAssignmentModal = (request: any) => {
+    setSelectedWorkRequest(request)
+    setShowServiceAssignmentModal(true)
+  }
+
+  const openInfoModal = (request: any) => {
+    setSelectedWorkRequest(request)
+    setShowServiceWorkInfoModal(true)
+  }
+
+  const openInfoChange = () => {
+    setShowServiceWorkInfoModal(false)
     setShowWorkRegistrationInInfo(true)
     // 예정조율일시에 현재 시점 자동 설정 (한국 시간)
     const now = new Date()
     const kstOffset = 9 * 60 // 한국은 UTC+9
     const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000))
     const formattedNow = kstTime.toISOString().slice(0, 16)
-    setScheduledDate(formattedNow)
+    setServiceWorkScheduledDate(formattedNow)
   }
 
-  // 단계별 처리 함수들
+  // 누락된 핸들러 함수들 (기본 동작만)
+  const handleInfoChange = () => {
+    setShowServiceWorkInfoModal(true)
+  }
+
   const handleScheduledProcess = () => {
-    if (scheduledDate) {
-      setCurrentStage('작업') // 예정 → 작업으로 변경
-      // 작업시작일시에 현재 시점 자동 설정 (한국 시간)
-      const now = new Date()
-      const kstOffset = 9 * 60 // 한국은 UTC+9
-      const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000))
-      const formattedNow = kstTime.toISOString().slice(0, 16)
-      setWorkStartDate(formattedNow)
-      console.log('예정 단계 처리:', scheduledDate)
-      alert('예정조율일시가 등록되었습니다. 작업 단계로 진행합니다.')
-    } else {
-      alert('예정조율일시를 입력해주세요.')
-    }
+    setServiceWorkCurrentStage('작업')
+    alert('예정 단계가 처리되었습니다.')
   }
 
   const handleWorkStartProcess = () => {
-    if (workStartDate) {
-      setCurrentStage('완료') // 작업 → 완료로 변경
-      // 작업완료일시에 현재 시점 자동 설정 (한국 시간)
-      const now = new Date()
-      const kstOffset = 9 * 60 // 한국은 UTC+9
-      const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000))
-      const formattedNow = kstTime.toISOString().slice(0, 16)
-      setWorkCompleteDate(formattedNow)
-      console.log('작업 시작:', workStartDate)
-      alert('작업이 시작되었습니다. 완료 단계로 진행합니다.')
-    } else {
-      alert('작업시작일시를 입력해주세요.')
-    }
+    setServiceWorkCurrentStage('완료')
+    alert('작업이 시작되었습니다.')
   }
 
   const handleWorkCompleteProcess = () => {
-    if (workCompleteDate && workContent) {
-      setCurrentStage('미결') // 완료 → 미결로 변경
-      console.log('작업 완료:', workCompleteDate, workContent)
-      alert('작업이 완료되었습니다. 미결 처리 단계로 진행합니다.')
-    } else {
-      alert('작업내역과 작업완료일시를 모두 입력해주세요.')
-    }
+    setServiceWorkCurrentStage('미결')
+    alert('작업이 완료되었습니다.')
   }
+
   const handleUnresolvedProcess = () => {
-    if (problemIssue) {
-      setCurrentStage('미결')
-      // 데이터 업데이트만 수행
-      console.log('미결 처리:', problemIssue)
-      alert('미결 처리가 완료되었습니다.')
+    setServiceWorkCurrentStage('미결')
+    alert('미결 처리가 완료되었습니다.')
+  }
+
+  // 배정취소 처리 함수
+  const handleAssignmentCancel = async (request: any) => {
+    // 알람창으로 배정취소 의견 입력받기
+    const rejectionOpinion = prompt('배정취소 의견을 입력해주세요:');
+    if (!rejectionOpinion || rejectionOpinion.trim() === '') {
+      alert('배정취소 의견을 입력해주세요.');
+      return;
+    }
+    try {
+      // 현재 로그인 사용자 정보 가져오기
+      const userStr = localStorage.getItem('user');
+      let currentUser = null;
+      if (userStr) {
+        currentUser = JSON.parse(userStr);
+      }
+      // 한국시간 적용
+      const now = new Date();
+      const kstOffset = 9 * 60; // 한국은 UTC+9
+      const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000));
+      const kstDateTime = kstTime.toISOString().slice(0, 19).replace('T', ' ');
+      const response = await apiClient.cancelAssignment({
+        requestId: request.id,
+        rejectionOpinion: rejectionOpinion.trim(),
+        rejectionDate: kstDateTime, // 한국시간 적용
+        rejectionName: currentUser?.name || '', // 현재 로그인 사용자
+        stageId: 3, // 재배정
+        previousAssigneeDate: request.assignDate,
+        previousAssignee: request.assignee
+      });
+      if (response.success) {
+        alert('배정이 취소되었습니다.');
+        await fetchServiceRequests(); // 목록 새로고침
+      } else {
+        alert('배정취소 중 오류가 발생했습니다: ' + response.error);
+      }
+    } catch (error) {
+      console.error('배정취소 실패:', error);
+      alert('배정취소 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 서비스 타입 목록 불러오기 함수
+  const fetchServiceTypes = async () => {
+    setServiceTypesLoading(true)
+    try {
+      const response = await apiClient.getServiceTypes()
+      if (response.success && response.data) {
+        setServiceTypes(response.data)
+      }
+    } catch (error) {
+      console.error('❌ Error fetching service types:', error)
+    } finally {
+      setServiceTypesLoading(false)
+    }
+  }
+
+  // 서비스 타입 기본값 설정
+  useEffect(() => {
+    if (serviceTypes.length > 0) {
+      const defaultServiceType = serviceTypes[0].name
+      setAssignmentServiceType(defaultServiceType)
+      setReassignmentServiceType(defaultServiceType)
+    }
+  }, [serviceTypes])
+
+  // 배정작업 모달 - 조치 소속 변경 핸들러
+  const handleAssignmentDepartmentChange = async (departmentName: string) => {
+    setAssignmentDepartment(departmentName)
+    if (departmentName) {
+      const technicians = await fetchTechniciansByDepartment(departmentName)
+      setAssignmentTechnicians(technicians)
+
+      // 조치담당자가 없는 경우 알림
+      if (technicians.length === 0) {
+        alert(`${departmentName}에 조치담당자 권한을 가진 사용자가 없습니다.`)
+      }
+
+      // 현재 선택된 조치자가 새로운 부서에 없으면 초기화
+      const currentTechnician = assignmentTechnician
+      if (currentTechnician && !technicians.find((t: any) => t.name === currentTechnician)) {
+        setAssignmentTechnician('')
+      }
     } else {
-      alert('문제사항을 입력해주세요.')
+      setAssignmentTechnicians([])
+      setAssignmentTechnician('')
     }
   }
 
-  const handleAssignmentConfirmSubmit = () => {
-    if (selectedRequest) {
-      // 배정확인 로직
-      setServiceRequests(prev => 
-        prev.map(req => 
-          req.id === selectedRequest.id 
-            ? { ...req, stage: '확인' }
-            : req
-        )
-      )
+  // 재배정작업 모달 - 조치 소속 변경 핸들러
+  const handleReassignmentDepartmentChange = async (departmentName: string) => {
+    setReassignmentDepartment(departmentName)
+    if (departmentName) {
+      const technicians = await fetchTechniciansByDepartment(departmentName)
+      setReassignmentTechnicians(technicians)
+
+      // 조치담당자가 없는 경우 알림
+      if (technicians.length === 0) {
+        alert(`${departmentName}에 조치담당자 권한을 가진 사용자가 없습니다.`)
+      }
+
+      // 현재 선택된 조치자가 새로운 부서에 없으면 초기화
+      const currentTechnician = reassignmentTechnician
+      if (currentTechnician && !technicians.find((t: any) => t.name === currentTechnician)) {
+        setReassignmentTechnician('')
+      }
+    } else {
+      setReassignmentTechnicians([])
+      setReassignmentTechnician('')
     }
-    setShowAssignmentModal(false)
-    setSelectedRequest(null)
   }
 
-  const handleInfoSubmit = () => {
-    if (selectedRequest) {
-      // 작업정보등록 로직
-      setServiceRequests(prev => 
-        prev.map(req => 
-          req.id === selectedRequest.id 
-            ? { ...req, stage: '작업', completionDate: new Date().toLocaleString('ko-KR') }
-            : req
-        )
-      )
+  // 특정 부서의 기술자 목록 가져오기
+  const fetchTechniciansByDepartment = async (departmentName: string) => {
+    try {
+      const response = await apiClient.getUsers({
+        role: '조치담당자',
+        department: departmentName
+      });
+      if (response.success && response.data) {
+        return response.data.users;
+      } else {
+        console.error('기술자 목록 가져오기 실패:', response.error);
+        return [];
+      }
+    } catch (error) {
+      console.error('기술자 목록 가져오기 오류:', error);
+      return [];
     }
-    setShowInfoModal(false)
-    setSelectedRequest(null)
-  }
+  };
 
-  const handleInfoChange = () => {
-    setShowInfoModal(true)
-  }
+  // 배정작업 처리 함수
+  const handleAssignmentSubmit = async () => {
+    if (!selectedWorkRequest || !assignmentDepartment || !assignmentTechnician || !assignmentOpinion.trim()) {
+      alert('모든 필수 항목을 입력해주세요.');
+      return;
+    }
+
+    try {
+      // 현재 시간을 한국 시간으로 설정
+      const now = new Date();
+      const kstOffset = 9 * 60; // 한국은 UTC+9
+      const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000));
+      const kstDateTime = kstTime.toISOString().slice(0, 19).replace('T', ' ');
+      const kstDate = kstTime.toISOString().split('T')[0];
+      const kstTimeOnly = kstTime.toTimeString().slice(0, 8);
+
+      // 배정 담당자 정보 가져오기 (현재 로그인 사용자)
+      const userStr = localStorage.getItem('user');
+      let currentUser = null;
+      if (userStr) {
+        currentUser = JSON.parse(userStr);
+      }
+
+      const updateData = {
+        assign_date: kstDate,
+        assign_time: kstTimeOnly,
+        assignee_id: assignmentTechnicians.find((t: any) => t.name === assignmentTechnician)?.id,
+        assignee_name: currentUser?.name || '',
+        assignee_department: currentUser?.department || '',
+        technician_id: assignmentTechnicians.find((t: any) => t.name === assignmentTechnician)?.id,
+        technician_name: assignmentTechnician,
+        technician_department: assignmentDepartment,
+        assignment_opinion: assignmentOpinion.trim(),
+        service_type: assignmentServiceType,
+        stage_id: stages.find(s => s.name === '배정')?.id || 2, // 배정 단계로 변경
+        current_status: '배정'
+      };
+
+      const response = await apiClient.updateServiceRequest(selectedWorkRequest.id, updateData);
+      if (response.success) {
+        alert('배정이 완료되었습니다.');
+        setShowServiceAssignmentModal(false);
+        // 상태 초기화
+        setAssignmentDepartment('');
+        setAssignmentTechnician('');
+        setAssignmentOpinion('');
+        setAssignmentServiceType('');
+        setAssignmentTechnicians([]);
+        setSelectedWorkRequest(null);
+        // 목록 새로고침
+        await fetchServiceRequests();
+      } else {
+        alert('배정 중 오류가 발생했습니다: ' + response.error);
+      }
+    } catch (error) {
+      console.error('배정 실패:', error);
+      alert('배정 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 재배정작업 처리 함수
+  const handleReassignmentSubmit = async () => {
+    if (!selectedWorkRequest || !reassignmentDepartment || !reassignmentTechnician || !reassignmentOpinion.trim()) {
+      alert('모든 필수 항목을 입력해주세요.');
+      return;
+    }
+
+    try {
+      // 현재 시간을 한국 시간으로 설정
+      const now = new Date();
+      const kstOffset = 9 * 60; // 한국은 UTC+9
+      const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000));
+      const kstDateTime = kstTime.toISOString().slice(0, 19).replace('T', ' ');
+      const kstDate = kstTime.toISOString().split('T')[0];
+      const kstTimeOnly = kstTime.toTimeString().slice(0, 8);
+
+      // 재배정 담당자 정보 가져오기 (현재 로그인 사용자)
+      const userStr = localStorage.getItem('user');
+      let currentUser = null;
+      if (userStr) {
+        currentUser = JSON.parse(userStr);
+      }
+
+      const updateData = {
+        // 이전 배정 정보 저장
+        previous_assign_date: selectedWorkRequest.assignDate,
+        previous_assignee: selectedWorkRequest.assignee,
+        previous_assignment_opinion: selectedWorkRequest.assignmentOpinion,
+        // 새로운 배정 정보
+        assign_date: kstDate,
+        assign_time: kstTimeOnly,
+        assignee_id: reassignmentTechnicians.find((t: any) => t.name === reassignmentTechnician)?.id,
+        assignee_name: currentUser?.name || '',
+        assignee_department: currentUser?.department || '',
+        technician_id: reassignmentTechnicians.find((t: any) => t.name === reassignmentTechnician)?.id,
+        technician_name: reassignmentTechnician,
+        technician_department: reassignmentDepartment,
+        assignment_opinion: reassignmentOpinion.trim(),
+        service_type: reassignmentServiceType,
+        stage_id: stages.find(s => s.name === '배정')?.id || 2, // 배정 단계로 변경
+        current_status: '배정'
+      };
+
+      const response = await apiClient.updateServiceRequest(selectedWorkRequest.id, updateData);
+      if (response.success) {
+        alert('재배정이 완료되었습니다.');
+        setShowServiceReassignmentModal(false);
+        // 상태 초기화
+        setReassignmentDepartment('');
+        setReassignmentTechnician('');
+        setReassignmentOpinion('');
+        setReassignmentServiceType('');
+        setReassignmentTechnicians([]);
+        setSelectedWorkRequest(null);
+        // 목록 새로고침
+        await fetchServiceRequests();
+      } else {
+        alert('재배정 중 오류가 발생했습니다: ' + response.error);
+      }
+    } catch (error) {
+      console.error('재배정 실패:', error);
+      alert('재배정 중 오류가 발생했습니다.');
+    }
+  };
 
   // 백엔드 기반: 일반문의 통계 가져오기 및 inquiryData 반영
   const fetchManagerInquiryStatistics = async () => {
@@ -878,31 +970,45 @@ const mapServiceRequestData = (rawData: any): ServiceRequest => {
     }
   }
 
-  // 부서나 날짜 변경 시 차트 데이터 업데이트
-  useEffect(() => {
-    fetchAggregationServiceStatistics()
-  }, [selectedDepartment, startDate, endDate])
+
 
   // 일반문의현황 부서나 날짜 변경 시 데이터 업데이트
   useEffect(() => {
     fetchManagerInquiryStatistics()
   }, [inquirySelectedDepartment, inquiryStartDate, inquiryEndDate])
 
-  // 데이터 새로고침 함수 (검색 조건 유지)
+  // 서비스작업List관리가 열릴 때 데이터 새로고침
+  useEffect(() => {
+    if (showServiceWorkList) {
+      fetchDepartments();
+      if (stages.length > 0) {
+        fetchServiceRequests();
+      }
+    }
+  }, [showServiceWorkList]);
+
+  // stages가 로드된 후 서비스작업List가 열려있으면 데이터 로드
+  useEffect(() => {
+    if (stages.length > 0 && showServiceWorkList) {
+      fetchServiceRequests();
+    }
+  }, [stages.length, showServiceWorkList]);
+
+  // 페이지네이션 로직 - 부서 필터링에 관계없이 정상 작동
+  const serviceWorkTotalPages = serviceRequestsPagination.totalPages;
+  
+  console.log('📊 현재 페이지네이션 상태:', {
+    currentPage: serviceRequestsPagination.page,
+    totalPages: serviceWorkTotalPages,
+    total: serviceRequestsPagination.total,
+    limit: serviceRequestsPagination.limit,
+    selectedDepartment: serviceWorkSelectedDepartment,
+    dataLength: serviceRequests.length
+  });
   const handleRefresh = () => {
-    // 현재 검색 조건을 유지하면서 데이터만 새로고침
-    console.log('데이터 새로고침 - 검색 조건 유지:', {
-      searchStartDate,
-      searchEndDate,
-      showIncompleteOnly
-    })
-    
     // 서버에서 최신 통계 재로드
     fetchAggregationServiceStatistics()
     fetchManagerInquiryStatistics()
-    
-    // 시각적 피드백을 위한 간단한 알림 (선택사항)
-    // alert('데이터가 새로고침되었습니다.')
   }
 
   const closeModal = () => {
@@ -1148,37 +1254,8 @@ const mapServiceRequestData = (rawData: any): ServiceRequest => {
                       <div className="w-[400px] h-[400px] relative">
                         <svg viewBox="0 0 200 200" className="w-full h-full">
                           {(() => {
-                            // 렌더링 시점에서 직접 계산
-                            let currentChartData: { [key: string]: number } = {};
-                            
-                            console.log('🎨 차트 렌더링 시작:', {
-                              hasAggregationServiceStatistics: !!aggregationServiceStatistics,
-                              stagesLength: stages.length,
-                              hasOverview: !!(aggregationServiceStatistics && aggregationServiceStatistics.overview),
-                              aggregationServiceStatistics,
-                              stages: stages.map(s => ({ id: s.id, name: s.name }))
-                            });
-                            
-                            if (aggregationServiceStatistics && stages.length > 0 && aggregationServiceStatistics.overview) {
-                              console.log('🔍 overview 데이터:', aggregationServiceStatistics.overview);
-                              stages.forEach(stage => {
-                                const key = stage.name;
-                                const backendField = `stage_${stage.name}`;
-                                const value = parseInt(aggregationServiceStatistics.overview[backendField]) || 0;
-                                currentChartData[key] = value;
-                                console.log(`📊 단계 ${key}: ${backendField} = ${value} (overview에서 찾은 값: ${aggregationServiceStatistics.overview[backendField]})`);
-                              });
-                            } else {
-                              console.log('⚠️ 차트 데이터 조건 불일치:', {
-                                hasAggregationServiceStatistics: !!aggregationServiceStatistics,
-                                stagesLength: stages.length,
-                                hasOverview: !!(aggregationServiceStatistics && aggregationServiceStatistics.overview)
-                              });
-                            }
-                            
-                            console.log('그래프 렌더링 - 직접 계산된 chartData:', currentChartData);
-                            const total = Object.values(currentChartData).reduce((sum, value) => sum + value, 0)
-                            console.log('그래프 렌더링 - 직접 계산된 total:', total);
+                            // 메모이제이션된 차트 데이터 사용
+                            const { chartData, total } = chartDataMemo;
 
                             const radius = 120
                             const centerX = 150
@@ -1214,7 +1291,7 @@ const mapServiceRequestData = (rawData: any): ServiceRequest => {
                             const sortedStages = [...stages].sort((a, b) => a.id - b.id);
                             const stageData = sortedStages.map((stage, index) => {
                               const key = stage.name; // 한글 이름을 직접 키로 사용
-                              const value = currentChartData[key] || 0;
+                              const value = chartData[key] || 0;
                               const result = {
                                 key: key,
                                 koreanName: stage.name,
@@ -1315,17 +1392,8 @@ const mapServiceRequestData = (rawData: any): ServiceRequest => {
                               stageColors[stage.name] = colorMap[stage.color ?? ''] || '#6B7280';
                           });
 
-                          // 범례용 데이터도 직접 계산
-                          let legendChartData: { [key: string]: number } = {};
-                          
-                          if (aggregationServiceStatistics && stages.length > 0 && aggregationServiceStatistics.overview) {
-                            stages.forEach(stage => {
-                              const key = stage.name;
-                              const backendField = `stage_${stage.name}`;
-                              const value = parseInt(aggregationServiceStatistics.overview[backendField]) || 0;
-                              legendChartData[key] = value;
-                            });
-                          }
+                          // 메모이제이션된 차트 데이터 사용
+                          const { chartData: legendChartData } = chartDataMemo;
 
                           // stages 테이블의 id 순서대로 정렬하여 범례 생성
                           const sortedStages = [...stages].sort((a, b) => a.id - b.id);
@@ -1460,7 +1528,9 @@ const mapServiceRequestData = (rawData: any): ServiceRequest => {
                 <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200">
                   <div className="flex items-center space-x-4">
                     <button
-                      onClick={() => {/* 새로고침 로직 */}}
+                      onClick={async () => {
+                        await fetchServiceRequests();
+                      }}
                       className="w-6 h-6 text-gray-600 hover:text-gray-800 transition-colors"
                     >
                       <Icon name="refresh" size={16} />
@@ -1484,14 +1554,30 @@ const mapServiceRequestData = (rawData: any): ServiceRequest => {
                         <input
                           type="date"
                           value={serviceWorkSearchStartDate}
-                          onChange={(e) => setServiceWorkSearchStartDate(e.target.value)}
+                          max={serviceWorkSearchEndDate}
+                          onChange={(e) => {
+                            const startDate = e.target.value;
+                            setServiceWorkSearchStartDate(startDate);
+                            // 시작일이 종료일보다 늦으면 종료일을 시작일로 설정
+                            if (startDate && serviceWorkSearchEndDate && startDate > serviceWorkSearchEndDate) {
+                              setServiceWorkSearchEndDate(startDate);
+                            }
+                          }}
                           className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
                         />
                         <span className="text-gray-600 font-medium">~</span>
                         <input
                           type="date"
                           value={serviceWorkSearchEndDate}
-                          onChange={(e) => setServiceWorkSearchEndDate(e.target.value)}
+                          min={serviceWorkSearchStartDate}
+                          onChange={(e) => {
+                            const endDate = e.target.value;
+                            setServiceWorkSearchEndDate(endDate);
+                            // 종료일이 시작일보다 이르면 시작일을 종료일로 설정
+                            if (endDate && serviceWorkSearchStartDate && endDate < serviceWorkSearchStartDate) {
+                              setServiceWorkSearchStartDate(endDate);
+                            }
+                          }}
                           className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
                         />
                       </div>
@@ -1501,30 +1587,35 @@ const mapServiceRequestData = (rawData: any): ServiceRequest => {
                         value={serviceWorkSelectedDepartment}
                         onChange={(e) => setServiceWorkSelectedDepartment(e.target.value)}
                         className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
+                        disabled={departmentsLoading}
                       >
                         <option value="전체">전체</option>
-                        <option value="IT팀">IT팀</option>
-                        <option value="운영팀">운영팀</option>
-                        <option value="개발팀">개발팀</option>
-                        <option value="보안팀">보안팀</option>
-                        <option value="인사팀">인사팀</option>
-                        <option value="재무팀">재무팀</option>
+                        {departments.map((dept) => (
+                          <option key={dept.id} value={dept.name}>
+                            {dept.name}
+                          </option>
+                        ))}
                       </select>
                     </div>
                     
-                    {/* 미결완료조회 토글 - 우측 끝 배치 */}
-                    <div className="flex items-center space-x-3">
-                      <span className="text-sm font-medium text-gray-700">미결완료조회</span>
-                      <button
-                        onClick={() => setShowServiceIncompleteOnly(!showServiceIncompleteOnly)}
-                        className={`w-8 h-4 rounded-full transition-colors ${
-                          showServiceIncompleteOnly ? 'bg-green-500' : 'bg-gray-400'
-                        }`}
+                    {/* 단계 선택 - 우측 끝 배치 */}
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-medium text-gray-700">단계</span>
+                      <select
+                        value={serviceWorkSelectedStage}
+                        onChange={(e) => {
+                          setServiceWorkSelectedStage(e.target.value);
+                        }}
+                        className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
+                        disabled={!stages || stages.length === 0}
                       >
-                        <div className={`w-3 h-3 bg-white rounded-full transition-transform ${
-                          showServiceIncompleteOnly ? 'translate-x-4' : 'translate-x-0.5'
-                        }`} />
-                      </button>
+                        <option value="전체">전체</option>
+                        {stages.map((stage) => (
+                          <option key={stage.id} value={stage.name}>
+                            {stage.name}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                 </div>
@@ -1549,63 +1640,107 @@ const mapServiceRequestData = (rawData: any): ServiceRequest => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200">
-                        {paginatedServiceRequests.map((request) => (
+                        {serviceRequestsLoading ? (
+                          <tr>
+                            <td colSpan={11} className="px-2 py-8 text-center text-gray-500">
+                              <div className="flex items-center justify-center">
+                                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-2"></div>
+                                데이터를 불러오는 중...
+                              </div>
+                            </td>
+                          </tr>
+                        ) : serviceRequests.length === 0 ? (
+                          <tr>
+                            <td colSpan={11} className="px-2 py-8 text-center text-gray-500">
+                              조회된 서비스 요청이 없습니다.
+                            </td>
+                          </tr>
+                        ) : (
+                          serviceRequests.map((request) => (
                           <tr key={request.id} className="hover:bg-gray-50">
                             <td className="px-2 py-2 text-gray-900 text-center">{request.requestNumber}</td>
-                            <td className="px-2 py-2 text-gray-900 text-center">{request.requestTime || '13:00'}</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{formatTimeToHHMM(request.requestTime)}</td>
                             <td className="px-2 py-2 text-gray-900">{request.title}</td>
                             <td className="px-2 py-2 text-center">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                request.currentStatus === '정상작동' ? 'bg-green-100 text-green-800' :
-                                request.currentStatus === '오류발생' ? 'bg-red-100 text-red-800' :
-                                request.currentStatus === '메시지창' ? 'bg-blue-100 text-blue-800' :
-                                request.currentStatus === '부분불능' ? 'bg-yellow-100 text-yellow-800' :
-                                request.currentStatus === '전체불능' ? 'bg-red-200 text-red-900' :
-                                request.currentStatus === '점검요청' ? 'bg-purple-100 text-purple-800' :
-                                request.currentStatus === '기타상태' ? 'bg-gray-100 text-gray-800' :
-                                'bg-gray-100 text-gray-800'
-                              }`}>
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[request.currentStatus] || 'bg-gray-100 text-gray-800'}`}>
                                 {request.currentStatus}
                               </span>
                             </td>
                             <td className="px-2 py-2 text-gray-900 text-center">{request.requester}</td>
                             <td className="px-2 py-2 text-gray-900 text-center">{request.department}</td>
-                            <td className="px-2 py-2 text-gray-900 text-center">{request.assignTime || '13:10'}</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{formatTimeToHHMM(request.assignTime)}</td>
                             <td className="px-2 py-2 text-center">
                               <div className="flex items-center justify-center">
-                                {request.stage === '접수' && <Icon name="user" size={16} className="text-blue-600" />}
-                                {request.stage === '배정' && <Icon name="check" size={16} className="text-green-600" />}
-                                {request.stage === '재배정' && <Icon name="refresh-cw" size={16} className="text-orange-600" />}
-                                {request.stage === '확인' && <Icon name="eye" size={16} className="text-purple-600" />}
-                                {request.stage === '예정' && <Icon name="calendar" size={16} className="text-indigo-600" />}
-                                {request.stage === '작업' && <Icon name="settings" size={16} className="text-yellow-600" />}
-                                {request.stage === '완료' && <Icon name="check-circle" size={16} className="text-green-600" />}
-                                {request.stage === '미결' && <Icon name="x-circle" size={16} className="text-red-600" />}
+                                {stageIcons[request.stage] && (
+                                  <Icon 
+                                    name={stageIcons[request.stage].icon} 
+                                    size={16} 
+                                    className={stageIcons[request.stage].iconColor} 
+                                  />
+                                )}
                                 <span className="ml-1 text-gray-900">{request.stage}</span>
                               </div>
                             </td>
-                            <td className="px-2 py-2 text-gray-900 text-center">{request.assignee || '-'}</td>
-                            <td className="px-2 py-2 text-gray-900 text-center">{request.assigneeDepartment || '-'}</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{request.technician || '-'}</td>
+                            <td className="px-2 py-2 text-gray-900 text-center">{request.technicianDepartment || '-'}</td>
                             <td className="px-2 py-2 text-center">
                               <div className="flex space-x-1 justify-center">
                                 {/* 접수 단계: 조치담당자 미확정 - 배정작업 버튼 */}
                                 {request.stage === '접수' && (
                                   <button
-                                    onClick={() => {
+                                    onClick={async () => {
                                       setSelectedWorkRequest(request);
+                                      // 기존 데이터로 초기화
+                                      const technicianDept = request.technicianDepartment || '';
+                                      const technicianName = request.technician || '';
+                                      console.log('배정작업 모달 열기 - 기존 데이터:', {
+                                        technicianDept,
+                                        technicianName,
+                                        request: request
+                                      });
+                                      setAssignmentDepartment(technicianDept);
+                                      setAssignmentTechnician(technicianName);
+                                      setAssignmentOpinion(request.assignmentOpinion || '');
+                                      setAssignmentServiceType(request.serviceType || serviceTypes[0]?.name || '');
+                                      console.log('배정작업 모달 - 설정된 값들:', {
+                                        technicianDept,
+                                        technicianName,
+                                        assignmentOpinion: request.assignmentOpinion || '',
+                                        serviceType: request.serviceType || serviceTypes[0]?.name || ''
+                                      });
+                                      // 조치 소속이 있으면 해당 부서의 담당자 목록 로드
+                                      if (technicianDept) {
+                                        const technicians = await fetchTechniciansByDepartment(technicianDept);
+                                        setAssignmentTechnicians(technicians);
+                                        console.log('로드된 담당자 목록:', technicians);
+                                      } else {
+                                        setAssignmentTechnicians([]);
+                                      }
                                       setShowServiceAssignmentModal(true);
                                     }}
-                                    className="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
+                                    className="px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600 transition-colors"
                                   >
                                     배정작업
                                   </button>
                                 )}
-
                                 {/* 재배정 단계: 조치담당자 미확정 - 재배정작업 버튼 */}
                                 {request.stage === '재배정' && (
                                   <button
-                                    onClick={() => {
+                                    onClick={async () => {
                                       setSelectedWorkRequest(request);
+                                      // 기존 데이터로 초기화
+                                      const technicianDept = request.technicianDepartment || '';
+                                      setReassignmentDepartment(technicianDept);
+                                      setReassignmentTechnician(request.technician || '');
+                                      setReassignmentOpinion(request.assignmentOpinion || '');
+                                      setReassignmentServiceType(request.serviceType || serviceTypes[0]?.name || '');
+                                      // 조치 소속이 있으면 해당 부서의 담당자 목록 로드
+                                      if (technicianDept) {
+                                        const technicians = await fetchTechniciansByDepartment(technicianDept);
+                                        setReassignmentTechnicians(technicians);
+                                      } else {
+                                        setReassignmentTechnicians([]);
+                                      }
                                       setShowServiceReassignmentModal(true);
                                     }}
                                     className="px-2 py-1 bg-orange-500 text-white rounded text-xs hover:bg-orange-600 transition-colors"
@@ -1614,10 +1749,19 @@ const mapServiceRequestData = (rawData: any): ServiceRequest => {
                                   </button>
                                 )}
 
-                                {/* 배정/확인/예정/작업/완료/미결 단계: 조치담당자 확정 - 수정/삭제 버튼 (관리매니저 소속만) */}
-                                {(request.stage === '배정' || request.stage === '확인' || request.stage === '예정' || 
-                                  request.stage === '작업' || request.stage === '완료' || request.stage === '미결') && 
-                                  request.assigneeDepartment === 'IT팀' && (
+                                {/* 배정 단계: 배정취소 버튼 */}
+                                {stageButtons[request.stage]?.includes('assignmentCancel') && (
+                                  <button
+                                    onClick={() => handleAssignmentCancel(request)}
+                                    className="px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition-colors"
+                                  >
+                                    배정취소
+                                  </button>
+                                )}
+
+                                {/* 수정/삭제 버튼: 백엔드에서 정의된 단계별 버튼 권한 및 부서 권한 처리 */}
+                                {stageButtons[request.stage]?.includes('edit') && stageButtons[request.stage]?.includes('delete') && 
+                                  request.technicianDepartment === managerInfo.department && (
                                   <>
                                     <button
                                       onClick={() => {
@@ -1649,7 +1793,7 @@ const mapServiceRequestData = (rawData: any): ServiceRequest => {
                                         
                                         setShowServiceWorkInfoModal(true);
                                       }}
-                                      className="px-2 py-1 bg-green-500 text-white rounded text-xs hover:bg-green-600 transition-colors"
+                                      className="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
                                     >
                                       수정
                                     </button>
@@ -1665,38 +1809,44 @@ const mapServiceRequestData = (rawData: any): ServiceRequest => {
                                   </>
                                 )}
 
-                                {/* 조치소속이 IT팀이 아닌 경우: 버튼 없음 */}
-                                {(request.stage === '배정' || request.stage === '확인' || request.stage === '예정' || 
-                                  request.stage === '작업' || request.stage === '완료' || request.stage === '미결') && 
-                                  request.assigneeDepartment !== 'IT팀' && (
+                                {/* 권한없음 처리: 수정/삭제 버튼이 있는 단계이지만 부서 권한이 없는 경우 */}
+                                {stageButtons[request.stage]?.includes('edit') && stageButtons[request.stage]?.includes('delete') && 
+                                  request.technicianDepartment !== managerInfo.department && (
                                   <span className="text-gray-400 text-xs">권한없음</span>
                                 )}
                               </div>
                             </td>
                           </tr>
-                        ))}
+                          ))
+                        )}
                       </tbody>
                     </table>
                   </div>
                 </div>
 
-                {/* 페이지네이션 */}
-                {serviceWorkTotalPages > 1 && (
+                {/* 페이지네이션 - 시스템관리 페이지 패턴 */}
+                {(serviceWorkTotalPages > 1 || serviceRequests.length > 0) && (
                   <div className="flex justify-center mt-4 pt-4 pb-4 border-t border-gray-200">
                     <div className="flex items-center space-x-2">
-                      <button 
-                        onClick={() => setServiceWorkCurrentPage(Math.max(1, serviceWorkCurrentPage - 1))}
-                        disabled={serviceWorkCurrentPage === 1}
+                      <button
+                        onClick={() => {
+                          const newPage = Math.max(1, serviceRequestsPagination.page - 1);
+                          setServiceRequestsPagination(prev => ({ ...prev, page: newPage }));
+                        }}
+                        disabled={serviceRequestsPagination.page === 1}
                         className="px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         이전
                       </button>
                       <span className="px-2 py-1 bg-blue-500 text-white rounded text-xs">
-                        {serviceWorkCurrentPage}/{serviceWorkTotalPages}
+                        {serviceRequestsPagination.page}/{serviceWorkTotalPages}
                       </span>
-                      <button 
-                        onClick={() => setServiceWorkCurrentPage(Math.min(serviceWorkTotalPages, serviceWorkCurrentPage + 1))}
-                        disabled={serviceWorkCurrentPage >= serviceWorkTotalPages}
+                      <button
+                        onClick={() => {
+                          const newPage = Math.min(serviceWorkTotalPages, serviceRequestsPagination.page + 1);
+                          setServiceRequestsPagination(prev => ({ ...prev, page: newPage }));
+                        }}
+                        disabled={serviceRequestsPagination.page >= serviceWorkTotalPages}
                         className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         다음
@@ -2594,12 +2744,24 @@ const mapServiceRequestData = (rawData: any): ServiceRequest => {
                   <Icon name="briefcase" size={16} className="mr-2" />
                   직급
                 </label>
-                <input
-                  type="text"
+                <select
                   value={managerInfo.position}
                   onChange={(e) => setManagerInfo({...managerInfo, position: e.target.value})}
                   className="w-full px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                  disabled={positionsLoading}
+                >
+                  <option value="">
+                    {positionsLoading ? '로딩 중...' : '직급을 선택하세요'}
+                  </option>
+                  {positions.map((position) => (
+                    <option key={position.id} value={position.name}>
+                      {position.name}
+                    </option>
+                  ))}
+                </select>
+                {positionsLoading && (
+                  <p className="text-xs text-gray-500 mt-1">직급 목록을 불러오는 중...</p>
+                )}
               </div>
 
               {/* 소속 */}
@@ -3900,9 +4062,38 @@ const mapServiceRequestData = (rawData: any): ServiceRequest => {
                   취소
                 </button>
                 <button
-                  onClick={() => {
-                    setShowServiceWorkInfoModal(false);
-                  setShowServiceWorkCompleteModal(true);
+                  onClick={async () => {
+                    try {
+                      if (!selectedWorkRequest) return;
+                      
+                      // 작업정보 업데이트 데이터 준비
+                      const updateData = {
+                        scheduled_date: serviceWorkScheduledDate,
+                        work_start_date: serviceWorkStartDate,
+                        work_content: serviceWorkContent,
+                        work_complete_date: serviceWorkCompleteDate,
+                        problem_issue: serviceWorkProblemIssue,
+                        is_unresolved: serviceWorkIsUnresolved,
+                        current_work_stage: serviceWorkCurrentStage
+                      };
+                      
+                      console.log('작업정보 수정 시작:', selectedWorkRequest.id);
+                      const response = await apiClient.updateServiceRequest(Number(selectedWorkRequest.id), updateData);
+                      
+                      if (response.success) {
+                        console.log('작업정보 수정 성공');
+                        setShowServiceWorkInfoModal(false);
+                        setSelectedWorkRequest(null);
+                        await fetchServiceRequests(); // 목록 새로고침
+                        setShowServiceWorkCompleteModal(true);
+                      } else {
+                        console.error('작업정보 수정 실패:', response.error);
+                        alert('작업정보 수정 중 오류가 발생했습니다: ' + (response.error || '알 수 없는 오류'));
+                      }
+                    } catch (error) {
+                      console.error('작업정보 수정 오류:', error);
+                      alert('작업정보 수정 중 오류가 발생했습니다.');
+                    }
                   }}
                 className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
                 >
@@ -4126,11 +4317,28 @@ const mapServiceRequestData = (rawData: any): ServiceRequest => {
                   취소
                 </button>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     if (confirm('정말로 삭제하시겠습니까?')) {
-                      setShowServiceWorkDeleteModal(false);
-                    setShowServiceWorkDeleteCompleteModal(true);
-                      // 삭제 완료 로직
+                      try {
+                        if (!selectedWorkRequest) return;
+                        
+                        console.log('서비스 요청 삭제 시작:', selectedWorkRequest.id);
+                        const response = await apiClient.deleteServiceRequest(Number(selectedWorkRequest.id));
+                        
+                        if (response.success) {
+                          console.log('서비스 요청 삭제 성공');
+                          setShowServiceWorkDeleteModal(false);
+                          setSelectedWorkRequest(null);
+                          await fetchServiceRequests(); // 목록 새로고침
+                          setShowServiceWorkDeleteCompleteModal(true);
+                        } else {
+                          console.error('서비스 요청 삭제 실패:', response.error);
+                          alert('삭제 중 오류가 발생했습니다: ' + (response.error || '알 수 없는 오류'));
+                        }
+                      } catch (error) {
+                        console.error('서비스 요청 삭제 오류:', error);
+                        alert('삭제 중 오류가 발생했습니다.');
+                      }
                     }
                   }}
                 className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
