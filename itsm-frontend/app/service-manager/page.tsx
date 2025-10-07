@@ -920,9 +920,19 @@ function ServiceManagerPage() {
         assignee_id: currentUser.id,
         assignee_name: currentUser.name,
         assignee_department: currentUser.department,
-        // 배정 일시 (현재시점 기준)
-        assign_date: new Date().toISOString().replace('T', ' ').substring(0, 19), // YYYY-MM-DD HH:mm:ss 형식
-        assign_time: new Date().toTimeString().split(' ')[0].substring(0, 5), // HH:MM 형식
+        // 배정 일시 (현재시점 기준 - 한국 시간)
+        assign_date: (() => {
+          const now = new Date();
+          const kstOffset = 9 * 60; // 한국은 UTC+9
+          const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000));
+          return kstTime.toISOString().replace('T', ' ').substring(0, 19); // YYYY-MM-DD HH:mm:ss 형식
+        })(),
+        assign_time: (() => {
+          const now = new Date();
+          const kstOffset = 9 * 60; // 한국은 UTC+9
+          const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000));
+          return kstTime.toTimeString().split(' ')[0].substring(0, 5); // HH:MM 형식
+        })(),
         // 조치소속은 technician_department에 저장
         technician_department: reassignmentDepartment,
         // 조치자는 technician_name과 technician_id에 저장
