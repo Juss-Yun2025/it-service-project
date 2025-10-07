@@ -3738,6 +3738,24 @@ function ServiceManagerPage() {
                             {(selectedWorkRequest as any)?.rejection_opinion || selectedWorkRequest.rejectionOpinion || '-'}
                           </span>
                         </div>
+                        <div>
+                          <span className="text-xs font-medium text-gray-500">반려 일시 : </span>
+                          <span className="text-xs ml-2">
+                            {(() => {
+                              const dateStr = (selectedWorkRequest as any)?.rejection_date || selectedWorkRequest.rejectionDate;
+                              if (!dateStr) return '-';
+                              // DB에서 읽은 값 그대로 표시 (YYYY-MM-DD hh:mm 형식)
+                              if (dateStr.includes(' ')) {
+                                // 이미 YYYY-MM-DD HH:mm:ss 형식인 경우 초 제거
+                                return dateStr.substring(0, 16);
+                              } else if (dateStr.includes('T')) {
+                                // ISO 형식인 경우 변환
+                                return dateStr.substring(0, 16).replace('T', ' ');
+                              }
+                              return dateStr;
+                            })()}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
