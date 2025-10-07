@@ -147,8 +147,7 @@ function ServiceManagerPage() {
   // 단계별 아이콘 매핑 (동적 처리)
   const [stageIcons, setStageIcons] = useState<{[key: string]: {icon: string, iconColor: string}}>({})
 
-  // 단계별 버튼 매핑 (동적 처리)
-  const [stageButtons, setStageButtons] = useState<{[key: string]: string[]}>({})
+  // 단계별 버튼 매핑 (동적 처리) - const 버전으로 대체됨
 
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [departments, setDepartments] = useState<Department[]>([])
@@ -278,7 +277,7 @@ function ServiceManagerPage() {
           }
         });
         setStageIcons(iconsMapping);
-        setStageButtons(buttonsMapping);
+        // setStageButtons는 const로 정의되어 제거됨
         console.log('단계별 아이콘 매핑 설정 (백엔드 기반):', iconsMapping);
         console.log('단계별 버튼 매핑 설정 (백엔드 기반):', buttonsMapping);
       }
