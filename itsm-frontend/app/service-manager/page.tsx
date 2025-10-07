@@ -4115,19 +4115,22 @@ function ServiceManagerPage() {
                     try {
                       if (!selectedWorkRequest) return;
                       
-                      // 작업정보 업데이트 데이터 준비
+                      // 시스템관리 페이지와 동일한 데이터 구조로 작업정보 업데이트
                       const updateData = {
-                        scheduled_date: serviceWorkScheduledDate,
-                        work_start_date: serviceWorkStartDate,
-                        work_content: serviceWorkContent,
-                        work_complete_date: serviceWorkCompleteDate,
-                        problem_issue: serviceWorkProblemIssue,
-                        is_unresolved: serviceWorkIsUnresolved,
-                        current_work_stage: serviceWorkCurrentStage
+                        stage: selectedWorkRequest.stage, // 현재 단계 유지
+                        scheduled_date: serviceWorkScheduledDate || null,
+                        work_start_date: serviceWorkStartDate || null,
+                        work_complete_date: serviceWorkCompleteDate || null,
+                        work_content: serviceWorkContent || null,
+                        problem_issue: serviceWorkProblemIssue || null,
+                        is_unresolved: serviceWorkIsUnresolved
                       };
                       
                       console.log('작업정보 수정 시작:', selectedWorkRequest.id);
-                      const response = await apiClient.updateServiceRequest(Number(selectedWorkRequest.id), updateData);
+                      console.log('수정 데이터:', updateData);
+                      
+                      // 시스템관리와 동일하게 apiClient.put 사용
+                      const response = await apiClient.put(`/service-requests/${selectedWorkRequest?.id}`, updateData);
                       
                       if (response.success) {
                         console.log('작업정보 수정 성공');
