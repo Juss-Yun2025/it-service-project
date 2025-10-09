@@ -41,20 +41,70 @@ function ServiceManagerPage() {
     }
   };
   
+  // 일반문의 데이터 매핑 함수
+  const mapInquiryData = (rawData: any): GeneralInquiry => {
+    return {
+      id: rawData.id?.toString() || '',
+      inquiry_number: rawData.inquiry_number || '',
+      title: rawData.title || '',
+      content: rawData.content || '',
+      requester_id: rawData.requester_id?.toString() || '',
+      requester_name: rawData.requester_name || '',
+      requester_department: rawData.requester_department || '',
+      status: rawData.status || 'pending',
+      inquiry_date: rawData.inquiry_date || '',
+      answer_content: rawData.answer_content || '',
+      answer_date: rawData.answer_date || '',
+      answerer_id: rawData.answerer_id?.toString() || '',
+      answerer_name: rawData.answerer_name || '',
+      is_secret: rawData.is_secret || false,
+      created_at: rawData.created_at || '',
+      updated_at: rawData.updated_at || ''
+    }
+  }
+  
   // 모든 상태 변수 선언 (최상단)
-  const [selectedInquiry, setSelectedInquiry] = useState<any>(null)
-  const [showGeneralInquiryEditModal, setShowGeneralInquiryEditModal] = useState(false)
-  const [showGeneralInquiryDeleteModal, setShowGeneralInquiryDeleteModal] = useState(false)
+  const [selectedInquiry, setSelectedInquiry] = useState<GeneralInquiry | null>(null)
+  // 답변 수정하기 모달
+  // const [showGeneralInquiryEditModal, setShowGeneralInquiryEditModal] = useState(false)
+  // 답변 삭제하기 모달
+  // const [showGeneralInquiryDeleteModal, setShowGeneralInquiryDeleteModal] = useState(false)
   const [showGeneralInquiryReplyModal, setShowGeneralInquiryReplyModal] = useState(false)
   const [showFAQAddModal, setShowFAQAddModal] = useState(false)
   const [showFAQCompleteModal, setShowFAQCompleteModal] = useState(false)
   const [generalInquiryCurrentPage, setGeneralInquiryCurrentPage] = useState(1)
   const [showUnansweredOnly, setShowUnansweredOnly] = useState(false)
-  const [generalInquirySearchStartDate, setGeneralInquirySearchStartDate] = useState('')
-  const [generalInquirySearchEndDate, setGeneralInquirySearchEndDate] = useState('')
+  const [generalInquirySearchStartDate, setGeneralInquirySearchStartDate] = useState(() => {
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    return oneWeekAgo.toISOString().split('T')[0];
+  })
+  const [generalInquirySearchEndDate, setGeneralInquirySearchEndDate] = useState(() => {
+    return new Date().toISOString().split('T')[0];
+  })
+  
+  // 일반문의 관련 상태 추가
+  const [generalInquiries, setGeneralInquiries] = useState<GeneralInquiry[]>([])
+  const [generalInquiriesLoading, setGeneralInquiriesLoading] = useState(false)
+  const [generalInquiryShowOnlyUnanswered, setGeneralInquiryShowOnlyUnanswered] = useState(false)
+  const [generalInquiriesPagination, setGeneralInquiriesPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 1
+  })
+  const [replyContent, setReplyContent] = useState('')
   const [showInfoSuccessModal, setShowInfoSuccessModal] = useState(false)
+  
+  // 답변하기 모달 상태
+  const [showGeneralInquiryAnswerModal, setShowGeneralInquiryAnswerModal] = useState(false)
+  const [answerContent, setAnswerContent] = useState('')
+  // 답변수정하기 모달 상태
+  const [showGeneralInquiryEditAnswerModal, setShowGeneralInquiryEditAnswerModal] = useState(false)
+  const [editAnswerContent, setEditAnswerContent] = useState('')
+  // 답변삭제하기 모달 상태
+  const [showGeneralInquiryDeleteAnswerModal, setShowGeneralInquiryDeleteAnswerModal] = useState(false)
   const [showServiceWorkCompleteModal, setShowServiceWorkCompleteModal] = useState(false)
-  const [showServiceWorkDeleteCompleteModal, setShowServiceWorkDeleteCompleteModal] = useState(false)
   const [faqCurrentPage, setFaqCurrentPage] = useState(1)
   const [selectedFAQ, setSelectedFAQ] = useState<any>(null)
   const [showFAQEditModal, setShowFAQEditModal] = useState(false)
@@ -93,17 +143,16 @@ function ServiceManagerPage() {
   const [serviceWorkCompleteDate, setServiceWorkCompleteDate] = useState('')
   const [serviceWorkProblemIssue, setServiceWorkProblemIssue] = useState('')
   const [serviceWorkIsUnresolved, setServiceWorkIsUnresolved] = useState(false)
-  const [serviceWorkCurrentStage, setServiceWorkCurrentStage] = useState('예정')
+  // const [serviceWorkCurrentStage, setServiceWorkCurrentStage] = useState('확인')  // 작업정보등록 단계 관리
+  const [serviceWorkCurrentStage, setServiceWorkCurrentStage] = useState('')  // 작업정보등록 단계 관리
   const [aggregationServiceStatistics, setAggregationServiceStatistics] = useState<any>(null)
-  const [isUnresolved, setIsUnresolved] = useState(false)
-  const [showApprovalSuccessModal, setShowApprovalSuccessModal] = useState(false)
+  const [isUnresolved, setIsUnresolved] = useState(false) 
   const [showServiceAggregation, setShowServiceAggregation] = useState(true)
   const [currentDepartment, setCurrentDepartment] = useState('')
   const [showServiceWorkList, setShowServiceWorkList] = useState(false)
   const [showFAQManagement, setShowFAQManagement] = useState(false)
   const [showGeneralInquiryList, setShowGeneralInquiryList] = useState(false)
   const [selectedRequest, setSelectedRequest] = useState<ServiceRequest | null>(null)
-  const [showAssignmentModal, setShowAssignmentModal] = useState(false)
   const [showInfoModal, setShowInfoModal] = useState(false)
   const [inquiryStartDate, setInquiryStartDate] = useState(() => {
     const oneWeekAgo = new Date();
@@ -203,9 +252,6 @@ function ServiceManagerPage() {
   const [aggregationServiceRequests, setAggregationServiceRequests] = useState<ServiceRequest[]>([])
   const [showIncompleteOnly, setShowIncompleteOnly] = useState(false)
   const [showRejectionModal, setShowRejectionModal] = useState(false)
-  const [showRejectionInAssignment, setShowRejectionInAssignment] = useState(false)
-  const [showInfoViewModal, setShowInfoViewModal] = useState(false)
-  const [showWorkRegistrationModal, setShowWorkRegistrationModal] = useState(false)
   const [showWorkCompleteModal, setShowWorkCompleteModal] = useState(false)
   const [showPasswordModal, setShowPasswordModal] = useState(false)
   const [rejectionOpinion, setRejectionOpinion] = useState('')
@@ -456,6 +502,18 @@ function ServiceManagerPage() {
     return `${year}-${month}-${day} ${hours}:${minutes}`;
   };
 
+  // datetime-local 형식을 YYYY-MM-DD HH:MM 형식으로 변환
+  const formatDateTimeForDisplay = (dateTimeString: string | null | undefined) => {
+    if (!dateTimeString) return '-';
+    try {
+      // YYYY-MM-DDTHH:MM 형식을 YYYY-MM-DD HH:MM로 변환
+      return dateTimeString.replace('T', ' ');
+    } catch (error) {
+      console.error('날짜 형식 변환 오류:', error);
+      return '-';
+    }
+  };
+
   // 부서 목록 불러오기 함수
   const fetchDepartments = async () => {
     setDepartmentsLoading(true)
@@ -585,6 +643,7 @@ function ServiceManagerPage() {
 
   // 단계별 버튼 매핑 (시스템관리와 동일하지만 관리매니저 권한 제한)
   const stageButtons: { [key: string]: string[] } = {
+    '배정': ['assignmentCancel'], // 배정취소 버튼 추가
     '확인': ['edit', 'delete'],
     '예정': ['edit', 'delete'], 
     '작업': ['edit', 'delete'],
@@ -690,20 +749,9 @@ function ServiceManagerPage() {
     setShowServiceWorkInfoModal(true)
   }
 
-  const openInfoChange = () => {
-    setShowServiceWorkInfoModal(false)
-    setShowWorkRegistrationInInfo(true)
-    // 예정조율일시에 현재 시점 자동 설정 (한국 시간)
-    const now = new Date()
-    const kstOffset = 9 * 60 // 한국은 UTC+9
-    const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000))
-    const formattedNow = kstTime.toISOString().slice(0, 16)
-    setServiceWorkScheduledDate(formattedNow)
-  }
-
   // 누락된 핸들러 함수들 (기본 동작만)
   const handleInfoChange = () => {
-    setShowServiceWorkInfoModal(true)
+    setShowInfoModal(true)
   }
 
   const handleScheduledProcess = () => {
@@ -941,6 +989,65 @@ function ServiceManagerPage() {
     }
   };
 
+  // 일반문의 데이터 가져오기
+  const fetchGeneralInquiries = async () => {
+    setGeneralInquiriesLoading(true);
+    try {
+      // 종료일에 23:59:59를 추가하여 해당 날짜의 끝까지 포함
+      let endDate = generalInquirySearchEndDate;
+      if (endDate) {
+        const endDateObj = new Date(endDate);
+        endDateObj.setHours(23, 59, 59, 999);
+        endDate = endDateObj.toISOString().split('T')[0] + 'T23:59:59.999Z';
+      }
+      const params = {
+        startDate: generalInquirySearchStartDate,
+        endDate: endDate,
+        unansweredOnly: generalInquiryShowOnlyUnanswered,
+        page: generalInquiryCurrentPage,
+        limit: 10
+      };
+      
+      const response = await apiClient.getInquiries(params);
+      
+      if (response.success && response.data) {
+        const transformedData = response.data.map((item: any) => mapInquiryData(item));
+        setGeneralInquiries(transformedData);
+        if ((response as any).pagination) {
+          setGeneralInquiriesPagination({
+            page: (response as any).pagination.page,
+            limit: (response as any).pagination.limit,
+            total: (response as any).pagination.total,
+            totalPages: (response as any).pagination.totalPages
+          });
+          setGeneralInquiryCurrentPage((response as any).pagination.page);
+        }
+      } else {
+        console.error('일반문의 데이터 로드 실패:', response.error);
+        setGeneralInquiries([]);
+        setGeneralInquiryCurrentPage(1);
+        setGeneralInquiriesPagination({
+          page: 1,
+          limit: 10,
+          total: 0,
+          totalPages: 1
+        });
+      }
+    } catch (error) {
+      console.error('일반문의 데이터 로드 오류:', error);
+      setGeneralInquiries([]);
+      setGeneralInquiryCurrentPage(1);
+      setGeneralInquiriesPagination({
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 1
+      });
+    } finally {
+      setGeneralInquiriesLoading(false);
+    }
+  };
+
   // 백엔드 기반: 일반문의 통계 가져오기 및 inquiryData 반영
   const fetchManagerInquiryStatistics = async () => {
     try {
@@ -964,12 +1071,176 @@ function ServiceManagerPage() {
     }
   }
 
+  // 일반문의 데이터 상태 추가 (시스템관리 페이지 참고)
+  const [inquiries, setInquiries] = useState<GeneralInquiry[]>([])
+  const [inquiriesLoading, setInquiriesLoading] = useState(false)
+  const [inquiriesPagination, setInquiriesPagination] = useState({
+    page: 1,
+    limit: 10,
+    total: 0,
+    totalPages: 0
+  })
+  const [inquiryStatistics, setInquiryStatistics] = useState<InquiryStatistics | null>(null)
+  const [inquiryStatisticsLoading, setInquiryStatisticsLoading] = useState(false)
+
+  // 일반문의 데이터 가져오기 (시스템관리 페이지 참고)
+  const fetchInquiries = async () => {
+    setInquiriesLoading(true);
+    try {
+      // 종료일에 23:59:59를 추가하여 해당 날짜의 끝까지 포함
+      let endDate = generalInquirySearchEndDate;
+      if (endDate) {
+        const endDateObj = new Date(endDate);
+        endDateObj.setHours(23, 59, 59, 999);
+        endDate = endDateObj.toISOString().split('T')[0] + 'T23:59:59.999Z';
+      }
+      const params = {
+        startDate: generalInquirySearchStartDate,
+        endDate: endDate,
+        unansweredOnly: showUnansweredOnly,
+        page: inquiriesPagination.page,
+        limit: inquiriesPagination.limit
+      };
+      const response = await apiClient.getInquiries(params);
+      if (response.success && response.data) {
+        const transformedData = response.data.map((item: any) => mapInquiryData(item));
+        setInquiries(transformedData);
+        if ((response as any).pagination) {
+          setInquiriesPagination({
+            page: (response as any).pagination.page,
+            limit: (response as any).pagination.limit,
+            total: (response as any).pagination.total,
+            totalPages: (response as any).pagination.totalPages
+          });
+        }
+      } else {
+        console.error('일반문의 데이터 가져오기 실패:', response.error);
+      }
+    } catch (error) {
+      console.error('일반문의 데이터 가져오기 오류:', error);
+    } finally {
+      setInquiriesLoading(false);
+    }
+  };
+
+  // 일반문의사항 통계 가져오기 (시스템관리 페이지 참고)
+  const fetchInquiryStatistics = async () => {
+    setInquiryStatisticsLoading(true);
+    try {
+      const params = {
+        startDate: inquiryStartDate,
+        endDate: inquiryEndDate,
+        department: inquirySelectedDepartment || undefined
+      };
+      const response = await apiClient.getInquiryStatistics(params);
+      if (response.success && response.data) {
+        setInquiryStatistics(response.data);
+        // inquiryData 업데이트도 함께 수행
+        if (response.data.overview) {
+          const ov = response.data.overview
+          const answered = parseInt(String(ov.answered_inquiries)) || 0
+          const unanswered = parseInt(String(ov.pending_inquiries)) || 0
+          const total = parseInt(String(ov.total_inquiries)) || (answered + unanswered)
+          const completionRate = total > 0 ? Math.round((answered / total) * 1000) / 10 : 0
+          const avgResponseTime = parseFloat(String(ov.avg_response_hours)) || 0
+          setInquiryData({ answered, unanswered, total, completionRate, avgResponseTime })
+        }
+      } else {
+        console.error('일반문의사항 통계 조회 실패:', response.message);
+      }
+    } catch (error) {
+      console.error('일반문의사항 통계 조회 실패:', error);
+    } finally {
+      setInquiryStatisticsLoading(false);
+    }
+  };
 
 
-  // 일반문의현황 부서나 날짜 변경 시 데이터 업데이트
+
+  // 일반문의현황 부서나 날짜 변경 시 데이터 업데이트 - fetchInquiryStatistics 사용
   useEffect(() => {
-    fetchManagerInquiryStatistics()
+    fetchInquiryStatistics()
   }, [inquirySelectedDepartment, inquiryStartDate, inquiryEndDate])
+
+  // 일반문의 데이터 가져오기 (검색 조건 변경 시마다)
+  useEffect(() => {
+    if (showGeneralInquiryList) {
+      fetchInquiries();
+    }
+  }, [generalInquirySearchStartDate, generalInquirySearchEndDate, showUnansweredOnly, inquiriesPagination.page]);
+
+  // 일반문의 현황 그래프 자동 로드 (페이지 로드 시)
+  useEffect(() => {
+    fetchInquiryStatistics();
+  }, []);
+  // 답변하기
+  const handleAnswerInquiry = async () => {
+    if (!selectedInquiry || !answerContent.trim()) {
+      alert('답변 내용을 입력해주세요.');
+      return;
+    }
+    try {
+      const response = await apiClient.answerInquiry(selectedInquiry.id, {
+        answer_content: answerContent.trim()
+      });
+      if (response.success) {
+        alert('답변이 등록되었습니다.');
+        setShowGeneralInquiryAnswerModal(false);
+        setAnswerContent('');
+        setSelectedInquiry(null);
+        await fetchInquiries();
+      } else {
+        alert('답변 등록 중 오류가 발생했습니다: ' + response.error);
+      }
+    } catch (error) {
+      console.error('답변 등록 실패:', error);
+      alert('답변 등록 중 오류가 발생했습니다.');
+    }
+  };
+  // 답변 수정하기
+  const handleEditAnswer = async () => {
+    if (!selectedInquiry || !editAnswerContent.trim()) {
+      alert('답변 내용을 입력해주세요.');
+      return;
+    }
+    try {
+      const response = await apiClient.updateInquiryAnswer(selectedInquiry.id, {
+        answer_content: editAnswerContent.trim()
+      });
+      if (response.success) {
+        alert('답변이 수정되었습니다.');
+        setShowGeneralInquiryEditAnswerModal(false);
+        setEditAnswerContent('');
+        setSelectedInquiry(null);
+        await fetchInquiries();
+      } else {
+        alert('답변 수정 중 오류가 발생했습니다: ' + response.error);
+      }
+    } catch (error) {
+      console.error('답변 수정 실패:', error);
+      alert('답변 수정 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 답변 삭제하기
+  const handleDeleteAnswer = async () => {
+    if (!selectedInquiry) return;
+    if (!confirm('정말로 답변을 삭제하시겠습니까?')) return;    
+    try {
+      const response = await apiClient.deleteInquiry(selectedInquiry.id);
+      if (response.success) {
+        alert('답변이 삭제되었습니다.');
+        setShowGeneralInquiryDeleteAnswerModal(false);
+        setSelectedInquiry(null);
+        await fetchInquiries();
+      } else {
+        alert('답변 삭제 중 오류가 발생했습니다: ' + response.error);
+      }
+    } catch (error) {
+      console.error('답변 삭제 실패:', error);
+      alert('답변 삭제 중 오류가 발생했습니다.');
+    }
+  };
 
   // 서비스작업List관리가 열릴 때 데이터 새로고침
   useEffect(() => {
@@ -999,6 +1270,7 @@ function ServiceManagerPage() {
     selectedDepartment: serviceWorkSelectedDepartment,
     dataLength: serviceRequests.length
   });
+  
   const handleRefresh = () => {
     // 서버에서 최신 통계 재로드
     fetchAggregationServiceStatistics()
@@ -1006,12 +1278,8 @@ function ServiceManagerPage() {
   }
 
   const closeModal = () => {
-    setShowAssignmentModal(false)
     setShowRejectionModal(false)
-    setShowRejectionInAssignment(false)
     setShowInfoModal(false)
-    setShowInfoViewModal(false)
-    setShowWorkRegistrationModal(false)
     setShowWorkCompleteModal(false)
     setShowPasswordModal(false)
     setShowWorkRegistrationInInfo(false)
@@ -1027,72 +1295,11 @@ function ServiceManagerPage() {
     setCurrentStage('예정')
   }
 
-  // 배정승인 처리
-  const handleAssignmentApprove = () => {
-    if (selectedRequest) {
-      setServiceRequests(prev => 
-        prev.map(req => 
-          req.id === selectedRequest.id 
-            ? { ...req, stage: '확인' }
-            : req
-        )
-      )
-    }
-    setShowAssignmentModal(false)
-    setShowApprovalSuccessModal(true)
-    setSelectedRequest(null)
-  }
+  // 일반문의 데이터 로드
+  useEffect(() => {
+    fetchGeneralInquiries();
+  }, [generalInquirySearchStartDate, generalInquirySearchEndDate, generalInquiryShowOnlyUnanswered, generalInquiryCurrentPage]);
 
-  // 배정반려 처리
-  const handleAssignmentReject = () => {
-    setShowRejectionInAssignment(true)
-  }
-
-  // 작업 등록 정보 모달 표시
-  const handleWorkRegistrationInInfo = () => {
-    setShowWorkRegistrationInInfo(true)
-  }
-
-  const handleFinalReject = () => {
-    if (selectedRequest) {
-      const now = new Date()
-      const currentDateTime = now.toLocaleString('ko-KR', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false
-      }).replace(/\./g, '.').replace(/\s/g, ' ')
-
-      setServiceRequests(prev =>
-        prev.map(req =>
-          req.id === selectedRequest.id
-            ? {
-                ...req,
-                // 현재 배정 정보를 전) 배정 정보로 이동
-                previousAssignDate: req.assignDate,
-                previousAssignee: req.assignee,
-                previousAssignmentOpinion: req.assignmentOpinion,
-                // 현재 배정 정보 초기화
-                assignDate: '',
-                assignee: '',
-                assignmentOpinion: '',
-                // 반려 정보 설정
-                rejectionDate: currentDateTime,
-                rejectionOpinion: rejectionOpinion,
-                stage: '반려'
-              }
-            : req
-        )
-      )
-    }
-    setShowRejectionInAssignment(false)
-    setShowAssignmentModal(false)
-    setShowRejectionSuccessModal(true) // Show rejection success modal
-    setSelectedRequest(null)
-    setRejectionOpinion('')
-  }
   return (
     <div className="min-h-screen bg-gray-100 relative">
       {/* 배경 이미지 */}
@@ -1147,12 +1354,11 @@ function ServiceManagerPage() {
           >
             <Icon name="settings-gray" size={20} className="text-black hover:text-black" />
             <span>정보 변경</span>
-                    </button>
+          </button>
         </div>
 
         {/* 분리된 3개 프레임 */}
-        <div className="max-w-7xl mx-auto px-6 py-6">
-            
+        <div className="max-w-7xl mx-auto px-6 py-6">            
           {/* 프레임 1: 서비스 집계현황 */}
           <div className="mb-6" style={{marginLeft: '-315px', marginTop: '-60px'}}>
             <div className="w-80" style={{width: '306px'}}>
@@ -1168,7 +1374,7 @@ function ServiceManagerPage() {
                     >
                       <Icon name="refresh" size={16} />
                     </button>
-                    <h3 className="text-lg font-bold text-gray-800">서비스 집계현황</h3>
+                    <h3 className="text-lg font-bold text-gray-800">서비스 집계 현황</h3>
                   </div>
                   <div className="flex justify-end" style={{marginTop: '30px'}}>
                     <button
@@ -1759,11 +1965,8 @@ function ServiceManagerPage() {
                                   <>
                                     <button
                                       onClick={() => {
-                                        console.log('수정 모달 열기 - 신청번호:', request?.requestNumber);
-                                        console.log('원본 request 데이터:', JSON.stringify(request, null, 2));
                                         // request 객체가 유효한지 확인
                                         if (!request) {
-                                          console.error('request 객체가 undefined입니다!');
                                           return;
                                         }
                                         // 먼저 상태 초기화
@@ -1854,6 +2057,22 @@ function ServiceManagerPage() {
                                             stage: currentRequest.stage
                                           }, null, 2));
                                         }, 100);
+                                            
+                                        // 현재 단계에 따라 serviceWorkCurrentStage 설정
+                                        const currentStage = currentRequest.stage;
+                                        // if (currentStage === '접수' || currentStage === '배정' || currentStage === '확인') {
+                                        if (currentStage === '확인') {
+                                           setServiceWorkCurrentStage('예정');
+                                        } else if (currentStage === '예정') {
+                                           setServiceWorkCurrentStage('작업');
+                                        } else if (currentStage === '작업') {
+                                           setServiceWorkCurrentStage('완료');
+                                        } else if (currentStage === '완료') {
+                                           setServiceWorkCurrentStage('미결');
+                                        } else {
+                                           setServiceWorkCurrentStage(''); // 기본값
+                                        }
+                                            
                                         setShowServiceWorkInfoModal(true);
                                       }}
                                       className="px-2 py-1 bg-blue-500 text-white rounded text-xs hover:bg-blue-600 transition-colors"
@@ -1871,7 +2090,6 @@ function ServiceManagerPage() {
                                     </button>
                                   </>
                                 )}
-
                                 {/* 권한없음 처리: 수정/삭제 버튼이 있는 단계이지만 부서 권한이 없는 경우 */}
                                 {stageButtons[request.stage]?.includes('edit') && stageButtons[request.stage]?.includes('delete') && 
                                   request.technicianDepartment !== managerInfo.department && (
@@ -2092,535 +2310,6 @@ function ServiceManagerPage() {
           <p className="text-sm">ⓒ 2025 IT 서비스 관리 시스템. 모든권리는 Juss 가 보유</p>
         </div>
       </footer>
-      {/* 배정확인 모달 */}
-      {showAssignmentModal && selectedRequest && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
-          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            {/* 모달 헤더 */}
-            <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200" style={{paddingTop: '30px'}}>
-              <h2 className="text-xl font-bold text-gray-800 flex items-center">
-                <Icon name="assignment-confirm" size={24} className="mr-2" />
-                배정 확인
-              </h2>
-              <button
-                onClick={closeModal}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <Icon name="close" size={24} />
-              </button>
-            </div>
-
-            {/* 모달 내용 - 2열 레이아웃 */}
-            <div className="py-4 px-6">
-              <div className="grid grid-cols-2 gap-6">
-                {/* 왼쪽: 서비스신청정보 */}
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-2 mb-4">
-                    <Icon name="user" size={20} className="text-gray-600" />
-                    <h3 className="text-lg font-semibold text-gray-800">서비스 신청 정보</h3>
-                  </div>
-                  
-                  <div className="space-y-0">
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">신청 번호 : </span>
-                      <span className="text-sm font-bold text-red-600">{selectedRequest.requestNumber}</span>
-                    </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">신청 제목 : </span>
-                      <span className="text-sm">{selectedRequest.title}</span>
-                    </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">신청 내용 </span>
-                      <div className="text-sm mt-1 p-3 bg-gray-50 rounded text-gray-700 min-h-24 max-h-48 overflow-y-auto whitespace-pre-wrap">
-                        {selectedRequest.content}
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600 flex items-center">
-                        <Icon name="user" size={14} className="mr-1" />
-                        신청자 : <span className="text-sm ml-1 text-black">{selectedRequest.requester} ({selectedRequest.department})</span>
-                      </span>
-                    </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600 flex items-center">
-                        <Icon name="mail" size={14} className="mr-1" />
-                        신청 연락처 : <span className="text-sm ml-1 text-black">{selectedRequest.contact}</span>
-                      </span>                    
-                    </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600 flex items-center">
-                        <Icon name="briefcase" size={14} className="mr-1" />
-                        신청 위치 
-                      </span>
-                      <span className="text-sm ml-5">{selectedRequest.location}</span>
-                    </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600 flex items-center">
-                        <Icon name="calendar" size={14} className="mr-1" />
-                        신청 일시 : <span className="text-sm ml-1 text-black">{selectedRequest.requestDate} {selectedRequest.requestTime}</span>
-                      </span>
-                    </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600 flex items-center">
-                        <Icon name="message-square" size={14} className="mr-1" />
-                        현재 상태 : <span className="text-sm ml-1 text-red-600 font-semibold">{selectedRequest.currentStatus}</span>
-                      </span>
-                    </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">실제 신청자 : </span>
-                      <span className="text-sm ml-1">{selectedRequest.actualRequester || selectedRequest.requester}</span>
-                    </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">실제 연락처 : </span>
-                      <span className="text-sm ml-1">{selectedRequest.actualContact || selectedRequest.contact}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 오른쪽: 배정 반려 (반려 버튼 클릭 시에만 표시) */}
-                {showRejectionInAssignment && (
-                  <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
-                    <div className="flex items-center space-x-2 mb-4">
-                      <Icon name="assignment-reject" size={20} className="text-orange-600" />
-                      <h3 className="text-lg font-semibold text-gray-800">배정 반려</h3>
-                    </div>
-                    
-                    <div className="space-y-0">
-                      <div>
-                        <span className="text-sm font-medium text-gray-600">배정 일시 : </span>
-                        <span className="text-sm">{selectedRequest.assignDate || '2025.08.31 11:10'}</span>
-                      </div>
-                      
-                      <div>
-                        <span className="text-sm font-medium text-gray-600">배정 담당자 : </span>
-                        <span className="text-sm">{selectedRequest.assignee || '이배정'}</span>
-                      </div>
-                      
-                      <div>
-                        <span className="text-sm font-medium text-gray-600">배정 의견 : </span>
-                        <span className="text-sm">{selectedRequest.assignmentOpinion || '업무에 적합하여 배정'}</span>
-                      </div>
-                      
-                      <div>
-                        <span className="text-sm font-medium text-gray-600">서비스 조치유형 → </span>
-                        <span className="text-sm">{selectedRequest.serviceType}</span>
-                      </div>
-                      
-                      <div>
-                        <span className="text-sm font-medium text-gray-600">조치 담당자 : </span>
-                        <span className="text-sm">김기술</span>
-                      </div>
-                      
-                      <div>
-                        <span className="text-sm font-medium text-gray-600">반려 의견 : </span>
-                        <textarea
-                          value={rejectionOpinion}
-                          onChange={(e) => setRejectionOpinion(e.target.value)}
-                          placeholder="배정 담당자 의견"
-                          className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                          rows={3}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* 모달 하단 버튼 */}
-            <div className="flex gap-3 py-4 px-6 border-t border-gray-200">
-              {!showRejectionInAssignment ? (
-                <>
-                  <button
-                    onClick={handleAssignmentApprove}
-                    className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg font-medium transition-all duration-200 button-smooth"
-                  >
-                    승인
-                  </button>
-                  <button
-                    onClick={handleAssignmentReject}
-                    className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-lg font-medium transition-all duration-200 button-smooth"
-                  >
-                    반려
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={() => setShowRejectionInAssignment(false)}
-                    className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
-                  >
-                    취소
-                  </button>
-                  <button
-                    onClick={handleFinalReject}
-                    className="px-6 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
-                  >
-                    최종 반려
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-      {/* 정보확인 모달 */}
-      {showInfoViewModal && selectedRequest && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
-          <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            {/* 모달 헤더 */}
-            <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200" style={{paddingTop: '30px'}}>
-              <h2 className="text-xl font-bold text-gray-800 flex items-center">
-                <Icon name="assignment-confirm" size={24} className="mr-2" />
-                정보 확인
-              </h2>
-              <button
-                onClick={closeModal}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <Icon name="close" size={24} />
-              </button>
-            </div>
-
-            {/* 모달 내용 - 2열 레이아웃 */}
-            <div className="py-4 px-6">
-              <div className="grid grid-cols-2 gap-6">
-                {/* 왼쪽: 서비스신청정보 */}
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-2 mb-4">
-                    <Icon name="user" size={20} className="text-gray-600" />
-                    <h3 className="text-lg font-semibold text-gray-800">서비스신청정보</h3>
-                  </div>
-                  
-                  <div className="space-y-0">
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">신청번호: </span>
-                      <span className="text-sm font-bold text-red-600">{selectedRequest.requestNumber}</span>
-                    </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">신청제목: </span>
-                      <span className="text-sm">{selectedRequest.title}</span>
-                    </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">신청내용: </span>
-                      <div className="text-sm mt-1 p-3 bg-gray-50 rounded text-gray-700 min-h-24 max-h-48 overflow-y-auto whitespace-pre-wrap">
-                        {selectedRequest.content}
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600 flex items-center">
-                        <Icon name="user" size={14} className="mr-1" />
-                        신청자: 
-                      </span>
-                      <span className="text-sm ml-5">{selectedRequest.requester} ({selectedRequest.department})</span>
-                    </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600 flex items-center">
-                        <Icon name="mail" size={14} className="mr-1" />
-                        신청연락처: 
-                      </span>
-                      <span className="text-sm ml-5">{selectedRequest.contact}</span>
-                    </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600 flex items-center">
-                        <Icon name="briefcase" size={14} className="mr-1" />
-                        신청위치: 
-                      </span>
-                      <span className="text-sm ml-5">{selectedRequest.location}</span>
-                    </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600 flex items-center">
-                        <Icon name="calendar" size={14} className="mr-1" />
-                        신청일시: <span className="text-sm ml-1 text-black">{selectedRequest.requestDate} {selectedRequest.requestTime}</span>
-                      </span>
-                    </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600 flex items-center">
-                        <Icon name="message-square" size={14} className="mr-1" />
-                        현재상태: 
-                      </span>
-                      <span className="text-sm ml-5 text-red-600 font-semibold">{selectedRequest.currentStatus}</span>
-                    </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">실제신청자: </span>
-                      <span className="text-sm ml-5">{selectedRequest.actualRequester || selectedRequest.requester}</span>
-                    </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">실제연락처: </span>
-                      <span className="text-sm ml-5">{selectedRequest.actualContact || selectedRequest.contact}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 오른쪽: 작업정보등록 (작업정보등록 버튼 클릭 시에만 표시) */}
-                {showWorkRegistrationInInfo && (
-                  <div className="space-y-4 animate-in slide-in-from-right-4 duration-300">
-                    <div className="flex items-center space-x-2 mb-4">
-                      <Icon name="settings" size={20} className="text-gray-600" />
-                      <h3 className="text-lg font-semibold text-gray-800">작업정보등록</h3>
-                    </div>
-                    
-                    <div className="space-y-0 py-0">
-                      {/* 배정 정보 */}
-                      <div className="bg-gray-50 px-4 py-0 rounded-lg">
-              <div className="space-y-2">
-                          <div>
-                            <span className="text-sm font-medium text-gray-600">배정일시 :</span>
-                            <span className="text-sm text-gray-800 ml-2">{selectedRequest.assignDate || '2025.08.31 10:40'}</span>
-                </div>
-                          <div>
-                            <span className="text-sm font-medium text-gray-600">배정 담당자 :</span>
-                            <span className="text-sm text-gray-800 ml-2">{selectedRequest.assignee || '이배정'}</span>
-                </div>
-                          <div>
-                            <span className="text-sm font-medium text-gray-600">서비스 조치 정보 :</span>
-                            <span className="text-sm text-gray-800 ml-2">{selectedRequest.serviceType || '문제'}</span>
-                          </div>
-                          <div>
-                            <span className="text-sm font-medium text-gray-600">조치담당자 :</span>
-                            <span className="text-sm text-gray-800 ml-2">김기술</span>
-              </div>
-            </div>
-          </div>
-
-
-                      {/* 예정 조율 일시 */}
-                      <div className={`px-4 py-0 rounded-lg border-2 ${currentStage === '예정' ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
-                        <div className="flex items-center gap-4">
-                          <div className="flex-1">
-                            <label className="block text-sm font-medium text-gray-600 mb-2">예정 조율 일시</label>
-                            <input
-                              type="datetime-local"
-                              value={scheduledDate}
-                              onChange={(e) => setScheduledDate(e.target.value)}
-                              disabled={currentStage !== '예정'}
-                              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                currentStage !== '예정' ? 'bg-gray-100 cursor-not-allowed' : ''
-                              }`}
-                            />
-                          </div>
-                          {currentStage === '예정' && (
-                            <div className="flex items-center gap-2">
-                              <Icon name="calendar" className="w-5 h-5 text-gray-400" />
-            <button
-                                onClick={handleScheduledProcess}
-                                disabled={!scheduledDate}
-                                className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                                  scheduledDate
-                                    ? 'bg-blue-500 hover:bg-blue-600 text-white'
-                                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                }`}
-                              >
-                                처리
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* 작업 시작 일시 */}
-                      <div className={`px-4 py-0 rounded-lg border-2 ${currentStage === '작업' ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
-                        <div className="flex items-center gap-4">
-                          <div className="flex-1">
-                            <label className="block text-sm font-medium text-gray-600 mb-2">작업 시작 일시</label>
-                            <input
-                              type="datetime-local"
-                              value={workStartDate}
-                              onChange={(e) => setWorkStartDate(e.target.value)}
-                              disabled={currentStage !== '작업'}
-                              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                currentStage !== '작업' ? 'bg-gray-100 cursor-not-allowed' : ''
-                              }`}
-                            />
-                          </div>
-                          {currentStage === '작업' && (
-                            <div className="flex items-center gap-2">
-                              <Icon name="calendar" className="w-5 h-5 text-gray-400" />
-                              <button
-                                onClick={handleWorkStartProcess}
-                                disabled={!workStartDate}
-                                className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                                  workStartDate
-                                    ? 'bg-blue-500 hover:bg-blue-600 text-white'
-                                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                }`}
-                              >
-                                처리
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* 작업 내역 및 완료 일시 */}
-                      <div className={`px-4 py-0 rounded-lg border-2 ${currentStage === '완료' ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
-                        <div className="space-y-0">
-                          <div>
-                            <label className="block text-sm font-medium text-gray-600 mb-2">작업 내역</label>
-                            <textarea
-                              value={workContent}
-                              onChange={(e) => setWorkContent(e.target.value)}
-                              disabled={currentStage !== '완료'}
-                              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                currentStage !== '완료' ? 'bg-gray-100 cursor-not-allowed' : ''
-                              }`}
-                              rows={3}
-                              placeholder="작업 내용 입력"
-                            />
-                          </div>
-                          <div>
-                            <label className="block text-sm font-medium text-gray-600 mb-2">작업 완료 일시</label>
-                            <input
-                              type="datetime-local"
-                              value={workCompleteDate}
-                              onChange={(e) => setWorkCompleteDate(e.target.value)}
-                              disabled={currentStage !== '완료'}
-                              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                currentStage !== '완료' ? 'bg-gray-100 cursor-not-allowed' : ''
-                              }`}
-                            />
-                          </div>
-                          {currentStage === '완료' && (
-                            <div className="flex justify-end">
-                              <button
-                                onClick={handleWorkCompleteProcess}
-                                disabled={!workContent || !workCompleteDate}
-                                className={`px-6 py-2 rounded-lg font-medium transition-all duration-200 ${
-                                  workContent && workCompleteDate
-                                    ? 'bg-blue-500 hover:bg-blue-600 text-white'
-                                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                }`}
-                              >
-                                처리
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* 문제 사항 */}
-                      <div className={`px-4 py-0 rounded-lg border-2 ${currentStage === '미결' ? 'border-orange-300 bg-orange-50' : 'border-gray-200 bg-gray-50'}`}>
-                        <div className="flex items-start gap-4">
-                          <div className="flex-1">
-                            <label className="block text-sm font-medium text-gray-600 mb-2">문제 사항</label>
-                            <textarea
-                              value={problemIssue}
-                              onChange={(e) => setProblemIssue(e.target.value)}
-                              disabled={currentStage !== '미결'}
-                              className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 ${
-                                currentStage !== '미결' ? 'bg-gray-100 cursor-not-allowed' : ''
-                              }`}
-                              rows={3}
-                              placeholder="작업 중 발견 된 문제점 입력"
-                            />
-                          </div>
-                          {currentStage === '미결' && (
-                            <div className="flex items-start gap-2">
-                              <button
-                                onClick={handleUnresolvedProcess}
-                                className="px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-pink-500 hover:bg-pink-600 text-white"
-                              >
-                                등재
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                        <div className="mt-3 flex items-center">
-                          <input
-                            type="checkbox"
-                            id="unresolved"
-                            checked={isUnresolved}
-                            onChange={(e) => setIsUnresolved(e.target.checked)}
-                            disabled={currentStage !== '미결'}
-                            className={`mr-2 ${currentStage !== '미결' ? 'cursor-not-allowed' : ''}`}
-                          />
-                          <label htmlFor="unresolved" className={`text-sm font-medium ${
-                            currentStage !== '미결' ? 'text-gray-400' : 'text-gray-700'
-                          }`}>
-                            미결 완료
-                          </label>
-                        </div>
-                      </div>
-
-                    </div>
-                  </div>
-                )}
-
-                {/* 오른쪽: 빈 공간 (작업정보등록 버튼 클릭 전) */}
-                {!showWorkRegistrationInInfo && (
-                <div className="space-y-4 animate-in fade-in duration-300">
-                  <div className="flex items-center space-x-2 mb-4">
-                    <Icon name="settings" size={20} className="text-gray-600" />
-                    <h3 className="text-lg font-semibold text-gray-800">작업정보등록</h3>
-                  </div>
-                  
-                  <div className="text-center py-8">
-                    <p className="text-gray-500 mb-4">작업정보등록을 시작하려면</p>
-                    <p className="text-gray-500 mb-6">하단 버튼을 클릭하세요</p>
-                  </div>
-                </div>
-                )}
-              </div>
-            </div>
-
-            {/* 모달 하단 버튼 */}
-            <div className="flex gap-3 py-4 px-6 border-t border-gray-200">
-              {!showWorkRegistrationInInfo ? (
-                <>
-              <button
-                onClick={closeModal}
-                className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
-              >
-                취소
-              </button>
-              <button
-                    onClick={handleWorkRegistrationInInfo}
-                className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
-              >
-                작업 정보 등록
-              </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    onClick={() => setShowWorkRegistrationInInfo(false)}
-                    className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
-                  >
-                    뒤로가기
-            </button>
-            <button
-              onClick={() => {
-                      closeModal()
-                      setShowWorkCompleteModal(true)
-              }}
-                    className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
-            >
-                    작업 확인 완료
-            </button>
-                </>
-              )}
-          </div>
-        </div>
-      </div>
-      )}
 
       {/* 비밀번호 변경 모달 */}
       {showPasswordModal && (
@@ -2770,7 +2459,6 @@ function ServiceManagerPage() {
                 <Icon name="close" size={24} />
               </button>
             </div>
-
             {/* 모달 내용 */}
             <div className="py-4 px-6 space-y-4">
               {/* 이메일 */}
@@ -2786,7 +2474,6 @@ function ServiceManagerPage() {
                   className="w-full px-3 py-1 border-0 rounded-lg bg-gray-50 text-gray-600 cursor-not-allowed focus:outline-none"
                 />
               </div>
-
               {/* 성명 */}
               <div>
                 <label className="block text-sm font-medium text-gray-600 mb-1 flex items-center">
@@ -2800,7 +2487,6 @@ function ServiceManagerPage() {
                   className="w-full px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-
               {/* 직급 */}
               <div>
                 <label className="block text-sm font-medium text-gray-600 mb-1 flex items-center">
@@ -2826,7 +2512,6 @@ function ServiceManagerPage() {
                   <p className="text-xs text-gray-500 mt-1">직급 목록을 불러오는 중...</p>
                 )}
               </div>
-
               {/* 소속 */}
               <div>
                 <label className="block text-sm font-medium text-gray-600 mb-1 flex items-center">
@@ -2849,7 +2534,6 @@ function ServiceManagerPage() {
                   ))}
                 </select>
               </div>
-
               {/* 연락처 */}
               <div>
                 <label className="block text-sm font-medium text-gray-600 mb-1 flex items-center">
@@ -2863,7 +2547,6 @@ function ServiceManagerPage() {
                   className="w-full px-3 py-1 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-
               {/* 비밀번호 변경 버튼 */}
               <div className="pt-4">
                 <button 
@@ -2873,7 +2556,6 @@ function ServiceManagerPage() {
                   비밀번호 변경
                 </button>
               </div>
-
               {/* 생성일시 (읽기 전용) */}
               <div>
                 <label className="block text-sm font-medium text-gray-600 mb-1 flex items-center">
@@ -2906,7 +2588,6 @@ function ServiceManagerPage() {
                 />
               </div>
             </div>
-
             {/* 모달 하단 버튼 */}
             <div className="flex justify-end py-4 px-6 border-t border-gray-200">
               <button
@@ -3004,44 +2685,6 @@ function ServiceManagerPage() {
           </div>
         </div>
       )}
-      {/* 배정승인 성공 모달 */}
-      {showApprovalSuccessModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-            {/* 모달 헤더 */}
-            <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200" style={{paddingTop: '30px'}}>
-              <h2 className="text-xl font-bold text-gray-800 flex items-center">
-                <Icon name="check-circle" size={24} className="mr-2 text-green-600" />
-                승인 완료
-              </h2>
-              <button
-                onClick={() => setShowApprovalSuccessModal(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <Icon name="close" size={24} />
-              </button>
-            </div>
-
-            {/* 모달 내용 */}
-            <div className="py-6 px-6 text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Icon name="check-circle" size={32} className="text-green-600" />
-              </div>
-              <p className="text-gray-600 mb-6">배정 승인 되었습니다.</p>
-            </div>
-
-            {/* 모달 하단 버튼 */}
-            <div className="flex justify-end py-4 px-6 border-t border-gray-200">
-              <button
-                onClick={() => setShowApprovalSuccessModal(false)}
-                className="bg-gray-800 hover:bg-gray-900 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200 button-smooth"
-              >
-                확인
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* 최종반려 성공 모달 */}
       {showRejectionSuccessModal && (
@@ -3081,253 +2724,7 @@ function ServiceManagerPage() {
           </div>
         </div>
       )}
-
-      {/* 작업정보등록 모달 */}
-      {showWorkRegistrationModal && selectedRequest && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
-          <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-            {/* 모달 헤더 */}
-            <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200" style={{paddingTop: '30px'}}>
-              <h2 className="text-xl font-bold text-gray-800 flex items-center">
-                <Icon name="settings" size={24} className="mr-2" />
-                작업정보등록
-              </h2>
-              <button
-                onClick={() => setShowWorkRegistrationModal(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <Icon name="close" size={24} />
-              </button>
-            </div>
-
-            {/* 모달 내용 - 2열 레이아웃 */}
-            <div className="py-4 px-6">
-              <div className="grid grid-cols-2 gap-6">
-                {/* 왼쪽: 서비스신청정보 (읽기전용) */}
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-2 mb-4">
-                    <Icon name="user" size={20} className="text-gray-600" />
-                    <h3 className="text-lg font-semibold text-gray-800">서비스신청정보</h3>
-                  </div>
-                  
-                  <div className="space-y-0">
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">신청번호: </span>
-                      <span className="text-sm font-bold text-red-600">{selectedRequest.requestNumber}</span>
-                    </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">신청제목: </span>
-                      <span className="text-sm">{selectedRequest.title}</span>
-                    </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">신청내용: </span>
-                      <div className="text-sm mt-1 p-3 bg-gray-50 rounded text-gray-700 min-h-24 max-h-48 overflow-y-auto whitespace-pre-wrap">
-                        {selectedRequest.content}
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600 flex items-center">
-                        <Icon name="user" size={14} className="mr-1" />
-                        신청자: 
-                      </span>
-                      <span className="text-sm ml-5">{selectedRequest.requester} ({selectedRequest.department})</span>
-                    </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600 flex items-center">
-                        <Icon name="mail" size={14} className="mr-1" />
-                        신청연락처: 
-                      </span>
-                      <span className="text-sm ml-5">{selectedRequest.contact}</span>
-                    </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600 flex items-center">
-                        <Icon name="briefcase" size={14} className="mr-1" />
-                        신청위치: 
-                      </span>
-                      <span className="text-sm ml-5">{selectedRequest.location}</span>
-                    </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600 flex items-center">
-                        <Icon name="calendar" size={14} className="mr-1" />
-                        신청일시: <span className="text-sm ml-1 text-black">{selectedRequest.requestDate} {selectedRequest.requestTime}</span>
-                      </span>
-                    </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600 flex items-center">
-                        <Icon name="message-square" size={14} className="mr-1" />
-                        현재상태: 
-                      </span>
-                      <span className="text-sm ml-5 text-red-600 font-semibold">{selectedRequest.currentStatus}</span>
-                    </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">실제신청자: </span>
-                      <span className="text-sm ml-5">{selectedRequest.actualRequester || selectedRequest.requester}</span>
-                    </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">실제연락처: </span>
-                      <span className="text-sm ml-5">{selectedRequest.actualContact || selectedRequest.contact}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 오른쪽: 작업정보등록 */}
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-2 mb-4">
-                    <Icon name="settings" size={20} className="text-gray-600" />
-                    <h3 className="text-lg font-semibold text-gray-800">작업정보등록</h3>
-                  </div>
-                  
-                  <div className="space-y-0">
-                    {/* 배정정보 (읽기전용) */}
-                    <div className="mb-4 p-3 bg-gray-50 rounded">
-                      <h4 className="text-sm font-medium text-gray-700 mb-2">배정정보</h4>
-                      <div className="space-y-1 text-xs">
-                        <div><span className="font-medium">배정일시:</span> {selectedRequest.assignDate || '2025.08.31 11:10'}</div>
-                        <div><span className="font-medium">배정담당자:</span> {selectedRequest.assignee || '이배정'}</div>
-                        <div><span className="font-medium">배정의견:</span> {selectedRequest.assignmentOpinion || '업무에 적합하여 배정'}</div>
-                        <div><span className="font-medium">서비스유형:</span> {selectedRequest.serviceType}</div>
-                        <div><span className="font-medium">조치담당자:</span> 김기술</div>
-                      </div>
-                    </div>
-
-                    {/* 현재 단계 표시 */}
-                    <div className="mb-4 p-2 bg-blue-50 rounded text-center">
-                      <span className="text-sm font-medium text-blue-600">현재 단계: {currentStage}</span>
-                    </div>
-
-                    {/* 예정 단계 */}
-                    {currentStage === '예정' && (
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-600 mb-1">예정조율일시</label>
-                          <input
-                            type="datetime-local"
-                            value={scheduledDate}
-                            onChange={(e) => setScheduledDate(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-                        <button
-                          onClick={handleScheduledProcess}
-                          className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg font-medium transition-all duration-200"
-                        >
-                          처리
-                        </button>
-                      </div>
-                    )}
-
-                    {/* 작업 단계 */}
-                    {currentStage === '작업' && (
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-600 mb-1">작업시작일시</label>
-                          <input
-                            type="datetime-local"
-                            value={workStartDate}
-                            onChange={(e) => setWorkStartDate(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-                        <button
-                          onClick={handleWorkStartProcess}
-                          className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg font-medium transition-all duration-200"
-                        >
-                          처리
-                        </button>
-                      </div>
-                    )}
-
-                    {/* 완료 단계 */}
-                    {currentStage === '완료' && (
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-600 mb-1">작업내역</label>
-                          <textarea
-                            value={workContent}
-                            onChange={(e) => setWorkContent(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            rows={3}
-                            placeholder="작업 내용을 입력하세요"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-600 mb-1">작업완료일시</label>
-                          <input
-                            type="datetime-local"
-                            value={workCompleteDate}
-                            onChange={(e) => setWorkCompleteDate(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-                        <button
-                          onClick={handleWorkCompleteProcess}
-                          className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 rounded-lg font-medium transition-all duration-200"
-                        >
-                          처리
-                        </button>
-                      </div>
-                    )}
-
-                    {/* 미결 단계 */}
-                    {currentStage === '미결' && (
-                      <div className="space-y-3">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-600 mb-1">문제사항</label>
-                          <textarea
-                            value={problemIssue}
-                            onChange={(e) => setProblemIssue(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            rows={3}
-                            placeholder="문제사항을 입력하세요"
-                          />
-                        </div>
-                        <div className="flex items-center">
-                          <input
-                            type="checkbox"
-                            id="unresolved"
-                            checked={isUnresolved}
-                            onChange={(e) => setIsUnresolved(e.target.checked)}
-                            className="mr-2"
-                          />
-                          <label htmlFor="unresolved" className="text-sm font-medium text-gray-700">
-                            미해결완료
-                          </label>
-                        </div>
-                        <button
-                          onClick={handleUnresolvedProcess}
-                          className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-lg font-medium transition-all duration-200"
-                        >
-                          등재
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 모달 하단 버튼 */}
-            <div className="flex gap-3 py-4 px-6 border-t border-gray-200">
-              <button
-                onClick={() => setShowWorkRegistrationModal(false)}
-                className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
-              >
-                취소
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
+      
       {/* 작업완료 모달 */}
       {showWorkCompleteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
@@ -3386,7 +2783,7 @@ function ServiceManagerPage() {
             {/* 모달 내용 */}
             <div className="py-4 px-6">
               <div className="grid grid-cols-2 gap-6">
-                {/* 서비스신청정보 */}
+                {/* 서비스 신청 정보(배정) */}
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2 mb-4">
                     <Icon name="user" size={20} className="text-gray-600" />
@@ -3575,8 +2972,18 @@ function ServiceManagerPage() {
                       // 서비스 타입
                       service_type: assignmentServiceType,
                       // 배정일시는 현재시점 기준 assign_date(날짜+시간)와 assign_time(시간만)에 저장
-                      assign_date: new Date().toISOString(), // YYYY-MM-DDTHH:MM:SS.sssZ 형식
-                      assign_time: new Date().toTimeString().split(' ')[0].substring(0, 5), // HH:MM 형식
+                      assign_date: (() => {
+                        const now = new Date();
+                        const kstOffset = 9 * 60; // 한국은 UTC+9
+                        const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000));
+                        return kstTime.toISOString().replace('T', ' ').substring(0, 19); // YYYY-MM-DD HH:mm:ss 형식
+                      })(),
+                      assign_time: (() => {
+                        const now = new Date();
+                        const kstOffset = 9 * 60; // 한국은 UTC+9
+                        const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000));
+                        return kstTime.toTimeString().split(' ')[0].substring(0, 5); // HH:MM 형식
+                      })(),
                       // 배정담당자는 현재 로그인 사용자 (assignee_name, assignee_id, assignee_department)
                       assignee_name: currentUser.name,
                       assignee_id: currentUser.id,
@@ -3609,7 +3016,6 @@ function ServiceManagerPage() {
           </div>
         </div>
       )}
-
       {/* 재배정작업 모달 */}
       {showServiceReassignmentModal && selectedWorkRequest && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
@@ -3627,11 +3033,10 @@ function ServiceManagerPage() {
                 <Icon name="close" size={24} />
               </button>
             </div>
-
             {/* 모달 내용 */}
             <div className="py-4 px-6">
               <div className="grid grid-cols-2 gap-6">
-                {/* 서비스신청정보 */}
+                {/* 서비스 신청 정보(재배정) */}
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2 mb-4">
                     <Icon name="user" size={20} className="text-gray-600" />
@@ -3705,7 +3110,6 @@ function ServiceManagerPage() {
                     )}
                   </div>
                 </div>
-
                 {/* 재배정정보 */}
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2 mb-4">
@@ -3771,11 +3175,8 @@ function ServiceManagerPage() {
                         onChange={(e) => setReassignmentServiceType(e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
-                        <option value="">선택</option>
-                        {serviceTypes.map(serviceType => (
-                          <option key={serviceType.id} value={serviceType.name}>
-                            {serviceType.name}
-                          </option>
+                        {serviceTypes.map(type => (
+                          <option key={type.id} value={type.name}>{type.name}</option>
                         ))}
                       </select>
                     </div>
@@ -3849,7 +3250,6 @@ function ServiceManagerPage() {
                 </div>
               </div>
             </div>
-
             {/* 모달 하단 버튼 */}
             <div className="flex justify-end py-4 px-6 border-t border-gray-200 space-x-3">
               <button
@@ -3889,114 +3289,112 @@ function ServiceManagerPage() {
             {/* 모달 내용 - 2열 레이아웃 */}
             <div className="py-4 px-6">
               <div className="grid grid-cols-2 gap-6">
-                {/* 왼쪽: 서비스신청정보 */}
+                {/* 왼쪽: 서비스 신청 정보(수정) */}
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2 mb-4">
                     <Icon name="user" size={20} className="text-gray-600" />
-                    <h3 className="text-lg font-semibold text-gray-800">서비스신청정보</h3>
-                  </div>
-                  
-                  <div className="space-y-0">
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">신청번호: </span>
+                    <h3 className="text-lg font-semibold text-gray-800">서비스 신청 정보</h3>
+                  </div>                  
+                  <div className="space-y-1">
+                    <div className="py-1">
+                      <span className="text-sm font-medium text-gray-600">신청 번호 : </span>
                       <span className="text-sm font-bold text-red-600">{selectedWorkRequest.requestNumber}</span>
                     </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">신청제목: </span>
+                    <div className="py-1">
+                      <span className="text-sm font-medium text-gray-600">신청 제목 : </span>
                       <span className="text-sm">{selectedWorkRequest.title}</span>
                     </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">신청내용: </span>
+                    <div className="py-1">
+                      <span className="text-sm font-medium text-gray-600">신청 내용 </span>
                       <div className="text-sm mt-1 p-3 bg-gray-50 rounded text-gray-700 min-h-24 max-h-48 overflow-y-auto whitespace-pre-wrap">
                         {selectedWorkRequest.content}
+                      </div>
                     </div>
-                    </div>
-                    
-                    <div>
+                    <div className="py-1">
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="user" size={14} className="mr-1" />
-                        신청자: 
+                        신청자 :  <span className="text-sm ml-1">{selectedWorkRequest.requester} ({selectedWorkRequest.department})</span>
                       </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.requester} ({selectedWorkRequest.department})</span>
                     </div>
-                    
-                    <div>
+                    <div className="py-1">
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="mail" size={14} className="mr-1" />
-                        신청연락처: 
+                        신청 연락처 : <span className="text-sm ml-1">{selectedWorkRequest.contact}</span>
                       </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.contact}</span>
                     </div>
-                    
-                    <div>
+                    <div className="py-1">
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="briefcase" size={14} className="mr-1" />
-                        신청위치: 
+                        신청 위치
                       </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.location}</span>
+                      <div className="text-sm mt-1 p-3 bg-gray-50 rounded text-gray-700 min-h-16 max-h-32 overflow-y-auto whitespace-pre-wrap">
+                        {selectedWorkRequest.location}
+                      </div>
                     </div>
-                    
-                    <div>
+                    <div className="py-1 mb-5">
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="calendar" size={14} className="mr-1" />
-                        신청일시: <span className="text-sm ml-1 text-black">{selectedWorkRequest.requestDate} {selectedWorkRequest.requestTime}</span>
+                        신청 일시 : <span className="text-sm ml-1 text-black">{selectedWorkRequest.requestDate} {formatTimeToHHMM(selectedWorkRequest.requestTime)}</span>
                       </span>
                     </div>
-                    
-                    <div>
+                    <div className="py-1 mb-5">
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="message-square" size={14} className="mr-1" />
-                        현재상태: 
+                        현재 상태 : <span className="text-sm ml-1 text-red-600 font-semibold">{selectedWorkRequest.currentStatus}</span>
                       </span>
-                      <span className="text-sm ml-5 text-red-600 font-semibold">{selectedWorkRequest.currentStatus}</span>
                     </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">실제신청자: </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.actualRequester || selectedWorkRequest.requester}</span>
-                    </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">실제연락처: </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.actualContact || selectedWorkRequest.contact}</span>
-                    </div>
+                    {selectedWorkRequest.actualRequester && (
+                      <div className="py-1">
+                        <span className="text-sm font-medium text-gray-600">실제 신청자 : </span>
+                        <span className="text-sm ml-1">{selectedWorkRequest.actualRequester}</span>
+                      </div>
+                    )}
+                    {selectedWorkRequest.actualContact && (
+                      <div className="py-1">
+                        <span className="text-sm font-medium text-gray-600">실제 연락처 : </span>
+                        <span className="text-sm ml-1">{selectedWorkRequest.actualContact}</span>
+                      </div>
+                    )}
+                    {selectedWorkRequest.actualRequesterDepartment && (
+                      <div className="py-1">
+                        <span className="text-sm font-medium text-gray-600">실제 소속 : </span>
+                        <span className="text-sm ml-1">{selectedWorkRequest.actualRequesterDepartment}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
-
                 {/* 오른쪽: 작업정보등록 */}
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2 mb-4">
                     <Icon name="settings" size={20} className="text-gray-600" />
-                    <h3 className="text-lg font-semibold text-gray-800">작업정보등록</h3>
-                    </div>
-                  
+                    <h3 className="text-lg font-semibold text-gray-800">작업 정보 등록</h3>
+                    </div>                  
                   <div className="space-y-0 py-0">
                     {/* 배정 정보 */}
                     <div className="bg-gray-50 px-4 py-0 rounded-lg">
                       <div className="space-y-2">
-                    <div>
-                          <span className="text-sm font-medium text-gray-600">배정일시 :</span>
-                          <span className="text-sm text-gray-800 ml-2">{selectedWorkRequest.assignDate || '2025.08.31 10:40'}</span>
-                    </div>
-                    <div>
+                        <div>
+                          <span className="text-sm font-medium text-gray-600">배정 일시 :</span>
+                          <span className="text-sm text-gray-800 ml-2">
+                            {selectedWorkRequest.assignDate ? formatDateTime(selectedWorkRequest.assignDate) : '-'}
+                          </span>
+                        </div>
+                        <div>
                           <span className="text-sm font-medium text-gray-600">배정 담당자 :</span>
-                          <span className="text-sm text-gray-800 ml-2">{selectedWorkRequest.assignee || '이배정'}</span>
-                    </div>
-                    <div>
-                          <span className="text-sm font-medium text-gray-600">서비스 조치 정보 :</span>
-                          <span className="text-sm text-gray-800 ml-2">{selectedWorkRequest.serviceType || '문제'}</span>
-                    </div>
-                    <div>
-                          <span className="text-sm font-medium text-gray-600">조치담당자 :</span>
-                          <span className="text-sm text-gray-800 ml-2">김기술</span>
-                    </div>
+                          <span className="text-sm text-gray-800 ml-2">{selectedWorkRequest.assignee || '-'}</span>
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-gray-600">서비스 조치 유형 → </span>
+                          <span className="text-sm text-gray-800 ml-2">{selectedWorkRequest.serviceType || '-'}</span>
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium text-gray-600">조치 담당자 :</span>
+                          <span className="text-sm text-gray-800 ml-2">{selectedWorkRequest.technician || '-'}</span>
+                        </div>
                       </div>
                     </div>
-
                     {/* 예정 조율 일시 */}
-                    <div className={`px-4 py-0 rounded-lg border-2 ${(serviceWorkCurrentStage === '예정' || serviceWorkCurrentStage === '완료' || serviceWorkCurrentStage === '미결') ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
+                    <div className={`px-4 py-0 rounded-lg border-2 ${serviceWorkCurrentStage === '예정' ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
                       <div className="flex items-center gap-4">
                         <div className="flex-1">
                           <label className="block text-sm font-medium text-gray-600 mb-2">예정 조율 일시</label>
@@ -4004,9 +3402,9 @@ function ServiceManagerPage() {
                         type="datetime-local"
                             value={serviceWorkScheduledDate}
                             onChange={(e) => setServiceWorkScheduledDate(e.target.value)}
-                            disabled={serviceWorkCurrentStage !== '예정' && serviceWorkCurrentStage !== '완료' && serviceWorkCurrentStage !== '미결'}
+                            disabled={serviceWorkCurrentStage !== '예정'}
                             className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                              (serviceWorkCurrentStage !== '예정' && serviceWorkCurrentStage !== '완료' && serviceWorkCurrentStage !== '미결') ? 'bg-gray-100 cursor-not-allowed' : ''
+                              serviceWorkCurrentStage !== '예정' ? 'bg-gray-100 cursor-not-allowed' : ''
                             }`}
                       />
                     </div>
@@ -4014,16 +3412,38 @@ function ServiceManagerPage() {
                           <div className="flex items-center gap-2">
                             <Icon name="calendar" className="w-5 h-5 text-gray-400" />
                             <button
-                              onClick={() => {
+                              onClick={async () => {
                                 if (serviceWorkScheduledDate) {
-                                  setServiceWorkCurrentStage('작업')
-                                  // 작업시작일시에 현재 시점 자동 설정 (한국 시간)
-                                  const now = new Date()
-                                  const kstOffset = 9 * 60 // 한국은 UTC+9
-                                  const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000))
-                                  const formattedNow = kstTime.toISOString().slice(0, 16)
-                                  setServiceWorkStartDate(formattedNow)
-                                  alert('예정조율일시가 등록되었습니다. 작업 단계로 진행합니다.')
+                                  try {
+                                    // 데이터베이스에 업데이트 - 예정 단계로 변경
+                                    const updateData = {
+                                      stage: '예정',
+                                      scheduled_date: serviceWorkScheduledDate
+                                    };
+                                    
+                                    const response = await apiClient.updateServiceRequest(Number(selectedWorkRequest?.id) || 0, updateData);
+                                    
+                                    if (response.success) {
+                                      setServiceWorkCurrentStage('작업')  // 다음 단계 UI 활성화
+                                      // 작업시작일시에 현재 시점 자동 설정 (한국 시간)
+                                      const now = new Date()
+                                      const kstOffset = 9 * 60 // 한국은 UTC+9
+                                      const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000))
+                                      const formattedNow = kstTime.toISOString().slice(0, 16)
+                                      setServiceWorkStartDate(formattedNow)
+                                      alert('예정 단계로 진행되었습니다. 작업시작일시에서 처리하세요.')
+                                      
+                                      // 선택된 요청 업데이트
+                                      if (selectedWorkRequest) {
+                                        setSelectedWorkRequest({...selectedWorkRequest, stage: '예정', scheduledDate: serviceWorkScheduledDate});
+                                      }
+                                    } else {
+                                      alert('업데이트 실패: ' + (response.error || '알 수 없는 오류'));
+                                    }
+                                  } catch (error) {
+                                    console.error('데이터베이스 업데이트 오류:', error);
+                                    alert('데이터베이스 업데이트 중 오류가 발생했습니다.');
+                                  }
                                 } else {
                                   alert('예정조율일시를 입력해주세요.')
                                 }
@@ -4043,34 +3463,56 @@ function ServiceManagerPage() {
                     </div>
 
                     {/* 작업 시작 일시 */}
-                    <div className={`px-4 py-0 rounded-lg border-2 ${(serviceWorkCurrentStage === '작업' || serviceWorkCurrentStage === '완료' || serviceWorkCurrentStage === '미결') ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
+                     <div className={`px-4 py-0 rounded-lg border-2 ${serviceWorkCurrentStage === '작업' ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
                       <div className="flex items-center gap-4">
                         <div className="flex-1">
                           <label className="block text-sm font-medium text-gray-600 mb-2">작업 시작 일시</label>
-                      <input
-                        type="datetime-local"
+                          <input
+                            type="datetime-local"
                             value={serviceWorkStartDate}
                             onChange={(e) => setServiceWorkStartDate(e.target.value)}
-                            disabled={serviceWorkCurrentStage !== '작업' && serviceWorkCurrentStage !== '완료' && serviceWorkCurrentStage !== '미결'}
+                            disabled={serviceWorkCurrentStage !== '작업'}
                             className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                              (serviceWorkCurrentStage !== '작업' && serviceWorkCurrentStage !== '완료' && serviceWorkCurrentStage !== '미결') ? 'bg-gray-100 cursor-not-allowed' : ''
+                              serviceWorkCurrentStage !== '작업' ? 'bg-gray-100 cursor-not-allowed' : ''
                             }`}
-                      />
-                    </div>
+                          />
+                        </div>
                         {serviceWorkCurrentStage === '작업' && (
                           <div className="flex items-center gap-2">
                             <Icon name="calendar" className="w-5 h-5 text-gray-400" />
                             <button
-                              onClick={() => {
+                              onClick={async () => {
                                 if (serviceWorkStartDate) {
-                                  setServiceWorkCurrentStage('완료')
-                                  // 작업완료일시에 현재 시점 자동 설정 (한국 시간)
-                                  const now = new Date()
-                                  const kstOffset = 9 * 60 // 한국은 UTC+9
-                                  const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000))
-                                  const formattedNow = kstTime.toISOString().slice(0, 16)
-                                  setServiceWorkCompleteDate(formattedNow)
-                                  alert('작업이 시작되었습니다. 완료 단계로 진행합니다.')
+                                  try {
+                                    // 데이터베이스에 업데이트 - 작업 단계로 변경
+                                    const updateData = {
+                                      stage: '작업',
+                                      work_start_date: serviceWorkStartDate
+                                    };
+                                    
+                                    const response = await apiClient.updateServiceRequest(Number(selectedWorkRequest?.id) || 0, updateData);
+                                    
+                                    if (response.success) {
+                                      setServiceWorkCurrentStage('완료')  // 다음 단계 UI 활성화
+                                      // 작업완료일시에 현재 시점 자동 설정 (한국 시간)
+                                      const now = new Date()
+                                      const kstOffset = 9 * 60 // 한국은 UTC+9
+                                      const kstTime = new Date(now.getTime() + (kstOffset * 60 * 1000))
+                                      const formattedNow = kstTime.toISOString().slice(0, 16)
+                                      setServiceWorkCompleteDate(formattedNow)
+                                      alert('작업 단계로 진행되었습니다. 작업내역과 완료일시를 입력 후 처리하세요.')
+                                      
+                                      // 선택된 요청 업데이트
+                                      if (selectedWorkRequest) {
+                                        setSelectedWorkRequest({...selectedWorkRequest, stage: '작업', workStartDate: serviceWorkStartDate});
+                                      }
+                                    } else {
+                                      alert('업데이트 실패: ' + (response.error || '알 수 없는 오류'));
+                                    }
+                                  } catch (error) {
+                                    console.error('데이터베이스 업데이트 오류:', error);
+                                    alert('데이터베이스 업데이트 중 오류가 발생했습니다.');
+                                  }
                                 } else {
                                   alert('작업시작일시를 입력해주세요.')
                                 }
@@ -4090,40 +3532,68 @@ function ServiceManagerPage() {
                     </div>
 
                     {/* 작업 내역 및 완료 일시 */}
-                    <div className={`px-4 py-0 rounded-lg border-2 ${(serviceWorkCurrentStage === '완료' || serviceWorkCurrentStage === '미결') ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
+                    <div className={`px-4 py-0 rounded-lg border-2 ${serviceWorkCurrentStage === '완료' ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-gray-50'}`}>
                       <div className="space-y-0">
-                    <div>
+                        <div>
                           <label className="block text-sm font-medium text-gray-600 mb-2">작업 내역</label>
-                      <textarea
+                          <textarea
                             value={serviceWorkContent}
                             onChange={(e) => setServiceWorkContent(e.target.value)}
-                            disabled={serviceWorkCurrentStage !== '완료' && serviceWorkCurrentStage !== '미결'}
+                            disabled={serviceWorkCurrentStage !== '완료'}
                             className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                              (serviceWorkCurrentStage !== '완료' && serviceWorkCurrentStage !== '미결') ? 'bg-gray-100 cursor-not-allowed' : ''
+                              serviceWorkCurrentStage !== '완료' ? 'bg-gray-100 cursor-not-allowed' : ''
                             }`}
-                        rows={3}
+                            rows={3}
                             placeholder="작업 내용 입력"
                           />
-                    </div>
-                    <div>
+                        </div>
+                        <div>
                           <label className="block text-sm font-medium text-gray-600 mb-2">작업 완료 일시</label>
-                      <input
-                        type="datetime-local"
+                          <input
+                            type="datetime-local"
                             value={serviceWorkCompleteDate}
                             onChange={(e) => setServiceWorkCompleteDate(e.target.value)}
-                            disabled={serviceWorkCurrentStage !== '완료' && serviceWorkCurrentStage !== '미결'}
+                            disabled={serviceWorkCurrentStage !== '완료'}
                             className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                              (serviceWorkCurrentStage !== '완료' && serviceWorkCurrentStage !== '미결') ? 'bg-gray-100 cursor-not-allowed' : ''
+                              serviceWorkCurrentStage !== '완료' ? 'bg-gray-100 cursor-not-allowed' : ''
                             }`}
-                      />
-                    </div>
+                          />
+                        </div>
                         {serviceWorkCurrentStage === '완료' && (
                           <div className="flex justify-end">
                             <button
-                              onClick={() => {
+                              onClick={async () => {
                                 if (serviceWorkContent && serviceWorkCompleteDate) {
-                                  setServiceWorkCurrentStage('미결')
-                                  alert('작업이 완료되었습니다. 미결 처리 단계로 진행합니다.')
+                                  try {
+                                    // 데이터베이스에 업데이트 - 완료 단계로 변경
+                                    const updateData = {
+                                      stage: '완료',
+                                      work_content: serviceWorkContent,
+                                      work_complete_date: serviceWorkCompleteDate
+                                    };
+                                    
+                                    const response = await apiClient.updateServiceRequest(Number(selectedWorkRequest?.id) || 0, updateData);
+                                    
+                                    if (response.success) {
+                                      setServiceWorkCurrentStage('미결')  // 다음 단계 UI 활성화
+                                      alert('완료 단계로 진행되었습니다. 문제사항이 있으면 등재하세요.')
+                                      
+                                      // 선택된 요청 업데이트
+                                      if (selectedWorkRequest) {
+                                        setSelectedWorkRequest({
+                                          ...selectedWorkRequest, 
+                                          stage: '완료',
+                                          workContent: serviceWorkContent,
+                                          workCompleteDate: serviceWorkCompleteDate
+                                        });
+                                      }
+                                    } else {
+                                      alert('업데이트 실패: ' + (response.error || '알 수 없는 오류'));
+                                    }
+                                  } catch (error) {
+                                    console.error('데이터베이스 업데이트 오류:', error);
+                                    alert('데이터베이스 업데이트 중 오류가 발생했습니다.');
+                                  }
                                 } else {
                                   alert('작업내역과 작업완료일시를 모두 입력해주세요.')
                                 }
@@ -4161,15 +3631,74 @@ function ServiceManagerPage() {
                         {serviceWorkCurrentStage === '미결' && (
                           <div className="flex items-start gap-2">
                             <button
-                              onClick={() => {
-                                if (serviceWorkIsUnresolved && serviceWorkProblemIssue) {
-                                  alert('미결 처리가 완료되었습니다.')
-                                  setServiceWorkCurrentStage('미결완료')
-                                } else {
-                                  alert('미해결 체크박스를 선택하고 문제사항을 입력해주세요.')
+                              onClick={async () => {
+                                try {
+                                  // 데이터베이스에 업데이트 - 미결 단계로 변경
+                                  const updateData = {
+                                    stage: '미결',
+                                    problem_issue: serviceWorkProblemIssue,
+                                    is_unresolved: serviceWorkIsUnresolved
+                                  };
+                                  // 문제사항이 없거나 미결 완료 체크시 완료 단계로 유지 
+                                  if (!serviceWorkProblemIssue || !serviceWorkIsUnresolved) {
+                                    updateData.stage = '완료'
+                                  }
+
+                                  const response = await apiClient.updateServiceRequest(Number(selectedWorkRequest?.id) || 0, updateData);
+                                
+                                /*  if (response.success) {
+                                    setServiceWorkCurrentStage('')  // 다음 단계 UI 활성화
+                                    alert('미결 단계로 처리되었습니다.')
+                                    
+                                    // 선택된 요청 업데이트
+                                    if (selectedWorkRequest) {
+                                      setSelectedWorkRequest({
+                                        ...selectedWorkRequest, 
+                                        stage: '미결',
+                                        problemIssue: serviceWorkProblemIssue,
+                                        isUnresolved: serviceWorkIsUnresolved
+                                      });
+                                    }
+                                  } else {
+                                    alert('등재 실패: ' + (response.error || '알 수 없는 오류'));
+                                  }---------------------------- */
+//---------------------------------------------------------------------
+                                  if (response.success) {                                
+                                   if (!serviceWorkProblemIssue || !serviceWorkIsUnresolved) {
+                                        setServiceWorkCurrentStage('미결')  // 다음 단계 UI 활성화
+                                        alert('완료 단계로 유지됩니다.\n일부 데이터 값이 없이 업데이트 되었습니다.')
+                                      // 선택된 요청 업데이트
+                                      if (selectedWorkRequest) {
+                                          setSelectedWorkRequest({
+                                            ...selectedWorkRequest, 
+                                            stage: '완료',
+                                            problemIssue: serviceWorkProblemIssue,
+                                            isUnresolved: serviceWorkIsUnresolved
+                                          });
+                                      }
+                                    } else {
+                                        setServiceWorkCurrentStage('')  // 다음 단계 UI 활성화
+                                        alert('미결 단계로 처리되었습니다.')
+                                      // 선택된 요청 업데이트
+                                      if (selectedWorkRequest) {
+                                        setSelectedWorkRequest({
+                                          ...selectedWorkRequest, 
+                                          stage: '미결',
+                                          problemIssue: serviceWorkProblemIssue,
+                                          isUnresolved: serviceWorkIsUnresolved
+                                       });
+                                     }
+                                   }
+                                  } else {
+                                    alert('등재 실패: ' + (response.error || '알 수 없는 오류'));
+                                  }
+//------------------------------------------------------------------------------
+                                } catch (error) {
+                                  console.error('데이터베이스 업데이트 오류:', error);
+                                  alert('데이터베이스 업데이트 중 오류가 발생했습니다.');
                                 }
                               }}
-                              className="px-4 py-2 bg-pink-500 hover:bg-pink-600 text-white rounded-lg font-medium transition-all duration-200"
+                              className="px-4 py-2 bg-pink-500 hover:bg-pink-600 text-white rounded-lg font-medium transition-all duration-200"                    
                             >
                               등재
                             </button>
@@ -4177,33 +3706,30 @@ function ServiceManagerPage() {
                         )}
                       </div>
                       <div className="mt-3 flex items-center">
-                      <input
-                        type="checkbox"
-                          id="serviceWorkUnresolved"
+                       <input
+                          type="checkbox"
                           checked={serviceWorkIsUnresolved}
                           onChange={(e) => setServiceWorkIsUnresolved(e.target.checked)}
                           disabled={serviceWorkCurrentStage !== '미결'}
-                          className={`mr-2 ${serviceWorkCurrentStage !== '미결' ? 'cursor-not-allowed' : ''}`}
+                          className="mr-2"
                         />
-                        <label htmlFor="serviceWorkUnresolved" className={`text-sm font-medium ${
-                          serviceWorkCurrentStage !== '미결' ? 'text-gray-400' : 'text-gray-700'
-                        }`}>
-                          미결 완료
-                        </label>
+                        <label className="text-sm text-gray-600">미결 완료</label>
+                      </div>                      
                     </div>
-                      
-                    </div>
-
                   </div>
-                  </div>
-                </div>
+                 </div>
+               </div>
               </div>
 
               {/* 모달 하단 버튼 */}
-            <div className="flex gap-3 py-4 px-6 border-t border-gray-200">
+            <div className="flex justify-between py-4 px-6 border-t border-gray-200">
+              {/* 나가기 버튼 */}              
               <button
-                onClick={() => {
+                onClick={async () => {
+                  // 서비스작업List관리 프레임을 DB에서 최신 데이터로 새로고침
                   console.log('나가기 버튼 클릭 - 서비스작업List 새로고침');
+                  await fetchServiceRequests();
+                  // 모달 닫기
                   setShowServiceWorkInfoModal(false);
                 }}
                 className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
@@ -4224,6 +3750,8 @@ function ServiceManagerPage() {
                       if (response.success) {
                         // selectedWorkRequest 업데이트
                         setSelectedWorkRequest(prev => prev ? { ...prev, stage: getStageName('확인') } : null);
+                        // serviceWorkCurrentStage를 '예정'으로 설정하여 예정조율일시 처리 버튼 활성화
+                        setServiceWorkCurrentStage('예정');
                         // 알림 메시지
                         alert('예정조율일시부터 단계적으로 다시 작업하세요!');
                         // 서비스작업List 새로고침
@@ -4242,47 +3770,6 @@ function ServiceManagerPage() {
                   작업 전체 수정
                 </button>
               )}
-              <button
-                onClick={async () => {
-                  try {
-                    if (!selectedWorkRequest) return;
-                    
-                    // 시스템관리 페이지와 동일한 데이터 구조로 작업정보 업데이트
-                    const updateData = {
-                      stage: selectedWorkRequest.stage, // 현재 단계 유지
-                      scheduled_date: serviceWorkScheduledDate || null,
-                      work_start_date: serviceWorkStartDate || null,
-                      work_complete_date: serviceWorkCompleteDate || null,
-                      work_content: serviceWorkContent || null,
-                      problem_issue: serviceWorkProblemIssue || null,
-                      is_unresolved: serviceWorkIsUnresolved
-                    };
-                    
-                    console.log('작업정보 수정 시작:', selectedWorkRequest.id);
-                    console.log('수정 데이터:', updateData);
-                    
-                    // 시스템관리와 동일하게 apiClient.put 사용
-                    const response = await apiClient.put(`/service-requests/${selectedWorkRequest?.id}`, updateData);
-                    
-                    if (response.success) {
-                      console.log('작업정보 수정 성공');
-                      setShowServiceWorkInfoModal(false);
-                      setSelectedWorkRequest(null);
-                      await fetchServiceRequests(); // 목록 새로고침
-                      setShowServiceWorkCompleteModal(true);
-                    } else {
-                      console.error('작업정보 수정 실패:', response.error);
-                      alert('작업정보 수정 중 오류가 발생했습니다: ' + (response.error || '알 수 없는 오류'));
-                    }
-                  } catch (error) {
-                    console.error('작업정보 수정 오류:', error);
-                    alert('작업정보 수정 중 오류가 발생했습니다.');
-                  }
-                }}
-                className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
-              >
-                수정완료
-              </button>
             </div>
           </div>
         </div>
@@ -4295,7 +3782,7 @@ function ServiceManagerPage() {
             <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200" style={{paddingTop: '30px'}}>
               <h2 className="text-xl font-bold text-gray-800 flex items-center">
                 <Icon name="trash" size={24} className="mr-2 text-red-600" />
-                작업정보삭제
+                작업 정보 삭제
               </h2>
               <button
                 onClick={() => setShowServiceWorkDeleteModal(false)}
@@ -4304,83 +3791,81 @@ function ServiceManagerPage() {
                 <Icon name="close" size={24} />
               </button>
             </div>
-
             {/* 모달 내용 */}
             <div className="py-6 px-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                {/* 서비스 신청 정보 */}
+                {/* 서비스 신청 정보(삭제) */}
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2 mb-4">
                     <Icon name="user" size={20} className="text-gray-600" />
-                    <h3 className="text-lg font-semibold text-gray-800">서비스신청정보</h3>
+                    <h3 className="text-lg font-semibold text-gray-800">서비스 신청 정보</h3>
                   </div>
-                  
-                  <div className="space-y-0">
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">신청번호: </span>
+                  <div className="space-y-1">
+                    <div className="py-1">
+                      <span className="text-sm font-medium text-gray-600">신청 번호 : </span>
                       <span className="text-sm font-bold text-red-600">{selectedWorkRequest.requestNumber}</span>
                     </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">신청제목: </span>
+                    <div className="py-1">
+                      <span className="text-sm font-medium text-gray-600">신청 제목 : </span>
                       <span className="text-sm">{selectedWorkRequest.title}</span>
                     </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">신청내용: </span>
+                    <div className="py-1">
+                      <span className="text-sm font-medium text-gray-600">신청 내용 </span>
                       <div className="text-sm mt-1 p-3 bg-gray-50 rounded text-gray-700 min-h-24 max-h-48 overflow-y-auto whitespace-pre-wrap">
                         {selectedWorkRequest.content}
+                      </div>
                     </div>
-                    </div>
-                    
-                    <div>
+                    <div className="py-1">
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="user" size={14} className="mr-1" />
-                        신청자: 
+                        신청자 :  <span className="text-sm ml-1">{selectedWorkRequest.requester} ({selectedWorkRequest.department})</span>
                       </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.requester} ({selectedWorkRequest.department})</span>
                     </div>
-                    
-                    <div>
+                    <div className="py-0">
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="mail" size={14} className="mr-1" />
-                        신청연락처: 
+                        신청 연락처 : <span className="text-sm ml-1">{selectedWorkRequest.contact}</span>
                       </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.contact}</span>
                     </div>
-                    
-                    <div>
+                    <div className="py-1">
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="briefcase" size={14} className="mr-1" />
-                        신청위치: 
+                        신청 위치
                       </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.location}</span>
+                      <div className="text-sm mt-1 p-3 bg-gray-50 rounded text-gray-700 min-h-16 max-h-32 overflow-y-auto whitespace-pre-wrap">
+                        {selectedWorkRequest.location}
+                      </div>
                     </div>
-                    
-                    <div>
+                    <div className="py-1 mb-5">
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="calendar" size={14} className="mr-1" />
-                        신청일시: <span className="text-sm ml-1 text-black">{selectedWorkRequest.requestDate} {selectedWorkRequest.requestTime}</span>
+                        신청 일시 : <span className="text-sm ml-1 text-black">{selectedWorkRequest.requestDate} {formatTimeToHHMM(selectedWorkRequest.requestTime)}</span>
                       </span>
                     </div>
-                    
-                    <div>
+                    <div className="py-0 mb-5">
                       <span className="text-sm font-medium text-gray-600 flex items-center">
                         <Icon name="message-square" size={14} className="mr-1" />
-                        현재상태: 
+                        현재 상태 : <span className="text-sm ml-1 text-red-600 font-semibold">{selectedWorkRequest.currentStatus}</span>
                       </span>
-                      <span className="text-sm ml-5 text-red-600 font-semibold">{selectedWorkRequest.currentStatus}</span>
                     </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">실제신청자: </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.actualRequester || selectedWorkRequest.requester}</span>
-                    </div>
-                    
-                    <div>
-                      <span className="text-sm font-medium text-gray-600">실제연락처: </span>
-                      <span className="text-sm ml-5">{selectedWorkRequest.actualContact || selectedWorkRequest.contact}</span>
-                    </div>
+                    {selectedWorkRequest.actualRequester && (
+                      <div className="py-0">
+                        <span className="text-sm font-medium text-gray-600">실제 신청자 : </span>
+                        <span className="text-sm ml-1">{selectedWorkRequest.actualRequester}</span>
+                      </div>
+                    )}
+                    {selectedWorkRequest.actualContact && (
+                      <div className="py-0">
+                        <span className="text-sm font-medium text-gray-600">실제 연락처 : </span>
+                        <span className="text-sm ml-1">{selectedWorkRequest.actualContact}</span>
+                      </div>
+                    )}
+                    {selectedWorkRequest.actualRequesterDepartment && (
+                      <div className="py-0">
+                        <span className="text-sm font-medium text-gray-600">실제 소속 : </span>
+                        <span className="text-sm ml-1">{selectedWorkRequest.actualRequesterDepartment}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -4388,7 +3873,7 @@ function ServiceManagerPage() {
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2 mb-4">
                     <Icon name="settings" size={20} className="text-gray-600" />
-                    <h3 className="text-lg font-semibold text-gray-800">작업정보등록</h3>
+                    <h3 className="text-lg font-semibold text-gray-800">작업 정보 내역</h3>
                   </div>
                   
                   <div className="space-y-0 py-0">
@@ -4396,34 +3881,36 @@ function ServiceManagerPage() {
                     <div className="bg-gray-50 px-4 py-0 rounded-lg">
                       <div className="space-y-2">
                     <div>
-                          <span className="text-sm font-medium text-gray-600">배정일시 :</span>
-                          <span className="text-sm ml-2">{selectedWorkRequest.assignDate || '2025.08.31 10:40'}</span>
+                          <span className="text-sm font-medium text-gray-600">배정 일시 :</span>
+                          <span className="text-sm ml-2">
+                            {selectedWorkRequest.assignDate ? formatDateTime(selectedWorkRequest.assignDate) : '-'}
+                          </span>
                     </div>
                     <div>
-                          <span className="text-sm font-medium text-gray-600">배정담당자 :</span>
-                          <span className="text-sm ml-2">{selectedWorkRequest.assignee || '이배정'}</span>
+                          <span className="text-sm font-medium text-gray-600">배정 담당자 :</span>
+                          <span className="text-sm ml-2">{selectedWorkRequest.assignee || '-'}</span>
                     </div>
                     <div>
-                          <span className="text-sm font-medium text-gray-600">배정의견 :</span>
-                          <span className="text-sm ml-2">{selectedWorkRequest.assignmentOpinion || '업무에 적합하여 배정'}</span>
+                          <span className="text-sm font-medium text-gray-600">배정 의견 :</span>
+                          <span className="text-sm ml-2">{selectedWorkRequest.assignmentOpinion || '-'}</span>
                     </div>
                     <div>
-                          <span className="text-sm font-medium text-gray-600">서비스유형 :</span>
-                          <span className="text-sm ml-2">{selectedWorkRequest.serviceType}</span>
+                          <span className="text-sm font-medium text-gray-600">서비스 조치 유형 →</span>
+                          <span className="text-sm ml-2">{selectedWorkRequest.serviceType || '-'}</span>
                     </div>
                     <div>
-                          <span className="text-sm font-medium text-gray-600">조치담당자 :</span>
-                          <span className="text-sm ml-2">김기술</span>
+                          <span className="text-sm font-medium text-gray-600">조치 담당자 :</span>
+                          <span className="text-sm ml-2">{selectedWorkRequest.technician || '-'}</span>
                     </div>
                       </div>
                     </div>
 
                     {/* 예정 조율 일시 */}
-                    <div className="bg-gray-50 px-4 py-0 rounded-lg">
+                    <div className="bg-gray-50 px-4 py-3 rounded-lg">
                       <div className="space-y-2">
                     <div>
-                          <span className="text-sm font-medium text-gray-600">예정조율일시 :</span>
-                          <span className="text-sm ml-2">{selectedWorkRequest.scheduledDate || '2025.08.31 15:00'}</span>
+                          <span className="text-sm font-medium text-gray-600">예정 조율 일시 :</span>
+                          <span className="text-sm ml-2">{formatDateTimeForDisplay(selectedWorkRequest.scheduledDate)}</span>
                     </div>
                       </div>
                     </div>
@@ -4432,35 +3919,35 @@ function ServiceManagerPage() {
                     <div className="bg-gray-50 px-4 py-0 rounded-lg">
                       <div className="space-y-2">
                     <div>
-                          <span className="text-sm font-medium text-gray-600">작업시작일시 :</span>
-                          <span className="text-sm ml-2">{selectedWorkRequest.workStartDate || '2025.09.01 15:00'}</span>
+                          <span className="text-sm font-medium text-gray-600">작업 시작 일시 :</span>
+                          <span className="text-sm ml-2">{formatDateTimeForDisplay(selectedWorkRequest.workStartDate)}</span>
                     </div>
                       </div>
                     </div>
 
                     {/* 작업 내역 및 완료 일시 */}
-                    <div className="bg-gray-50 px-4 py-0 rounded-lg">
+                    <div className="bg-gray-50 px-4 py-3 rounded-lg">
                       <div className="space-y-2">
                     <div>
-                          <span className="text-sm font-medium text-gray-600">작업내역 :</span>
+                          <span className="text-sm font-medium text-gray-600">작업 내역</span>
                           <div className="text-sm mt-1 p-2 bg-white rounded border text-gray-700 min-h-16 max-h-32 overflow-y-auto whitespace-pre-wrap">
                             {selectedWorkRequest.workContent || '작업 내용 수정'}
                           </div>
                     </div>
                     <div>
-                          <span className="text-sm font-medium text-gray-600">작업완료일시 :</span>
-                          <span className="text-sm ml-2">{selectedWorkRequest.workCompleteDate || '2025.08.31 15:00'}</span>
+                          <span className="text-sm font-medium text-gray-600">작업 완료 일시 :</span>
+                          <span className="text-sm ml-2">{formatDateTimeForDisplay(selectedWorkRequest.workCompleteDate)}</span>
                     </div>
                       </div>
                     </div>
 
                     {/* 문제 사항 */}
-                    <div className="bg-gray-50 px-4 py-0 rounded-lg">
+                    <div className="bg-gray-50 px-4 py-1 rounded-lg">
                       <div className="space-y-2">
                     <div>
-                          <span className="text-sm font-medium text-gray-600">문제사항 :</span>
+                          <span className="text-sm font-medium text-gray-600">문제 사항 </span>
                           <div className="text-sm mt-1 p-2 bg-white rounded border text-gray-700 min-h-16 max-h-32 overflow-y-auto whitespace-pre-wrap">
-                            {selectedWorkRequest.problemIssue || '작업 중 발견된 문제점 수정'}
+                            {selectedWorkRequest.problemIssue || '-'}
                           </div>
                     </div>
                     <div className="flex items-center">
@@ -4480,7 +3967,6 @@ function ServiceManagerPage() {
                   </div>
                 </div>
               </div>
-
               {/* 삭제 확인 메시지 */}
               <div className="mt-8 p-4 bg-red-50 border border-red-200 rounded-lg">
                 <div className="flex items-center">
@@ -4491,7 +3977,6 @@ function ServiceManagerPage() {
                   </div>
                 </div>
               </div>
-
               {/* 모달 하단 버튼 */}
             <div className="flex gap-3 py-4 px-6 border-t border-gray-200">
                 <button
@@ -4504,17 +3989,17 @@ function ServiceManagerPage() {
                   onClick={async () => {
                     if (confirm('정말로 삭제하시겠습니까?')) {
                       try {
-                        if (!selectedWorkRequest) return;
-                        
-                        console.log('서비스 요청 삭제 시작:', selectedWorkRequest.id);
-                        const response = await apiClient.deleteServiceRequest(Number(selectedWorkRequest.id));
-                        
+                        console.log('서비스 요청 삭제 시작:', selectedWorkRequest?.id);
+                        const response = await apiClient.deleteServiceRequest(Number(selectedWorkRequest?.id));
                         if (response.success) {
                           console.log('서비스 요청 삭제 성공');
+                          // 삭제 모달 닫기
                           setShowServiceWorkDeleteModal(false);
                           setSelectedWorkRequest(null);
-                          await fetchServiceRequests(); // 목록 새로고침
-                          setShowServiceWorkDeleteCompleteModal(true);
+                          // 서비스 요청 목록 새로고침
+                          await fetchServiceRequests();
+                          // 알림창으로 삭제 완료 메시지 표시
+                          alert('작업정보가 성공적으로 삭제되었습니다.');
                         } else {
                           console.error('서비스 요청 삭제 실패:', response.error);
                           alert('삭제 중 오류가 발생했습니다: ' + (response.error || '알 수 없는 오류'));
@@ -4533,7 +4018,6 @@ function ServiceManagerPage() {
           </div>
         </div>
       )}
-
       {/* 작업정보수정 완료 모달 */}
       {showServiceWorkCompleteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
@@ -4551,7 +4035,6 @@ function ServiceManagerPage() {
                 <Icon name="close" size={24} />
               </button>
             </div>
-
             {/* 모달 내용 */}
             <div className="py-6 px-6 text-center">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -4559,7 +4042,6 @@ function ServiceManagerPage() {
               </div>
               <p className="text-gray-600 mb-6">작업정보가 성공적으로 수정되었습니다.</p>
             </div>
-
             {/* 모달 하단 버튼 */}
             <div className="flex justify-end py-4 px-6 border-t border-gray-200">
               <button
@@ -4573,43 +4055,7 @@ function ServiceManagerPage() {
         </div>
       )}
       {/* 작업정보삭제 완료 모달 */}
-      {showServiceWorkDeleteCompleteModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-            {/* 모달 헤더 */}
-            <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200" style={{paddingTop: '30px'}}>
-              <h2 className="text-xl font-bold text-gray-800 flex items-center">
-                <Icon name="check-circle" size={24} className="mr-2 text-green-600" />
-                삭제 완료
-              </h2>
-              <button
-                onClick={() => setShowServiceWorkDeleteCompleteModal(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <Icon name="close" size={24} />
-              </button>
-            </div>
-
-            {/* 모달 내용 */}
-            <div className="py-6 px-6 text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Icon name="check-circle" size={32} className="text-green-600" />
-              </div>
-              <p className="text-gray-600 mb-6">작업정보가 성공적으로 삭제되었습니다.</p>
-            </div>
-
-            {/* 모달 하단 버튼 */}
-            <div className="flex justify-end py-4 px-6 border-t border-gray-200">
-              <button
-                onClick={() => setShowServiceWorkDeleteCompleteModal(false)}
-                className="bg-gray-800 hover:bg-gray-900 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200 button-smooth"
-              >
-                확인
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      
       {/* 자주하는 질문 관리 프레임 */}
       {showFAQManagement && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
@@ -5110,12 +4556,9 @@ function ServiceManagerPage() {
               <div className="flex items-center space-x-4">
                 <button
                   onClick={() => {
-                    setGeneralInquiryCurrentPage(1);
-                    setShowUnansweredOnly(false);
-                    const oneWeekAgo = new Date()
-                    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
-                    setGeneralInquirySearchStartDate(oneWeekAgo.toISOString().split('T')[0]);
-                    setGeneralInquirySearchEndDate(new Date().toISOString().split('T')[0]);
+                    // 현재 검색 조건과 토글 상태를 유지하면서 데이터만 새로고침
+                    fetchInquiries();
+                    fetchInquiryStatistics(); // 통계도 함께 새로고침
                   }}
                   className="w-6 h-6 text-gray-600 hover:text-gray-800 transition-colors"
                 >
@@ -5130,7 +4573,6 @@ function ServiceManagerPage() {
                 <Icon name="close" size={24} />
               </button>
             </div>
-
             {/* 검색 및 필터 영역 */}
             <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
               <div className="flex items-center justify-between mb-4">
@@ -5140,319 +4582,194 @@ function ServiceManagerPage() {
                     <input
                       type="date"
                       value={generalInquirySearchStartDate}
-                      onChange={(e) => setGeneralInquirySearchStartDate(e.target.value)}
+                      max={generalInquirySearchEndDate}               
+                      onChange={(e) => {
+                        const startDate = e.target.value;
+                        setGeneralInquirySearchStartDate(startDate);
+                        // 시작일이 종료일보다 늦으면 종료일을 시작일로 설정
+                        if (startDate && generalInquirySearchEndDate && startDate > generalInquirySearchEndDate) {
+                          setGeneralInquirySearchEndDate(startDate);
+                        }
+                      }}
                       className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
                     />
                     <span className="text-gray-600 font-medium">~</span>
                     <input
                       type="date"
                       value={generalInquirySearchEndDate}
-                      onChange={(e) => setGeneralInquirySearchEndDate(e.target.value)}
+                      min={generalInquirySearchStartDate} //시스템관리 추가 됨
+                      onChange={(e) => {
+                        const endDate = e.target.value;
+                        setGeneralInquirySearchEndDate(endDate);
+                        // 종료일이 시작일보다 이르면 시작일을 종료일로 설정
+                        if (endDate && generalInquirySearchStartDate && endDate < generalInquirySearchStartDate) {
+                          setGeneralInquirySearchStartDate(endDate);
+                        }
+                      }}
                       className="px-3 py-2 border-2 border-gray-400 rounded-lg text-sm font-medium bg-white shadow-sm focus:border-blue-500 focus:outline-none"
                     />
                   </div>
-                </div>
-                
+                </div>                
                 {/* 미답변만조회 토글 - 우측 끝 배치 */}
                 <div className="flex items-center space-x-3">
                   <span className="text-sm font-medium text-gray-700">미답변만조회</span>
                   <button
                     onClick={() => setShowUnansweredOnly(!showUnansweredOnly)}
-                    className={`w-8 h-4 rounded-full transition-colors ${
-                      showUnansweredOnly ? 'bg-green-500' : 'bg-gray-400'
+                    className={`w-8 h-4 rounded-full transition-colors ${showUnansweredOnly ? 'bg-green-500' : 'bg-gray-400'
                     }`}
                   >
-                    <div className={`w-3 h-3 bg-white rounded-full transition-transform ${
-                      showUnansweredOnly ? 'translate-x-4' : 'translate-x-0.5'
+                    <div className={`w-3 h-3 bg-white rounded-full transition-transform ${showUnansweredOnly ? 'translate-x-4' : 'translate-x-0.5'
                     }`} />
                   </button>
                 </div>
               </div>
             </div>
-
             {/* 테이블 영역 */}
             <div className="flex-1 overflow-hidden">
               <div className="overflow-x-auto overflow-y-auto px-4" style={{height: '450px'}}>
                 <table className="w-full text-sm">
                   <thead className="sticky top-0" style={{backgroundColor: '#D4B8F9'}}>
                     <tr>
-                      <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">문의일시</th>
-                      <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">문의제목</th>
+                      <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">문의 일시</th>
+                      <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">문의 내용</th>
                       <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">문의자</th>
-                      <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">답변일시</th>
+                      <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">답변 일시</th>
                       <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">답변자</th>
+                      <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">비밀글</th>
                       <th className="px-2 py-2 text-center text-sm font-bold text-purple-800">관리</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {(() => {
-                      // 일반문의 데이터 (페이지네이션 테스트를 위해 더 많은 데이터 추가)
-                      const inquiries = [
-                        {
-                          id: '1',
-                          inquiryDate: '2025.08.31 14:00',
-                          title: '모니터 전원 문의',
-                          inquirer: '홍길순',
-                          answerDate: '2025.08.31 15:00',
-                          answerer: '이배정',
-                          content: '모니터에 전원이 들어오지 않습니다.',
-                          answerContent: '모니터 전원 케이블를 한번 더 꼽아 주세요! 모니터 전원 버튼을 켜 주십시요 이상과 같이 조치가 되지 않을 따는 서비스 신청 해 주세요!'
-                        },
-                        {
-                          id: '2',
-                          inquiryDate: '2025.08.31 13:00',
-                          title: '네트워크 문의',
-                          inquirer: '김영자',
-                          answerDate: '',
-                          answerer: '',
-                          content: '네트워크 연결이 안 됩니다.'
-                        },
-                        {
-                          id: '3',
-                          inquiryDate: '2025.08.31 12:00',
-                          title: '프린터 드라이버 업데이트',
-                          inquirer: '이영희',
-                          answerDate: '',
-                          answerer: '',
-                          content: '프린터 드라이버를 최신 버전으로 업데이트하고 싶습니다.'
-                        },
-                        {
-                          id: '4',
-                          inquiryDate: '2025.08.31 11:00',
-                          title: '이메일 문의',
-                          inquirer: '박달자',
-                          answerDate: '2025.08.31 12:00',
-                          answerer: '이배정',
-                          content: '이메일 접속이 안 됩니다.',
-                          answerContent: '이메일 계정 설정을 확인해 주세요. 비밀번호를 재설정하고 다시 시도해 보세요.'
-                        },
-                        {
-                          id: '5',
-                          inquiryDate: '2025.08.31 10:00',
-                          title: '소프트웨어 설치 요청',
-                          inquirer: '최민수',
-                          answerDate: '',
-                          answerer: '',
-                          content: '새로운 소프트웨어를 설치하고 싶습니다.'
-                        },
-                        {
-                          id: '6',
-                          inquiryDate: '2025.08.31 09:30',
-                          title: '키보드 고장 문의',
-                          inquirer: '정수진',
-                          answerDate: '2025.08.31 10:30',
-                          answerer: '김기술',
-                          content: '키보드가 작동하지 않습니다.',
-                          answerContent: '키보드 연결을 확인하고, 다른 포트에 연결해 보세요. 문제가 지속되면 교체가 필요합니다.'
-                        },
-                        {
-                          id: '7',
-                          inquiryDate: '2025.08.31 09:00',
-                          title: '웹사이트 접속 불가',
-                          inquirer: '강지훈',
-                          answerDate: '',
-                          answerer: '',
-                          content: '내부 웹사이트에 접속할 수 없습니다.'
-                        },
-                        {
-                          id: '8',
-                          inquiryDate: '2025.08.30 16:30',
-                          title: '마우스 반응 지연',
-                          inquirer: '윤서연',
-                          answerDate: '2025.08.30 17:00',
-                          answerer: '이배정',
-                          content: '마우스가 느리게 반응합니다.',
-                          answerContent: '마우스 드라이버를 업데이트하고, USB 포트를 변경해 보세요.'
-                        },
-                        {
-                          id: '9',
-                          inquiryDate: '2025.08.30 15:00',
-                          title: '폴더 권한 문의',
-                          inquirer: '송현우',
-                          answerDate: '',
-                          answerer: '',
-                          content: '특정 폴더에 접근할 수 없습니다.'
-                        },
-                        {
-                          id: '10',
-                          inquiryDate: '2025.08.30 14:00',
-                          title: '인쇄 대기열 오류',
-                          inquirer: '임지영',
-                          answerDate: '2025.08.30 14:30',
-                          answerer: '김기술',
-                          content: '프린터 대기열에 오류가 발생했습니다.',
-                          answerContent: '인쇄 대기열을 초기화하고 프린터를 재시작해 주세요.'
-                        },
-                        {
-                          id: '11',
-                          inquiryDate: '2025.08.30 13:00',
-                          title: '시스템 업데이트 문의',
-                          inquirer: '박준호',
-                          answerDate: '',
-                          answerer: '',
-                          content: '시스템 업데이트가 필요한지 확인하고 싶습니다.'
-                        },
-                        {
-                          id: '12',
-                          inquiryDate: '2025.08.30 12:00',
-                          title: '백업 시스템 문의',
-                          inquirer: '한소영',
-                          answerDate: '2025.08.30 12:30',
-                          answerer: '이배정',
-                          content: '백업 시스템이 정상 작동하는지 확인해 주세요.',
-                          answerContent: '백업 시스템을 점검한 결과 정상 작동하고 있습니다. 일정한 시간에 자동 백업이 진행됩니다.'
-                        }
-                      ];
-
-                      // 필터링된 데이터
-                      let filteredInquiries = inquiries;
-                      
-                      // 미 답변만 조회 필터
-                      if (showUnansweredOnly) {
-                        filteredInquiries = inquiries.filter(inquiry => !inquiry.answerDate);
-                      }
-
-                      // 날짜 필터링 (간단한 예시)
-                      const startDate = new Date(generalInquirySearchStartDate);
-                      const endDate = new Date(generalInquirySearchEndDate);
-                      filteredInquiries = filteredInquiries.filter(inquiry => {
-                        const inquiryDate = new Date(inquiry.inquiryDate);
-                        return inquiryDate >= startDate && inquiryDate <= endDate;
-                      });
-
-                      // 페이지네이션
-                      const itemsPerPage = 10;
-                      const totalPages = Math.ceil(filteredInquiries.length / itemsPerPage);
-                      const startIndex = (generalInquiryCurrentPage - 1) * itemsPerPage;
-                      const endIndex = startIndex + itemsPerPage;
-                      const currentInquiries = filteredInquiries.slice(startIndex, endIndex);
-
-                      return (
-                        <>
-                          {currentInquiries.map((inquiry) => (
-                            <tr key={inquiry.id} className="hover:bg-gray-50">
-                              <td className="px-2 py-2 text-gray-900 text-center">{inquiry.inquiryDate}</td>
-                              <td className="px-2 py-2 text-gray-900">{inquiry.title}</td>
-                              <td className="px-2 py-2 text-gray-900 text-center">{inquiry.inquirer}</td>
-                              <td className="px-2 py-2 text-gray-900 text-center">{inquiry.answerDate || '-'}</td>
-                              <td className="px-2 py-2 text-gray-900 text-center">
-                                <div className="flex items-center justify-center">
-                                  {inquiry.answerer && <Icon name="lock" size={16} className="text-gray-400 mr-1" />}
-                                  {inquiry.answerer || '-'}
-                                </div>
-                              </td>
-                              <td className="px-2 py-2 text-center">
-                                <div className="flex justify-center space-x-2">
-                                  {inquiry.answerDate ? (
-                                    <>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setSelectedInquiry(inquiry);
-                                          setShowGeneralInquiryEditModal(true);
-                                        }}
-                                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                                      >
-                                        수정
-                                      </button>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setSelectedInquiry(inquiry);
-                                          setShowGeneralInquiryDeleteModal(true);
-                                        }}
-                                        className="text-red-600 hover:text-red-800 text-sm font-medium"
-                                      >
-                                        삭제
-                                      </button>
-                                    </>
-                                  ) : (
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setSelectedInquiry(inquiry);
-                                        setShowGeneralInquiryReplyModal(true);
-                                      }}
-                                      className="text-green-600 hover:text-green-800 text-sm font-medium"
-                                    >
-                                      답변하기
-                                    </button>
-                                  )}
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </>
-                      );
-                    })()}
+                    {inquiriesLoading ? (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                          <div className="flex items-center justify-center">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-2"></div>
+                            로딩 중...
+                          </div>
+                        </td>
+                      </tr>
+                    ) : inquiries.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
+                          문의 데이터가 없습니다.
+                        </td>
+                      </tr>
+                    ) : (
+                      inquiries.map((inquiry) => (
+                        <tr key={inquiry.id} className="hover:bg-gray-50">
+                          <td className="px-2 py-1 text-gray-900 text-center">
+                            {inquiry.inquiry_date ? new Date(inquiry.inquiry_date).toLocaleString('ko-KR', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              hour12: false
+                            }).replace(/\. /g, '-').replace(/\./g, '').replace(/-(\d{2}:\d{2})/, ' $1') : '-'}
+                          </td>
+                          <td className="px-2 py-2 text-gray-900 text-left max-w-xs truncate" title={inquiry.content}>
+                            {inquiry.content && inquiry.content.length > 50
+                              ? inquiry.content.substring(0, 50) + '...'
+                              : inquiry.content}
+                          </td>
+                          <td className="px-2 py-2 text-gray-900 text-center">{inquiry.requester_name}</td>
+                          <td className="px-2 py-2 text-gray-900 text-center">
+                            {inquiry.answer_date ? new Date(inquiry.answer_date).toLocaleString('ko-KR', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              hour12: false
+                            }).replace(/\. /g, '-').replace(/\./g, '').replace(/-(\d{2}:\d{2})/, ' $1') : '-'}
+                          </td>
+                          <td className="px-2 py-2 text-gray-900 text-center">{inquiry.answerer_name || '-'}</td>
+                          <td className="px-2 py-2 text-gray-900 text-center">
+                            <div className="flex justify-center">
+                              {inquiry.is_secret ? (
+                                <img src="/icons/lock.svg" alt="잠금" width="16" height="16" className="text-red-500" />
+                              ) : (
+                                <img src="/icons/unlock.svg" alt="열림" width="16" height="16" className="text-green-500" />
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-2 py-2 text-center">
+                            <div className="flex justify-center space-x-2">
+                              {inquiry.answer_date ? (
+                                // 답변이 있는 경우: 수정, 삭제 버튼
+                                <>
+                                  <button
+                                    onClick={() => {
+                                      setSelectedInquiry(inquiry);
+                                      setEditAnswerContent(inquiry.answer_content || '');
+                                      setShowGeneralInquiryEditAnswerModal(true);
+                                    }}
+                                    className="px-3 py-1 text-blue-500 text-xs rounded hover:bg-blue-50 transition-colors"
+                                  >
+                                    수정
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setSelectedInquiry(inquiry);
+                                      setShowGeneralInquiryDeleteAnswerModal(true);
+                                    }}
+                                    className="px-3 py-1 text-red-500 text-xs rounded hover:bg-red-50 transition-colors"
+                                  >
+                                    삭제
+                                  </button>
+                                </>
+                              ) : (
+                                // 답변이 없는 경우: 답변하기 버튼
+                                <button
+                                  onClick={() => {
+                                    setSelectedInquiry(inquiry);
+                                    setAnswerContent('');
+                                    setShowGeneralInquiryAnswerModal(true);
+                                  }}
+                                  className="px-3 py-1 text-green-500 text-xs rounded hover:bg-green-50 transition-colors"
+                                >
+                                  답변하기
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
-
               {/* 페이지네이션 */}
-              {(() => {
-                // 동일한 데이터와 필터링 로직 사용
-                const inquiries = [
-                  { id: '1', inquiryDate: '2025.08.31 14:00', title: '모니터 전원 문의', inquirer: '홍길순', answerDate: '2025.08.31 15:00', answerer: '이배정' },
-                  { id: '2', inquiryDate: '2025.08.31 13:00', title: '네트워크 문의', inquirer: '김영자', answerDate: '', answerer: '' },
-                  { id: '3', inquiryDate: '2025.08.31 12:00', title: '프린터 드라이버 업데이트', inquirer: '이영희', answerDate: '', answerer: '' },
-                  { id: '4', inquiryDate: '2025.08.31 11:00', title: '이메일 문의', inquirer: '박달자', answerDate: '2025.08.31 12:00', answerer: '이배정' },
-                  { id: '5', inquiryDate: '2025.08.31 10:00', title: '소프트웨어 설치 요청', inquirer: '최민수', answerDate: '', answerer: '' },
-                  { id: '6', inquiryDate: '2025.08.31 09:30', title: '키보드 고장 문의', inquirer: '정수진', answerDate: '2025.08.31 10:30', answerer: '김기술' },
-                  { id: '7', inquiryDate: '2025.08.31 09:00', title: '웹사이트 접속 불가', inquirer: '강지훈', answerDate: '', answerer: '' },
-                  { id: '8', inquiryDate: '2025.08.30 16:30', title: '마우스 반응 지연', inquirer: '윤서연', answerDate: '2025.08.30 17:00', answerer: '이배정' },
-                  { id: '9', inquiryDate: '2025.08.30 15:00', title: '폴더 권한 문의', inquirer: '송현우', answerDate: '', answerer: '' },
-                  { id: '10', inquiryDate: '2025.08.30 14:00', title: '인쇄 대기열 오류', inquirer: '임지영', answerDate: '2025.08.30 14:30', answerer: '김기술' },
-                  { id: '11', inquiryDate: '2025.08.30 13:00', title: '시스템 업데이트 문의', inquirer: '박준호', answerDate: '', answerer: '' },
-                  { id: '12', inquiryDate: '2025.08.30 12:00', title: '백업 시스템 문의', inquirer: '한소영', answerDate: '2025.08.30 12:30', answerer: '이배정' }
-                ];
-                
-                let filteredInquiries = inquiries;
-                if (showUnansweredOnly) {
-                  filteredInquiries = inquiries.filter(inquiry => !inquiry.answerDate);
-                }
-                
-                // 날짜 필터링
-                const startDate = new Date(generalInquirySearchStartDate);
-                const endDate = new Date(generalInquirySearchEndDate);
-                filteredInquiries = filteredInquiries.filter(inquiry => {
-                  const inquiryDate = new Date(inquiry.inquiryDate);
-                  return inquiryDate >= startDate && inquiryDate <= endDate;
-                });
-                
-                const totalPages = Math.ceil(filteredInquiries.length / 10);
-                
-                return totalPages > 1 ? (
-                  <div className="flex justify-center mt-4 pt-4 pb-4 border-t border-gray-200">
-                    <div className="flex items-center space-x-2">
-                      <button 
-                        onClick={() => setGeneralInquiryCurrentPage(Math.max(1, generalInquiryCurrentPage - 1))}
-                        disabled={generalInquiryCurrentPage === 1}
-                        className="px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        이전
-                      </button>
-                      <span className="px-2 py-1 bg-blue-500 text-white rounded text-xs">
-                        {generalInquiryCurrentPage}/{totalPages}
-                      </span>
-                      <button 
-                        onClick={() => setGeneralInquiryCurrentPage(Math.min(totalPages, generalInquiryCurrentPage + 1))}
-                        disabled={generalInquiryCurrentPage >= totalPages}
-                        className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        다음
-                      </button>
-                    </div>
+              {inquiriesPagination.totalPages > 1 && (
+                <div className="flex justify-center mt-4 pt-4 pb-4 border-t border-gray-200">
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setInquiriesPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
+                      disabled={inquiriesPagination.page === 1}
+                      className="px-2 py-1 bg-gray-100 hover:bg-gray-200 rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      이전
+                    </button>
+                    <span className="px-2 py-1 bg-blue-500 text-white rounded text-xs">
+                      {inquiriesPagination.page}/{inquiriesPagination.totalPages}
+                    </span>
+                    <button
+                      onClick={() => setInquiriesPagination(prev => ({ ...prev, page: Math.min(prev.totalPages, prev.page + 1) }))}
+                      disabled={inquiriesPagination.page >= inquiriesPagination.totalPages}
+                      className="px-2 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      다음
+                    </button>
                   </div>
-                ) : null;
-              })()}
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
-
       {/* 답변하기 프레임 */}
-      {showGeneralInquiryReplyModal && selectedInquiry && (
+      {showGeneralInquiryAnswerModal && selectedInquiry && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
           <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
             {/* 모달 헤더 */}
@@ -5462,13 +4779,12 @@ function ServiceManagerPage() {
                 답변 하기
               </h2>
               <button
-                onClick={() => setShowGeneralInquiryReplyModal(false)}
+                onClick={() => setShowGeneralInquiryAnswerModal(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <Icon name="close" size={24} />
               </button>
             </div>
-
             {/* 모달 내용 */}
             <div className="py-6 px-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -5477,19 +4793,18 @@ function ServiceManagerPage() {
                   <div className="flex items-center space-x-2 mb-4">
                     <Icon name="user" size={20} className="text-gray-600" />
                     <h3 className="text-lg font-semibold text-gray-800">문의 정보</h3>
-                  </div>
-                  
+                  </div>                  
                   <div className="space-y-0">
                     <div>
                       <span className="text-sm font-medium text-gray-600">문의 일시: </span>
-                      <span className="text-sm">{selectedInquiry.inquiryDate}</span>
-                    </div>
-                    
+                      <span className="text-sm">
+                        {selectedInquiry.inquiry_date ? new Date(selectedInquiry.inquiry_date).toLocaleString('ko-KR') : '-'}
+                      </span>
+                    </div>                    
                     <div>
                       <span className="text-sm font-medium text-gray-600">문의자: </span>
-                      <span className="text-sm">{selectedInquiry.inquirer}</span>
-                    </div>
-                    
+                      <span className="text-sm">{selectedInquiry.requester_name}</span>
+                    </div>                    
                     <div>
                       <span className="text-sm font-medium text-gray-600">문의 내용: </span>
                       <div className="text-sm mt-1 p-3 bg-gray-50 rounded text-gray-700 min-h-24 max-h-48 overflow-y-auto whitespace-pre-wrap">
@@ -5498,50 +4813,44 @@ function ServiceManagerPage() {
                     </div>
                   </div>
                 </div>
-
                 {/* 답변 작성 */}
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2 mb-4">
                     <Icon name="edit" size={20} className="text-gray-600" />
                     <h3 className="text-lg font-semibold text-gray-800">답변 하기</h3>
-                  </div>
-                  
+                  </div>                  
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         답변 내용
                       </label>
                       <textarea
+                        value={answerContent}
+                        onChange={(e) => setAnswerContent(e.target.value)}
                         rows={8}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                         placeholder="답변 내용을 입력하세요"
-                        defaultValue="네트워크 케이블이 정확히 꼽혀 있는지 확인 해 주세요!"
                       />
                     </div>
                     
                     <div>
                       <span className="text-sm font-medium text-gray-600">답변자: </span>
-                      <span className="text-sm">이배정 (관리팀)</span>
+                      <span className="text-sm">{selectedInquiry.answerer_name || '미답변'}</span>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-
             {/* 모달 하단 버튼 */}
             <div className="flex gap-3 py-4 px-6 border-t border-gray-200">
               <button
-                onClick={() => setShowGeneralInquiryReplyModal(false)}
+                onClick={() => setShowGeneralInquiryAnswerModal(false)}
                 className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
               >
                 취소
               </button>
               <button
-                onClick={() => {
-                  setShowGeneralInquiryReplyModal(false);
-                  // 답변 완료 로직 추가
-                  alert('답변이 완료되었습니다.');
-                }}
+                onClick={handleAnswerInquiry}
                 className="px-6 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
               >
                 답변 하기
@@ -5551,7 +4860,7 @@ function ServiceManagerPage() {
         </div>
       )}
       {/* 답변수정하기 프레임 */}
-      {showGeneralInquiryEditModal && selectedInquiry && (
+      {showGeneralInquiryEditAnswerModal && selectedInquiry && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
           <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
             {/* 모달 헤더 */}
@@ -5561,13 +4870,12 @@ function ServiceManagerPage() {
                 답변 수정하기
               </h2>
               <button
-                onClick={() => setShowGeneralInquiryEditModal(false)}
+                onClick={() => setShowGeneralInquiryEditAnswerModal(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <Icon name="close" size={24} />
               </button>
             </div>
-
             {/* 모달 내용 */}
             <div className="py-6 px-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -5581,12 +4889,13 @@ function ServiceManagerPage() {
                   <div className="space-y-0">
                     <div>
                       <span className="text-sm font-medium text-gray-600">문의 일시: </span>
-                      <span className="text-sm">{selectedInquiry.inquiryDate}</span>
-                    </div>
-                    
+                      <span className="text-sm">
+                        {selectedInquiry.inquiry_date ? new Date(selectedInquiry.inquiry_date).toLocaleString('ko-KR') : '-'}
+                      </span>
+                    </div>                    
                     <div>
                       <span className="text-sm font-medium text-gray-600">문의자: </span>
-                      <span className="text-sm">{selectedInquiry.inquirer}</span>
+                      <span className="text-sm">{selectedInquiry.requester_name}</span>
                     </div>
                     
                     <div>
@@ -5597,50 +4906,43 @@ function ServiceManagerPage() {
                     </div>
                   </div>
                 </div>
-
                 {/* 답변 수정 */}
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2 mb-4">
                     <Icon name="edit" size={20} className="text-gray-600" />
                     <h3 className="text-lg font-semibold text-gray-800">답변 수정</h3>
-                  </div>
-                  
+                  </div>                  
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         답변 내용
                       </label>
                       <textarea
+                        value={editAnswerContent}
+                        onChange={(e) => setEditAnswerContent(e.target.value)}
                         rows={8}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
                         placeholder="답변 내용을 입력하세요"
-                        defaultValue={selectedInquiry.answerContent || "모니터 전원 케이블를 한번 더 꼽아 주세요! 모니터 전원 버튼을 켜 주십시요 이상과 같이 조치가 되지 않을 따는 서비스 신청 해 주세요!"}
                       />
-                    </div>
-                    
+                    </div>                    
                     <div>
                       <span className="text-sm font-medium text-gray-600">답변자: </span>
-                      <span className="text-sm">이배정 (관리팀)</span>
+                      <span className="text-sm">{selectedInquiry.answerer_name || '미답변'}</span>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-
             {/* 모달 하단 버튼 */}
             <div className="flex gap-3 py-4 px-6 border-t border-gray-200">
               <button
-                onClick={() => setShowGeneralInquiryEditModal(false)}
+                onClick={() => setShowGeneralInquiryEditAnswerModal(false)}
                 className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
               >
                 취소
               </button>
               <button
-                onClick={() => {
-                  setShowGeneralInquiryEditModal(false);
-                  // 수정 완료 로직 추가
-                  alert('답변이 수정되었습니다.');
-                }}
+                onClick={handleEditAnswer}
                 className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
               >
                 수정 하기
@@ -5649,9 +4951,8 @@ function ServiceManagerPage() {
           </div>
         </div>
       )}
-
       {/* 답변삭제하기 프레임 */}
-      {showGeneralInquiryDeleteModal && selectedInquiry && (
+      {showGeneralInquiryDeleteAnswerModal && selectedInquiry && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
           <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
             {/* 모달 헤더 */}
@@ -5661,13 +4962,12 @@ function ServiceManagerPage() {
                 답변 삭제하기
               </h2>
               <button
-                onClick={() => setShowGeneralInquiryDeleteModal(false)}
+                onClick={() => setShowGeneralInquiryDeleteAnswerModal(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <Icon name="close" size={24} />
               </button>
             </div>
-
             {/* 모달 내용 */}
             <div className="py-6 px-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -5681,12 +4981,13 @@ function ServiceManagerPage() {
                   <div className="space-y-0">
                     <div>
                       <span className="text-sm font-medium text-gray-600">문의 일시: </span>
-                      <span className="text-sm">{selectedInquiry.inquiryDate}</span>
-                    </div>
-                    
+                      <span className="text-sm">
+                        {selectedInquiry.inquiry_date ? new Date(selectedInquiry.inquiry_date).toLocaleString('ko-KR') : '-'}
+                      </span>
+                    </div>                    
                     <div>
                       <span className="text-sm font-medium text-gray-600">문의자: </span>
-                      <span className="text-sm">{selectedInquiry.inquirer}</span>
+                      <span className="text-sm">{selectedInquiry.requester_name}</span>
                     </div>
                     
                     <div>
@@ -5697,7 +4998,6 @@ function ServiceManagerPage() {
                     </div>
                   </div>
                 </div>
-
                 {/* 답변 정보 */}
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2 mb-4">
@@ -5711,33 +5011,27 @@ function ServiceManagerPage() {
                         답변 내용
                       </label>
                       <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 min-h-32 max-h-48 overflow-y-auto whitespace-pre-wrap">
-                        {selectedInquiry.answerContent || "모니터 전원 케이블를 한번 더 꼽아 주세요! 모니터 전원 버튼을 켜 주십시요 이상과 같이 조치가 되지 않을 따는 서비스 신청 해 주세요!"}
+                        {selectedInquiry.answer_content || '답변이 없습니다.'}
                       </div>
-                    </div>
-                    
+                    </div>                    
                     <div>
                       <span className="text-sm font-medium text-gray-600">답변자: </span>
-                      <span className="text-sm">이배정 (관리팀)</span>
+                      <span className="text-sm">{selectedInquiry.answerer_name || '미답변'}</span>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
-
             {/* 모달 하단 버튼 */}
             <div className="flex gap-3 py-4 px-6 border-t border-gray-200">
               <button
-                onClick={() => setShowGeneralInquiryDeleteModal(false)}
+                onClick={() => setShowGeneralInquiryDeleteAnswerModal(false)}
                 className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
               >
                 취소
               </button>
               <button
-                onClick={() => {
-                  setShowGeneralInquiryDeleteModal(false);
-                  // 삭제 완료 로직 추가
-                  alert('답변이 삭제되었습니다.');
-                }}
+                onClick={handleDeleteAnswer}
                 className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
               >
                 삭제 하기

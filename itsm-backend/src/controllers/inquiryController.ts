@@ -374,7 +374,7 @@ export const answerGeneralInquiry = async (req: Request, res: Response): Promise
     const userRole = req.user?.role;
 
     // Only technicians and above can answer inquiries
-    if (!['technician', 'assignment_manager', 'service_manager', 'system_admin', '시스템관리'].includes(userRole!)) {
+    if (!['technician', 'assignment_manager', 'service_manager', 'system_admin', '관리매니저', '시스템관리'].includes(userRole!)) {
       res.status(403).json({
         success: false,
         message: 'Insufficient permissions to answer inquiries'
@@ -447,7 +447,7 @@ export const updateGeneralInquiryAnswer = async (req: Request, res: Response): P
     const userRole = req.user?.role;
 
     // Only technicians and above can update answers
-    if (!['technician', 'assignment_manager', 'service_manager', 'system_admin', '시스템관리'].includes(userRole!)) {
+    if (!['technician', 'assignment_manager', 'service_manager', 'system_admin', '시스템관리', '관리매니저'].includes(userRole!)) {
       res.status(403).json({
         success: false,
         message: 'Insufficient permissions to update answers'
