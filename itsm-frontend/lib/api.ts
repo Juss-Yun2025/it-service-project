@@ -202,6 +202,59 @@ export interface GeneralInquiryAnswerRequest {
   answer_content: string;
 }
 
+// ===== FAQ 관련 인터페이스 =====
+export interface FAQ {
+  id: string;
+  question: string;
+  answer: string;
+  category?: string;
+  icon?: string;
+  view_count: number;
+  is_active: boolean;
+  created_by: string;
+  created_by_name?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FAQCreateRequest {
+  question: string;
+  answer: string;
+  category?: string;
+  icon?: string;
+}
+
+export interface FAQUpdateRequest {
+  question?: string;
+  answer?: string;
+  category?: string;
+  icon?: string;
+  is_active?: boolean;
+}
+
+export interface FAQListParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  category?: string;
+  is_active?: boolean;
+  sortBy?: string;
+  sortOrder?: 'ASC' | 'DESC';
+}
+
+// FAQ Icon interfaces
+export interface FAQIcon {
+  id: string;
+  name: string;
+  file_path: string;
+  label: string;
+  category: string;
+  sort_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface InquiryStatistics {
   overview: {
     total_inquiries: number;
@@ -1097,6 +1150,86 @@ class ApiClient {
     const url = queryString ? `/api/reports/service?${queryString}` : '/api/reports/service';
     
     return this.request<ServiceRequest[]>(url);
+  }
+
+  // ===== FAQ 관련 API =====
+
+  // FAQ 목록 조회 (페이지네이션 포함)
+  async getFAQs(params?: FAQListParams): Promise<ApiResponse<FAQ[]>> {
+    const queryParams = new URLSearchParams();
+    
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.search) queryParams.append('search', params.search);
+    if (params?.category) queryParams.append('category', params.category);
+    if (params?.is_active !== undefined) queryParams.append('is_active', params.is_active.toString());
+    if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+    if (params?.sortOrder) queryParams.append('sortOrder', params.sortOrder);
+    
+    const queryString = queryParams.toString();
+    const url = queryString ? `/api/faqs?${queryString}` : '/api/faqs';
+    
+    return this.request<FAQ[]>(url);
+  }
+
+  // 특정 FAQ 조회
+  async getFAQ(id: string): Promise<ApiResponse<FAQ>> {
+    return this.request<FAQ>(`/api/faqs/${id}`);
+  }
+
+  // FAQ 생성
+  async createFAQ(data: FAQCreateRequest): Promise<ApiResponse<FAQ>> {
+    return this.request<FAQ>('/api/faqs', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  // FAQ 수정
+  async updateFAQ(id: string, data: FAQUpdateRequest): Promise<ApiResponse<FAQ>> {
+    return this.request<FAQ>(`/api/faqs/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  }
+
+  // FAQ 삭제
+  async deleteFAQ(id: string): Promise<ApiResponse<void>> {
+    return this.request<void>(`/api/faqs/${id}`, {
+      method: 'DELETE'
+    });
+  }
+
+  // FAQ 카테고리 목록 조회
+  async getFAQCategories(): Promise<ApiResponse<string[]>> {
+    return this.request<string[]>('/api/faqs/categories');
+  }
+
+  // 인기 FAQ 목록 조회
+  async getPopularFAQs(limit?: number): Promise<ApiResponse<FAQ[]>> {
+    const queryParams = new URLSearchParams();
+    if (limit) queryParams.append('limit', limit.toString());
+    
+    const queryString = queryParams.toString();
+    const url = queryString ? `/api/faqs/popular?${queryString}` : '/api/faqs/popular';
+    
+    return this.request<FAQ[]>(url);
+  }
+
+  // FAQ 아이콘 목록 조회
+  async getFAQIcons(category?: string): Promise<ApiResponse<FAQIcon[]>> {
+    const queryParams = new URLSearchParams();
+    if (category) queryParams.append('category', category);
+    
+    const queryString = queryParams.toString();
+    const url = queryString ? `/api/faq-icons?${queryString}` : '/api/faq-icons';
+    
+    return this.request<FAQIcon[]>(url);
+  }
+
+  // FAQ 아이콘 카테고리 목록 조회
+  async getFAQIconCategories(): Promise<ApiResponse<{category: string; count: number}[]>> {
+    return this.request<{category: string; count: number}[]>('/api/faq-icons/categories');
   }
 }
 

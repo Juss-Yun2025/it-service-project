@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Icon from '@/components/ui/Icon'
 import { apiClient } from '@/lib/api'
-import type { Stage, Department, Position, ServiceType, GeneralInquiry, InquiryStatistics } from '@/lib/api'
+import type { Stage, Department, Position, ServiceType, GeneralInquiry, InquiryStatistics, FAQ, FAQListParams } from '@/lib/api'
 
 function ServiceManagerPage() {
   const router = useRouter()
@@ -73,6 +73,33 @@ function ServiceManagerPage() {
   const [showFAQAddModal, setShowFAQAddModal] = useState(false)
   const [showFAQCompleteModal, setShowFAQCompleteModal] = useState(false)
   const [generalInquiryCurrentPage, setGeneralInquiryCurrentPage] = useState(1)
+  
+  // ===== FAQ 관련 상태 변수 =====
+  const [faqs, setFaqs] = useState<FAQ[]>([])
+  const [faqsLoading, setFaqsLoading] = useState(false)
+  const [faqsPagination, setFaqsPagination] = useState({
+    page: 1,
+    limit: 6,
+    total: 0,
+    totalPages: 1
+  })
+  const [faqCategories, setFaqCategories] = useState<string[]>([])
+  const [newFAQQuestion, setNewFAQQuestion] = useState('')
+  const [newFAQAnswer, setNewFAQAnswer] = useState('')
+  const [newFAQCategory, setNewFAQCategory] = useState('')
+  const [newFAQIcon, setNewFAQIcon] = useState('/faq_icon/question.svg')
+  const [editFAQQuestion, setEditFAQQuestion] = useState('')
+  const [editFAQAnswer, setEditFAQAnswer] = useState('')
+  const [editFAQCategory, setEditFAQCategory] = useState('')
+  const [editFAQIcon, setEditFAQIcon] = useState('/faq_icon/question.svg')
+  const [faqSearchTerm, setFaqSearchTerm] = useState('')
+  const [selectedFAQCategory, setSelectedFAQCategory] = useState('')
+  const [showFAQDeleteModal, setShowFAQDeleteModal] = useState(false)
+  
+  // 아이콘 옵션 상태 (동적으로 로드)
+  const [iconOptions, setIconOptions] = useState<{ name: string; path: string; label: string }[]>([])
+  const [iconOptionsLoading, setIconOptionsLoading] = useState(false)
+  
   const [showUnansweredOnly, setShowUnansweredOnly] = useState(false)
   const [generalInquirySearchStartDate, setGeneralInquirySearchStartDate] = useState(() => {
     const oneWeekAgo = new Date();
@@ -1173,6 +1200,207 @@ function ServiceManagerPage() {
   useEffect(() => {
     fetchInquiryStatistics();
   }, []);
+
+  // FAQ 아이콘 자동 로드 (페이지 로드 시)
+  useEffect(() => {
+    fetchFAQIcons();
+  }, []);
+
+  // FAQ 데이터 자동 로드 (페이지네이션, 검색, 필터 변경 시)
+  useEffect(() => {
+    if (showFAQManagement) {
+      fetchFAQs();
+    }
+  }, [faqsPagination.page, faqSearchTerm, selectedFAQCategory, showFAQManagement]);
+
+  // ===== FAQ 관련 함수들 =====
+
+  // FAQ 아이콘 목록 가져오기
+  const fetchFAQIcons = async () => {
+    setIconOptionsLoading(true);
+    try {
+      const response = await apiClient.getFAQIcons();
+      if (response.success && response.data) {
+        const iconData = response.data.map(icon => ({
+          name: icon.name,
+          path: icon.file_path,
+          label: icon.label
+        }));
+        setIconOptions(iconData);
+      }
+    } catch (error) {
+      console.error('FAQ 아이콘 로드 오류:', error);
+      // 기본 아이콘 사용
+      setIconOptions([
+        { name: 'question', path: '/faq_icon/question.svg', label: '일반 질문' }
+      ]);
+    } finally {
+      setIconOptionsLoading(false);
+    }
+  };
+
+  // FAQ 목록 가져오기
+  const fetchFAQs = async () => {
+    setFaqsLoading(true);
+    try {
+      const params: FAQListParams = {
+        page: faqsPagination.page,
+        limit: faqsPagination.limit,
+        is_active: true,
+        sortBy: 'created_at',
+        sortOrder: 'DESC'
+      };
+
+      if (faqSearchTerm) {
+        params.search = faqSearchTerm;
+      }
+
+      if (selectedFAQCategory) {
+        params.category = selectedFAQCategory;
+      }
+
+      const response = await apiClient.getFAQs(params);
+      if (response.success && response.data) {
+        setFaqs(response.data);
+        if ((response as any).pagination) {
+          setFaqsPagination({
+            page: (response as any).pagination.page,
+            limit: (response as any).pagination.limit,
+            total: (response as any).pagination.total,
+            totalPages: (response as any).pagination.totalPages
+          });
+        }
+      } else {
+        console.error('FAQ 데이터 가져오기 실패:', response.error);
+        setFaqs([]);
+      }
+    } catch (error) {
+      console.error('FAQ 데이터 가져오기 오류:', error);
+      setFaqs([]);
+    } finally {
+      setFaqsLoading(false);
+    }
+  };
+
+  // FAQ 카테고리 목록 가져오기
+  const fetchFAQCategories = async () => {
+    try {
+      const response = await apiClient.getFAQCategories();
+      if (response.success && response.data) {
+        setFaqCategories(response.data);
+      }
+    } catch (error) {
+      console.error('FAQ 카테고리 가져오기 오류:', error);
+    }
+  };
+
+  // FAQ 생성
+  const handleCreateFAQ = async () => {
+    if (!newFAQQuestion.trim() || !newFAQAnswer.trim()) {
+      alert('질문과 답변을 모두 입력해주세요.');
+      return;
+    }
+
+    try {
+      const response = await apiClient.createFAQ({
+        question: newFAQQuestion.trim(),
+        answer: newFAQAnswer.trim(),
+        category: newFAQCategory.trim() || undefined,
+        icon: newFAQIcon
+      });
+
+      if (response.success) {
+        alert('자주하는 질문이 추가되었습니다.');
+        setShowFAQAddModal(false);
+        setNewFAQQuestion('');
+        setNewFAQAnswer('');
+        setNewFAQCategory('');
+        setNewFAQIcon('/faq_icon/question.svg');
+        await fetchFAQs(); // 목록 새로고침
+        await fetchFAQCategories(); // 카테고리 목록 새로고침
+      } else {
+        alert('FAQ 추가 중 오류가 발생했습니다: ' + response.error);
+      }
+    } catch (error) {
+      console.error('FAQ 추가 실패:', error);
+      alert('FAQ 추가 중 오류가 발생했습니다.');
+    }
+  };
+
+  // FAQ 수정
+  const handleUpdateFAQ = async () => {
+    if (!selectedFAQ || !editFAQQuestion.trim() || !editFAQAnswer.trim()) {
+      alert('질문과 답변을 모두 입력해주세요.');
+      return;
+    }
+
+    try {
+      const response = await apiClient.updateFAQ(selectedFAQ.id, {
+        question: editFAQQuestion.trim(),
+        answer: editFAQAnswer.trim(),
+        category: editFAQCategory.trim() || undefined,
+        icon: editFAQIcon
+      });
+
+      if (response.success) {
+        alert('자주하는 질문이 수정되었습니다.');
+        setShowFAQEditModal(false);
+        setSelectedFAQ(null);
+        setEditFAQQuestion('');
+        setEditFAQAnswer('');
+        setEditFAQCategory('');
+        setEditFAQIcon('❓');
+        await fetchFAQs(); // 목록 새로고침
+        await fetchFAQCategories(); // 카테고리 목록 새로고침
+      } else {
+        alert('FAQ 수정 중 오류가 발생했습니다: ' + response.error);
+      }
+    } catch (error) {
+      console.error('FAQ 수정 실패:', error);
+      alert('FAQ 수정 중 오류가 발생했습니다.');
+    }
+  };
+
+  // FAQ 삭제
+  const handleDeleteFAQ = async () => {
+    if (!selectedFAQ) return;
+
+    if (!confirm('정말로 이 자주하는 질문을 삭제하시겠습니까?')) {
+      return;
+    }
+
+    try {
+      const response = await apiClient.deleteFAQ(selectedFAQ.id);
+      if (response.success) {
+        alert('자주하는 질문이 삭제되었습니다.');
+        setShowFAQDeleteModal(false);
+        setSelectedFAQ(null);
+        await fetchFAQs(); // 목록 새로고침
+        await fetchFAQCategories(); // 카테고리 목록 새로고침
+      } else {
+        alert('FAQ 삭제 중 오류가 발생했습니다: ' + response.error);
+      }
+    } catch (error) {
+      console.error('FAQ 삭제 실패:', error);
+      alert('FAQ 삭제 중 오류가 발생했습니다.');
+    }
+  };
+
+  // FAQ 관리 프레임이 열릴 때 데이터 로드
+  useEffect(() => {
+    if (showFAQManagement) {
+      fetchFAQs();
+      fetchFAQCategories();
+    }
+  }, [showFAQManagement]);
+
+  // FAQ 검색/필터 조건 변경 시 첫 페이지로 리셋
+  useEffect(() => {
+    if (showFAQManagement) {
+      setFaqsPagination(prev => ({ ...prev, page: 1 }));
+    }
+  }, [faqSearchTerm, selectedFAQCategory]);
+
   // 답변하기
   const handleAnswerInquiry = async () => {
     if (!selectedInquiry || !answerContent.trim()) {
@@ -4062,10 +4290,22 @@ function ServiceManagerPage() {
           <div className="bg-white rounded-lg shadow-xl max-w-7xl w-full mx-4 max-h-[90vh] overflow-hidden">
             {/* 프레임 헤더 */}
             <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200" style={{paddingTop: '30px'}}>
-              <h2 className="text-xl font-bold text-gray-800 flex items-center">
-                <Icon name="help-circle" size={24} className="mr-2 text-blue-600" />
-                자주하는 질문 관리
-              </h2>
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={() => {
+                    // FAQ 데이터와 아이콘 새로고침
+                    fetchFAQs();
+                    fetchFAQIcons();
+                  }}
+                  className="w-6 h-6 text-gray-600 hover:text-gray-800 transition-colors"
+                >
+                  <Icon name="refresh" size={16} />
+                </button>
+                <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                  <Icon name="help-circle" size={24} className="mr-2 text-blue-600" />
+                  자주하는 질문 관리
+                </h2>
+              </div>
               <button
                 onClick={() => setShowFAQManagement(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -4076,228 +4316,149 @@ function ServiceManagerPage() {
 
             {/* 프레임 내용 */}
             <div className="p-6 overflow-y-auto" style={{maxHeight: 'calc(90vh - 120px)'}}>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* FAQ 카드들 */}
-                {(() => {
-                  // FAQ 데이터 (일반사용자 페이지와 동일)
-                  const faqs = [
-                    {
-                      id: '1',
-                      icon: '📧',
-                      summary: '이메일 접속 불가',
-                      content: '이메일 서비스에 접속할 수 없는 경우 발생하는 문제입니다.',
-                      category: '이메일',
-                      solution: '1. 브라우저 캐시 및 쿠키 삭제\n2. 다른 브라우저로 시도\n3. 네트워크 연결 상태 확인',
-                      persistentIssue: '위 방법으로 해결되지 않으면 IT팀에 문의해 주세요!'
-                    },
-                    {
-                      id: '2',
-                      icon: '📤',
-                      summary: '파일 업로드 오류',
-                      content: '파일 업로드 시 오류가 발생하는 경우입니다.',
-                      category: '파일서버'
-                    },
-                    {
-                      id: '3',
-                      icon: '🔒',
-                      summary: '네트워크 연결 오류',
-                      content: '네트워크 연결이 되지 않은 경우 발생하는 문제입니다.',
-                      category: '네트워크'
-                    },
-                    {
-                      id: '4',
-                      icon: '🌐',
-                      summary: '웹사이트 접속 불가',
-                      content: '내부 웹사이트에 접속할 수 없는 경우입니다.',
-                      category: '웹서비스'
-                    },
-                    {
-                      id: '5',
-                      icon: '🖨️',
-                      summary: '프린터 인쇄 오류',
-                      content: '프린터 인쇄가 되지 않는 경우입니다.',
-                      category: '하드웨어',
-                      solution: '1. 프린터 전원 및 연결 상태 확인\n2. 프린터 드라이버 재설치\n3. 프린터 큐 초기화',
-                      persistentIssue: '위 방법으로 해결되지 않으면 하드웨어 담당자에게 연락해 주세요!'
-                    },
-                    {
-                      id: '6',
-                      icon: '💻',
-                      summary: '소프트웨어 설치',
-                      content: '새로운 소프트웨어 설치 요청입니다.',
-                      category: '소프트웨어'
-                    },
-                    {
-                      id: '7',
-                      icon: '🖥️',
-                      summary: '컴퓨터 느림 현상',
-                      content: '컴퓨터가 갑자기 느려지는 현상입니다.',
-                      category: '성능'
-                    },
-                    {
-                      id: '8',
-                      icon: '🔐',
-                      summary: '비밀번호 초기화',
-                      content: '시스템 로그인 비밀번호를 잊어버린 경우입니다.',
-                      category: '보안'
-                    },
-                    {
-                      id: '9',
-                      icon: '📱',
-                      summary: '모바일 앱 오류',
-                      content: '모바일 애플리케이션에서 오류가 발생하는 경우입니다.',
-                      category: '모바일'
-                    },
-                    {
-                      id: '10',
-                      icon: '🔧',
-                      summary: '시스템 오류',
-                      content: '시스템에서 예상치 못한 오류가 발생하는 경우입니다.',
-                      category: '시스템'
-                    },
-                    {
-                      id: '11',
-                      icon: '💾',
-                      summary: '데이터 백업',
-                      content: '중요한 데이터를 백업하는 방법입니다.',
-                      category: '데이터'
-                    },
-                    {
-                      id: '12',
-                      icon: '🌍',
-                      summary: '원격 접속 오류',
-                      content: '원격 접속 시 발생하는 문제입니다.',
-                      category: '원격접속'
-                    }
-                  ]
-
-                  // 페이지네이션 로직
-                  const itemsPerPage = 6
-                  const totalPages = Math.ceil(faqs.length / itemsPerPage)
-                  const currentFAQs = faqs.slice(
-                    (faqCurrentPage - 1) * itemsPerPage,
-                    faqCurrentPage * itemsPerPage
-                  )
-
-                  return (
-                    <>
-                      {currentFAQs.map((faq) => (
-                        <div
-                          key={faq.id}
-                          className="bg-white rounded-xl cursor-pointer hover:shadow-2xl transition-all duration-500 ease-out transform hover:scale-105 flex flex-col h-full border-2 border-gray-200 hover:border-blue-300"
-                          style={{padding: '20px 30px'}}
-                          onClick={() => {
-                            setSelectedFAQ(faq)
-                            setShowFAQEditModal(true)
-                          }}
-                        >
-                          <div className="text-left mb-5 flex-1" style={{paddingTop: '15px'}}>
-                            <div className="mb-3 text-center" style={{fontSize: '36px'}}>{faq.icon}</div>
-                            <h3 className="text-xl font-bold text-gray-800 mb-3 text-center">
-                              {faq.summary}
-                            </h3>
-                            <p className="text-gray-600 leading-relaxed mb-4 line-clamp-2 overflow-hidden">
-                              {faq.content}
-                            </p>
-                          </div>
-                          <div className="flex justify-between items-center mt-auto">
-                            <span className="text-sm px-4 rounded-full bg-blue-100 text-blue-800 font-medium" style={{paddingTop: '0px', paddingBottom: '0px'}}>
-                              {faq.category}
-                            </span>
-                            <div className="flex space-x-2">
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation(); // 이벤트 버블링 방지
-                                  setSelectedFAQ(faq);
-                                  setShowFAQEditModal(true);
-                                }}
-                                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                              >
-                                수정
-                              </button>
-                              <button 
-                                onClick={(e) => {
-                                  e.stopPropagation(); // 이벤트 버블링 방지
-                                  if (confirm('이 FAQ를 삭제하시겠습니까?')) {
-                                    // 삭제 로직 추가
-                                    alert('FAQ가 삭제되었습니다.');
-                                    // FAQ 관리 프레임은 유지 (닫지 않음)
-                                  }
-                                }}
-                                className="text-red-600 hover:text-red-800 text-sm font-medium"
-                              >
-                                삭제
-                              </button>
-                            </div>
-                          </div>
-                        </div>
+              
+              {/* 상단 검색 영역 */}
+              <div className="mb-6">
+                <div className="flex justify-end items-center mb-4">
+                  
+                  {/* 검색 및 필터 */}
+                  <div className="flex space-x-3">
+                    <input
+                      type="text"
+                      placeholder="질문 또는 답변 검색..."
+                      value={faqSearchTerm}
+                      onChange={(e) => setFaqSearchTerm(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <select
+                      value={selectedFAQCategory}
+                      onChange={(e) => setSelectedFAQCategory(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">전체 카테고리</option>
+                      {faqCategories.map((category) => (
+                        <option key={category} value={category}>
+                          {category}
+                        </option>
                       ))}
-                    </>
-                  )
-                })()}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* FAQ 카드들 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {faqsLoading ? (
+                  <div className="col-span-full flex items-center justify-center py-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-3"></div>
+                    <span className="text-gray-500">FAQ 데이터를 불러오는 중...</span>
+                  </div>
+                ) : faqs.length === 0 ? (
+                  <div className="col-span-full text-center py-12 text-gray-500">
+                    등록된 자주하는 질문이 없습니다.
+                  </div>
+                ) : (
+                  faqs.map((faq) => (
+                    <div
+                      key={faq.id}
+                      className="bg-white rounded-xl cursor-pointer hover:shadow-2xl transition-all duration-500 ease-out transform hover:scale-105 flex flex-col h-full border-2 border-gray-200 hover:border-blue-300"
+                      style={{padding: '20px 30px'}}
+                      onClick={() => {
+                        setSelectedFAQ(faq);
+                        setEditFAQQuestion(faq.question);
+                        setEditFAQAnswer(faq.answer);
+                        setEditFAQCategory(faq.category || '');
+                        setEditFAQIcon(faq.icon || '/faq_icon/question.svg');
+                        setShowFAQEditModal(true);
+                      }}
+                    >
+                      <div className="text-left mb-5 flex-1" style={{paddingTop: '15px'}}>
+                        <div className="mb-3 text-center flex justify-center">
+                          <img 
+                            src={faq.icon || '/faq_icon/question.svg'} 
+                            alt="FAQ 아이콘" 
+                            className="w-12 h-12"
+                          />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-800 mb-3 text-center line-clamp-2">
+                          {faq.question}
+                        </h3>
+                        <p className="text-gray-600 leading-relaxed mb-4 line-clamp-3 overflow-hidden">
+                          {faq.answer}
+                        </p>
+                      </div>
+                      <div className="flex justify-between items-center mt-auto">
+                        <span className="text-sm px-4 rounded-full bg-blue-100 text-blue-800 font-medium" style={{paddingTop: '0px', paddingBottom: '0px'}}>
+                          {faq.category || '기타'}
+                        </span>
+                        <div className="flex space-x-2">
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation(); // 이벤트 버블링 방지
+                              setSelectedFAQ(faq);
+                              setEditFAQQuestion(faq.question);
+                              setEditFAQAnswer(faq.answer);
+                              setEditFAQCategory(faq.category || '');
+                              setShowFAQEditModal(true);
+                            }}
+                            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                          >
+                            수정
+                          </button>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation(); // 이벤트 버블링 방지
+                              setSelectedFAQ(faq);
+                              setShowFAQDeleteModal(true);
+                            }}
+                            className="text-red-600 hover:text-red-800 text-sm font-medium"
+                          >
+                            삭제
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
 
               {/* 페이지네이션 */}
-              {(() => {
-                const faqs = [
-                  { id: '1' }, { id: '2' }, { id: '3' }, { id: '4' }, { id: '5' }, { id: '6' },
-                  { id: '7' }, { id: '8' }, { id: '9' }, { id: '10' }, { id: '11' }, { id: '12' }
-                ]
-                const itemsPerPage = 6
-                const totalPages = Math.ceil(faqs.length / itemsPerPage)
-                
-                return totalPages > 1 && (
-                  <div className="flex justify-center items-center space-x-4 mt-8">
-                    <button
-                      onClick={() => setFaqCurrentPage(Math.max(1, faqCurrentPage - 1))}
-                      disabled={faqCurrentPage === 1}
-                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300 transition-all duration-300 ease-out button-smooth"
-                    >
-                      이전
-                    </button>
-                    <span className="px-4 py-2 bg-blue-600 text-white rounded-lg">
-                      {faqCurrentPage} / {totalPages}
-                    </span>
-                    <button
-                      onClick={() => setFaqCurrentPage(Math.min(totalPages, faqCurrentPage + 1))}
-                      disabled={faqCurrentPage === totalPages}
-                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-300 transition-all duration-300 ease-out button-smooth"
-                    >
-                      다음
-                    </button>
-                  </div>
-                )
-              })()}
-            </div>
+              {faqsPagination.totalPages > 1 && (
+                <div className="flex justify-center items-center space-x-4 mt-8">
+                  <button
+                    onClick={() => setFaqsPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
+                    disabled={faqsPagination.page === 1}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    이전
+                  </button>
+                  <span className="text-gray-600 font-medium">
+                    {faqsPagination.page} / {faqsPagination.totalPages}
+                  </span>
+                  <button
+                    onClick={() => setFaqsPagination(prev => ({ ...prev, page: Math.min(prev.totalPages, prev.page + 1) }))}
+                    disabled={faqsPagination.page === faqsPagination.totalPages}
+                    className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    다음
+                  </button>
+                </div>
+              )}
 
-            {/* 프레임 하단 버튼 */}
-            <div className="flex justify-between items-center py-4 px-6 border-t border-gray-200">
-              <div className="flex items-center space-x-3">
+              {/* 질문 추가 버튼 - 좌측 하단 배치 */}
+              <div className="mt-6 flex justify-start">
                 <button
-                  onClick={() => setShowFAQAddModal(true)}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-300 ease-out button-smooth flex items-center space-x-2"
+                  onClick={() => {
+                    setNewFAQQuestion('');
+                    setNewFAQAnswer('');
+                    setNewFAQCategory('');
+                    setNewFAQIcon('/faq_icon/question.svg');
+                    setShowFAQAddModal(true);
+                  }}
+                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center space-x-2"
                 >
-                  <Icon name="plus" size={16} />
+                  <Icon name="plus" size={20} />
                   <span>질문 추가</span>
-                </button>
-              </div>
-              <div className="flex items-center space-x-4">
-                {(() => {
-                  const faqs = [
-                    { id: '1' }, { id: '2' }, { id: '3' }, { id: '4' }, { id: '5' }, { id: '6' },
-                    { id: '7' }, { id: '8' }, { id: '9' }, { id: '10' }, { id: '11' }, { id: '12' }
-                  ]
-                  const itemsPerPage = 6
-                  const totalPages = Math.ceil(faqs.length / itemsPerPage)
-                  return (
-                    <span className="text-sm text-gray-500">{faqCurrentPage} / {totalPages} 페이지</span>
-                  )
-                })()}
-                <button
-                  onClick={() => setShowFAQManagement(false)}
-                  className="px-6 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-all duration-200 button-smooth"
-                >
-                  닫기
                 </button>
               </div>
             </div>
@@ -4308,101 +4469,147 @@ function ServiceManagerPage() {
       {/* FAQ 수정 모달 */}
       {showFAQEditModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden">
-            {/* 모달 헤더 */}
-            <div className="flex justify-between items-center p-6 border-b border-gray-200" style={{paddingTop: '30px'}}>
-              <h2 className="text-2xl font-bold text-gray-800">자주하는 질문-수정</h2>
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200">
+              <h3 className="text-lg font-bold text-gray-800">자주하는 질문 수정</h3>
               <button
                 onClick={() => setShowFAQEditModal(false)}
-                className="text-gray-500 hover:text-gray-700 transition-colors"
+                className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <Icon name="close" size={24} />
               </button>
             </div>
-
-            {/* 모달 내용 */}
-            <div className="p-6 overflow-y-auto" style={{maxHeight: 'calc(90vh - 120px)'}}>
-              {/* 아이콘 섹션 */}
-              <div className="flex items-center justify-center mb-8">
-                <div className="flex flex-col items-center space-y-4">
-                  <div className="text-6xl">{selectedFAQ?.icon || '📧'}</div>
-                  <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-300 ease-out button-smooth">
-                    Icon 변경
-                  </button>
-                </div>
+            
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">카테고리</label>
+                <input
+                  type="text"
+                  value={editFAQCategory}
+                  onChange={(e) => setEditFAQCategory(e.target.value)}
+                  placeholder="예: 이메일, 네트워크, 하드웨어 등"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
               </div>
 
-              {/* 입력 필드들 */}
-              <div className="space-y-6">
-                {/* 발생 원인 요약 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-0">
-                    발생 원인 요약
-                  </label>
-                  <input
-                    type="text"
-                    defaultValue={selectedFAQ?.summary || ''}
-                    className="w-full px-4 py-0 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                    placeholder="발생 원인 요약을 입력하세요"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">질문 (발생 원인요약)</label>
+                <input
+                  type="text"
+                  value={editFAQQuestion}
+                  onChange={(e) => setEditFAQQuestion(e.target.value)}
+                  placeholder="자주 발생하는 문제의 제목을 입력하세요"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
 
-                {/* 발생 원인 내용 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-0">
-                    발생 원인 내용
-                  </label>
-                  <textarea
-                    defaultValue={selectedFAQ?.content || ''}
-                    rows={3}
-                    className="w-full px-4 py-0 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                    placeholder="발생 원인 내용을 입력하세요"
-                  />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">아이콘</label>
+                <div className="grid grid-cols-4 gap-2 p-2 border border-gray-300 rounded-lg max-h-40 overflow-y-auto">
+                  {iconOptions.map((iconOption) => (
+                    <button
+                      key={iconOption.name}
+                      type="button"
+                      onClick={() => setEditFAQIcon(iconOption.path)}
+                      className={`p-3 rounded-lg border-2 transition-all hover:scale-110 flex flex-col items-center justify-center min-h-[80px] ${
+                        editFAQIcon === iconOption.path
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                      title={iconOption.label}
+                    >
+                      <img 
+                        src={iconOption.path} 
+                        alt={iconOption.label}
+                        className="w-6 h-6 mb-1"
+                        style={{ filter: editFAQIcon === iconOption.path ? 'hue-rotate(210deg)' : 'none' }}
+                      />
+                      <span className="text-xs text-gray-600 text-center">{iconOption.label}</span>
+                    </button>
+                  ))}
                 </div>
-
-                {/* 즉시 해결방법 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-0">
-                    즉시 해결방법
-                  </label>
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <textarea
-                      defaultValue={selectedFAQ?.solution || "1. 브라우저 캐시 및 쿠키 삭제\n2. 다른 브라우저로 시도\n3. 네트워크 연결 상태 확인"}
-                      rows={4}
-                      className="w-full px-4 py-0 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white"
-                      placeholder="즉시 해결방법을 입력하세요"
-                    />
+                {editFAQIcon && (
+                  <div className="mt-2 text-sm text-gray-600 flex items-center">
+                    <span>선택된 아이콘: </span>
+                    <img src={editFAQIcon} alt="선택된 아이콘" className="w-4 h-4 ml-1" />
                   </div>
-                </div>
+                )}
+              </div>
 
-                {/* 문제가 지속될 경우 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-0">
-                    문제가 지속될 경우
-                  </label>
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                    <textarea
-                      defaultValue={selectedFAQ?.persistentIssue || "위 방법으로 해결되지 않으면 아래 서비스 신청 해 주세요!"}
-                      rows={2}
-                      className="w-full px-4 py-0 border border-yellow-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all duration-200 bg-white"
-                      placeholder="문제가 지속될 경우 안내를 입력하세요"
-                    />
-                  </div>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">답변 (즉시해결 방법 및 문제가 지속될 경우)</label>
+                <textarea
+                  value={editFAQAnswer}
+                  onChange={(e) => setEditFAQAnswer(e.target.value)}
+                  placeholder="문제 해결 방법을 자세히 설명해주세요"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={5}
+                />
+              </div>
+
+              <div className="text-sm text-gray-500">
+                <p>작성자: {selectedFAQ?.created_by_name || '알 수 없음'}</p>
+                <p>최종수정자: {managerInfo.name} (수정 시 자동 업데이트)</p>
               </div>
             </div>
 
-            {/* 모달 하단 버튼 */}
-            <div className="flex justify-center items-center py-6 border-t border-gray-200">
+            <div className="flex justify-end space-x-3 px-6 py-4 border-t border-gray-200">
               <button
-                onClick={() => {
-                  setShowFAQEditModal(false)
-                  setShowFAQCompleteModal(true)
-                  // 수정 로직 추가
-                }}
-                className="bg-black hover:bg-gray-800 text-white px-8 py-3 rounded-lg font-medium transition-all duration-300 ease-out button-smooth"
+                onClick={() => setShowFAQEditModal(false)}
+                className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleUpdateFAQ}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
               >
                 수정
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FAQ 삭제 확인 모달 */}
+      {showFAQDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200">
+              <h3 className="text-lg font-bold text-gray-800">질문 삭제 확인</h3>
+              <button
+                onClick={() => setShowFAQDeleteModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <Icon name="close" size={24} />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <p className="text-gray-700 mb-4">
+                정말로 이 자주하는 질문을 삭제하시겠습니까?
+              </p>
+              <div className="bg-gray-50 p-3 rounded-lg">
+                <p className="font-medium text-gray-800">{selectedFAQ?.question}</p>
+                <p className="text-sm text-gray-600 mt-1">{selectedFAQ?.category || '기타'}</p>
+              </div>
+              <p className="text-red-600 text-sm mt-3">
+                ⚠️ 삭제된 데이터는 복구할 수 없습니다.
+              </p>
+            </div>
+
+            <div className="flex justify-end space-x-3 px-6 py-4 border-t border-gray-200">
+              <button
+                onClick={() => setShowFAQDeleteModal(false)}
+                className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleDeleteFAQ}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+              >
+                삭제
               </button>
             </div>
           </div>
@@ -4412,95 +4619,99 @@ function ServiceManagerPage() {
       {/* FAQ 추가 모달 */}
       {showFAQAddModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden">
-            {/* 모달 헤더 */}
-            <div className="flex justify-between items-center p-6 border-b border-gray-200" style={{paddingTop: '30px'}}>
-              <h2 className="text-2xl font-bold text-gray-800">자주하는 질문-추가</h2>
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200">
+              <h3 className="text-lg font-bold text-gray-800">자주하는 질문 추가</h3>
               <button
                 onClick={() => setShowFAQAddModal(false)}
-                className="text-gray-500 hover:text-gray-700 transition-colors"
+                className="text-gray-400 hover:text-gray-600 transition-colors"
               >
                 <Icon name="close" size={24} />
               </button>
             </div>
-
-            {/* 모달 내용 */}
-            <div className="p-6 overflow-y-auto" style={{maxHeight: 'calc(90vh - 120px)'}}>
-              {/* 아이콘 섹션 */}
-              <div className="flex items-center justify-center mb-8">
-                <div className="flex flex-col items-center space-y-4">
-                  <div className="text-6xl">📧</div>
-                  <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-all duration-300 ease-out button-smooth">
-                    Icon 변경
-                  </button>
-                </div>
+            
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">카테고리</label>
+                <input
+                  type="text"
+                  value={newFAQCategory}
+                  onChange={(e) => setNewFAQCategory(e.target.value)}
+                  placeholder="예: 이메일, 네트워크, 하드웨어 등"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
               </div>
 
-              {/* 입력 필드들 */}
-              <div className="space-y-6">
-                {/* 발생 원인 요약 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-0">
-                    발생 원인 요약
-                  </label>
-                  <input
-                    type="text"
-                    className="w-full px-4 py-0 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                    placeholder="발생 원인 요약을 입력하세요"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">질문 (발생 원인요약)</label>
+                <input
+                  type="text"
+                  value={newFAQQuestion}
+                  onChange={(e) => setNewFAQQuestion(e.target.value)}
+                  placeholder="자주 발생하는 문제의 제목을 입력하세요"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
 
-                {/* 발생 원인 내용 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-0">
-                    발생 원인 내용
-                  </label>
-                  <textarea
-                    rows={3}
-                    className="w-full px-4 py-0 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200"
-                    placeholder="발생 원인 내용을 입력하세요"
-                  />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">아이콘</label>
+                <div className="grid grid-cols-4 gap-2 p-2 border border-gray-300 rounded-lg max-h-40 overflow-y-auto">
+                  {iconOptions.map((iconOption) => (
+                    <button
+                      key={iconOption.name}
+                      type="button"
+                      onClick={() => setNewFAQIcon(iconOption.path)}
+                      className={`p-3 rounded-lg border-2 transition-all hover:scale-110 flex flex-col items-center justify-center min-h-[80px] ${
+                        newFAQIcon === iconOption.path
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                      title={iconOption.label}
+                    >
+                      <img 
+                        src={iconOption.path} 
+                        alt={iconOption.label}
+                        className="w-6 h-6 mb-1"
+                        style={{ filter: newFAQIcon === iconOption.path ? 'hue-rotate(210deg)' : 'none' }}
+                      />
+                      <span className="text-xs text-gray-600 text-center">{iconOption.label}</span>
+                    </button>
+                  ))}
                 </div>
-
-                {/* 즉시 해결방법 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-0">
-                    즉시 해결방법
-                  </label>
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                    <textarea
-                      rows={4}
-                      className="w-full px-4 py-0 border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 bg-white"
-                      placeholder="즉시 해결방법을 입력하세요"
-                    />
+                {newFAQIcon && (
+                  <div className="mt-2 text-sm text-gray-600 flex items-center">
+                    <span>선택된 아이콘: </span>
+                    <img src={newFAQIcon} alt="선택된 아이콘" className="w-4 h-4 ml-1" />
                   </div>
-                </div>
+                )}
+              </div>
 
-                {/* 문제가 지속될 경우 */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-0">
-                    문제가 지속될 경우
-                  </label>
-                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                    <textarea
-                      rows={2}
-                      className="w-full px-4 py-0 border border-yellow-300 rounded-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition-all duration-200 bg-white"
-                      placeholder="문제가 지속될 경우 안내를 입력하세요"
-                    />
-                  </div>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">답변 (즉시해결 방법 및 문제가 지속될 경우)</label>
+                <textarea
+                  value={newFAQAnswer}
+                  onChange={(e) => setNewFAQAnswer(e.target.value)}
+                  placeholder="문제 해결 방법을 자세히 설명해주세요"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={5}
+                />
+              </div>
+              
+              <div className="text-sm text-gray-500">
+                <p>작성자: {managerInfo.name} (자동 등록)</p>
               </div>
             </div>
 
-            {/* 모달 하단 버튼 */}
-            <div className="flex justify-center items-center py-6 border-t border-gray-200">
+            <div className="flex justify-end space-x-3 px-6 py-4 border-t border-gray-200">
               <button
-                onClick={() => {
-                  setShowFAQAddModal(false)
-                  setShowFAQCompleteModal(true)
-                  // 추가 로직 추가
-                }}
-                className="bg-black hover:bg-gray-800 text-white px-8 py-3 rounded-lg font-medium transition-all duration-300 ease-out button-smooth"
+                onClick={() => setShowFAQAddModal(false)}
+                className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-medium transition-colors"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleCreateFAQ}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
               >
                 추가
               </button>
@@ -4509,44 +4720,6 @@ function ServiceManagerPage() {
         </div>
       )}
 
-      {/* FAQ 완료 모달 */}
-      {showFAQCompleteModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-            {/* 모달 헤더 */}
-            <div className="flex justify-between items-center py-4 px-6 border-b border-gray-200" style={{paddingTop: '30px'}}>
-              <h2 className="text-xl font-bold text-gray-800 flex items-center">
-                <Icon name="check-circle" size={24} className="mr-2 text-green-600" />
-                완료
-              </h2>
-              <button
-                onClick={() => setShowFAQCompleteModal(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <Icon name="close" size={24} />
-              </button>
-            </div>
-
-            {/* 모달 내용 */}
-            <div className="py-6 px-6 text-center">
-              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Icon name="check-circle" size={32} className="text-green-600" />
-              </div>
-              <p className="text-gray-600 mb-6">FAQ가 성공적으로 처리되었습니다.</p>
-            </div>
-
-            {/* 모달 하단 버튼 */}
-            <div className="flex justify-end py-4 px-6 border-t border-gray-200">
-              <button
-                onClick={() => setShowFAQCompleteModal(false)}
-                className="bg-gray-800 hover:bg-gray-900 text-white px-6 py-2 rounded-lg font-medium transition-all duration-200 button-smooth"
-              >
-                확인
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       {/* 일반문의 List 관리 프레임 */}
       {showGeneralInquiryList && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 modal-enter">

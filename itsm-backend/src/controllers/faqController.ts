@@ -134,7 +134,7 @@ export const getFAQById = async (req: Request, res: Response): Promise<void> => 
 export const createFAQ = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id;
-    const { question, answer, category }: FAQCreate = req.body;
+    const { question, answer, category, icon = '/faq_icon/question.svg' }: FAQCreate = req.body;
 
     if (!userId) {
       res.status(401).json({
@@ -147,10 +147,10 @@ export const createFAQ = async (req: Request, res: Response): Promise<void> => {
 
     // Create FAQ
     const result = await db.query<FAQ>(
-      `INSERT INTO faqs (question, answer, category, created_by)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO faqs (question, answer, category, icon, created_by)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [question, answer, category, userId]
+      [question, answer, category, icon, userId]
     );
 
     res.status(201).json({
@@ -176,7 +176,7 @@ export const createFAQ = async (req: Request, res: Response): Promise<void> => {
 export const updateFAQ = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const { question, answer, category, is_active } = req.body;
+    const { question, answer, category, icon, is_active } = req.body;
 
     // Check if FAQ exists
     const existingFAQ = await db.query<FAQ>(
@@ -213,6 +213,12 @@ export const updateFAQ = async (req: Request, res: Response): Promise<void> => {
     if (category !== undefined) {
       updateFields.push(`category = $${paramIndex}`);
       updateParams.push(category);
+      paramIndex++;
+    }
+
+    if (icon !== undefined) {
+      updateFields.push(`icon = $${paramIndex}`);
+      updateParams.push(icon);
       paramIndex++;
     }
 

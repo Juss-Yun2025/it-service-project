@@ -72,9 +72,22 @@ export interface FAQ {
   question: string;
   answer: string;
   category?: string;
+  icon?: string;
   view_count: number;
   is_active: boolean;
   created_by: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface FAQIcon {
+  id: string;
+  name: string;
+  file_path: string;
+  label: string;
+  category: string;
+  sort_order: number;
+  is_active: boolean;
   created_at: Date;
   updated_at: Date;
 }
@@ -140,6 +153,7 @@ export interface FAQCreate {
   question: string;
   answer: string;
   category?: string;
+  icon?: string;
 }
 
 export interface PaginationParams {
